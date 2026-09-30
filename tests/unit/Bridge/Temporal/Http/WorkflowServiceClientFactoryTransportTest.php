@@ -34,6 +34,27 @@ final class WorkflowServiceClientFactoryTransportTest extends TestCase
         );
     }
 
+    /**
+     * DUR055: a codec wraps whichever client the transport picks, so every host gets it by
+     * handing it to the factory.
+     */
+    public function testAHandedCodecWrapsTheClientOfEveryTransport(): void
+    {
+        $codec = $this->createStub(\Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface::class);
+        foreach (['grpc-curl', 'http'] as $transport) {
+            self::assertInstanceOf(
+                \Gplanchat\Bridge\Temporal\Codec\PayloadCodecWorkflowServiceClient::class,
+                WorkflowServiceClientFactory::create(TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=' . $transport), codec: $codec),
+                $transport,
+            );
+        }
+    }
+
+    public function testWithoutACodecTheClientIsTheTransportsOwn(): void
+    {
+        self::assertInstanceOf(GrpcWorkflowServiceClient::class, WorkflowServiceClientFactory::create(TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=grpc-curl'), codec: null));
+    }
+
     public function testTheWorkflowServiceClientRetriesTransientFailures(): void
     {
         $client = WorkflowServiceClientFactory::create(TemporalConnection::fromDsn('temporal://127.0.0.1:7233?transport=grpc-curl'));

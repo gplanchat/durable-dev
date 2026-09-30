@@ -8,6 +8,7 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -59,10 +60,10 @@ final class ActivitySlotDivergenceTest extends TestCase
         // execution, go to that slot, and compare the two names. The five parts are therefore a
         // contract, not a wording — that is why they have their own test.
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', ['sku' => 'ABC']));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', ['sku' => 'ABC']));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'chargeCard', ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 42));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipOrder', ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipped'));
 
         $context = new ExecutionContext(
             self::EXECUTION,
@@ -113,8 +114,8 @@ final class ActivitySlotDivergenceTest extends TestCase
         // Without this rule, the guard would fire on every slot whose identity is missing —
         // exactly the opposite of what is asked of it.
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', '', ['sku' => 'ABC']));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', '', ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 42));
 
         $context = new ExecutionContext(
             self::EXECUTION,
@@ -130,8 +131,8 @@ final class ActivitySlotDivergenceTest extends TestCase
     private function contextReplaying(string $recordedName, string $activityId, mixed $result): ExecutionContext
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, $activityId, $recordedName, ['sku' => 'ABC']));
-        $store->append(new ActivityCompleted(self::EXECUTION, $activityId, $result));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), $activityId, $recordedName, ['sku' => 'ABC']));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), $activityId, $result));
 
         return new ExecutionContext(
             self::EXECUTION,

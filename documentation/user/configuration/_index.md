@@ -62,6 +62,9 @@ durable:
         # A service id implementing both PSR-17 RequestFactoryInterface and StreamFactoryInterface (Guzzle's HttpFactory, nyholm's Psr17Factory). Defaults to psr18_client, which Symfony's Psr18Client satisfies on its own.
         psr17_factory:        null
 
+        # A service id: the application's PayloadCodecInterface, which encodes every payload sent to Temporal and decodes every payload read (DUR055). The codec holds its own key, from the application's secrets or environment; Durable reads none. null sends payloads as they are.
+        payload_codec:        null
+
         # false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.
         journal:              null # Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.temporal.journal" option is deprecated: set durable.backend instead.)
     activity_transport:
@@ -148,7 +151,7 @@ otherwise, so it costs nothing to leave at its defaults.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. |
+| `connection` | service ID | `doctrine.dbal.default_connection` | The `Doctrine\DBAL\Connection` the stores write to. Give them one of their own: sharing the application's is strongly discouraged (DUR054), since Durable's transactions then nest inside business ones. |
 | `auto_setup` | bool | `true` | Creates the missing tables on the first write, never inside an open transaction. Set it to `false` once Doctrine Migrations owns the schema, so that the two do not both write it. `bin/console durable:setup` creates the tables either way. |
 | `lock_factory` | service ID | `lock.factory` | The `LockFactory` that serialises resumes of one execution. **It is only as safe as your lock store**: an in-memory or per-process factory with several workers gives back the failure the lock exists to prevent. |
 | `allow_local_lock` | bool | `false` | The container refuses a per-process store (`flock`, `semaphore`, `in-memory`, `null`) behind `lock_factory`: at compile time for a literal DSN, when the lock is first built for one read from an env var. `true` accepts it, for exactly one worker. `framework.lock` takes a DBAL URL (`pgsql://…`, `mysql://…`), not a Doctrine connection name. |
@@ -184,6 +187,7 @@ With `backend: temporal`, the local event store is in memory, and that is correc
 | `guzzle_client` | a service id or `null` | `null` | The application's `GuzzleHttp\ClientInterface`, used by `transport=guzzle` in the DSN: its proxy, TLS options and middleware apply to gRPC. Ignored by any other transport; `null` builds a default client. On Laravel, the same key in `config/durable.php` names a container binding; on Magento, it is the `guzzle` argument of `RuntimeFactory` in `di.xml`. |
 | `psr18_client` | a service id or `null` | `null` | The application's PSR-18 client, used by `transport=http` (the JSON gateway) instead of curl. Ignored by any other transport. |
 | `psr17_factory` | a service id or `null` | `psr18_client` | One service implementing both PSR-17 request and stream factories — Guzzle's `HttpFactory`, nyholm's `Psr17Factory`. Symfony's `Psr18Client` is both client and factory, hence the default. On Laravel, both keys in `config/durable.php` name container bindings; on Magento, a `Psr18Http` is the `jsonGateway` argument of `RuntimeFactory` in `di.xml`. |
+| `payload_codec` | a service id or `null` | `null` | The application's `PayloadCodecInterface`: every payload sent to Temporal is encoded, every payload read decoded ([DUR055](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR055-a-payload-codec-at-the-client-boundary.md)). The codec reads its own key, from Symfony secrets or the environment; Durable reads none. |
 
 ### DSN format
 
@@ -397,6 +401,7 @@ reaches two journals only, in memory and Temporal, so the SQL rows do not apply 
 | `temporal.dsn` | `temporal.dsn` | `temporalDsn` argument, which wins over `durable/temporal/dsn` | same |
 | `temporal.search_attributes` | `temporal.search_attributes` | `durable/temporal/search_attributes` | same |
 | `temporal.guzzle_client`, `temporal.psr18_client`, `temporal.psr17_factory` | the same three keys | `guzzle`, `jsonGateway` arguments | same |
+| `temporal.payload_codec` | `temporal.payload_codec`, a container binding; the codec reads its key from `.env` | `codec` argument of `RuntimeFactory`, in the shop's own `di.xml`; the codec reads its key from `env.php` | same (DUR055) |
 | `backend: dbal` with a `temporal.dsn` (serve Nexus from a SQL journal) | — (`nexus.handlers` requires `backend: temporal`) | — | to add on Laravel |
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | — (activities run in the process, or on Temporal's task queue) | host-specific: each host's own queue |
 | `messenger.buses` | — | — | host-specific: Messenger only |
@@ -406,8 +411,8 @@ reaches two journals only, in memory and Temporal, so the SQL rows do not apply 
 | `activity_contracts.cache`, `activity_contracts.contracts` | — | — | to add on Laravel and Magento |
 | `child_workflow.async_messenger` | — | — | host-specific: Messenger only |
 | workflows: `#[AsWorkflow]` on a service | `workflows` | `workflowClasses` argument | host-specific: neither container autoconfigures by attribute |
-| activity handlers: `#[AsActivityHandler]` on a service | — (the application registers them on `RegistryActivityExecutor` itself) | `activityHandlers` argument | to add on Laravel: a key beside `workflows` |
-| Nexus handlers: `#[AsNexusServiceHandler]` on a service | `nexus.handlers` | — | host-specific: Magento serves no Nexus operation |
+| activity handlers: `#[AsActivityHandler]` on a service | `activity_handlers`: the handler classes, each serving the contract its `#[AsActivityHandler]` names, or else its interfaces with `#[AsActivityMethod]` methods | `activityHandlers` argument | host-specific: neither container autoconfigures by attribute; Laravel refuses a handler that serves no activity at boot |
+| Nexus handlers: `#[AsNexusServiceHandler]` on a service | `nexus.handlers`: `handler => contract`, or the handler class alone when its `#[AsNexusServiceHandler]` names the contract | `nexusHandlers` argument; the handler's `#[AsNexusServiceHandler]` names the contract | host-specific: neither container autoconfigures by attribute |
 
 ---
 

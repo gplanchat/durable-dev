@@ -8,6 +8,7 @@ use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\TimerCompleted;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\AwaitedFact;
 use PHPUnit\Framework\TestCase;
@@ -22,7 +23,7 @@ final class AnAwaitedFactIsFoundInTheJournalTest extends TestCase
         $journal = new InMemoryEventStore();
         self::assertFalse(AwaitedFact::activity('act-1')->isJournalledIn($journal, 'exec-1'));
 
-        $journal->append(new ActivityCancelled('exec-1', 'act-1', 'cancellation_requested'));
+        $journal->append(new ActivityCancelled(ExecutionId::fromString('exec-1'), 'act-1', 'cancellation_requested'));
 
         self::assertTrue(AwaitedFact::activity('act-1')->isJournalledIn($journal, 'exec-1'));
     }
@@ -30,7 +31,7 @@ final class AnAwaitedFactIsFoundInTheJournalTest extends TestCase
     public function testAChildFactIsThatChildsOutcomeInTheParentsJournal(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new ChildWorkflowCompleted('parent-1', 'child-2', 'done'));
+        $journal->append(new ChildWorkflowCompleted(ExecutionId::fromString('parent-1'), 'child-2', 'done'));
 
         self::assertFalse(AwaitedFact::child('child-1')->isJournalledIn($journal, 'parent-1'));
         self::assertTrue(AwaitedFact::child('child-2')->isJournalledIn($journal, 'parent-1'));
@@ -43,11 +44,11 @@ final class AnAwaitedFactIsFoundInTheJournalTest extends TestCase
     public function testATimersFactNeedsEachTimerCompletedOrCancelled(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new TimerCompleted('exec-1', 'timer-1'));
+        $journal->append(new TimerCompleted(ExecutionId::fromString('exec-1'), 'timer-1'));
 
         self::assertFalse(AwaitedFact::timers(['timer-1', 'timer-2'])->isJournalledIn($journal, 'exec-1'));
 
-        $journal->append(new TimerCancelled('exec-1', 'timer-2', 'superseded'));
+        $journal->append(new TimerCancelled(ExecutionId::fromString('exec-1'), 'timer-2', 'superseded'));
 
         self::assertTrue(AwaitedFact::timers(['timer-1', 'timer-2'])->isJournalledIn($journal, 'exec-1'));
     }

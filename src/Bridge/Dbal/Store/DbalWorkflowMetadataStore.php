@@ -15,7 +15,7 @@ use Gplanchat\Durable\Store\WorkflowMetadataStore;
  *
  * @see DUR030
  */
-final class DbalWorkflowMetadataStore implements WorkflowMetadataStore
+final readonly class DbalWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly Connection $connection,

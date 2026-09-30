@@ -16,6 +16,7 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
@@ -43,10 +44,10 @@ final class DbalWorkflowRunHistoryTest extends TestCase
     public function testEventsComeBackInRecordedOrderAndCarryTheirTime(): void
     {
         $store = $this->eventStore();
-        $store->append(new ExecutionStarted('exec-1', []));
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'SendWelcomeEmail', []));
-        $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
-        $store->append(new ExecutionCompleted('exec-1', 'done'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'SendWelcomeEmail', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['ok' => true]));
+        $store->append(new ExecutionCompleted(ExecutionId::fromString('exec-1'), 'done'));
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
@@ -60,10 +61,10 @@ final class DbalWorkflowRunHistoryTest extends TestCase
     public function testActivitiesAndSignalsLandOnDistinctKinds(): void
     {
         $store = $this->eventStore();
-        $store->append(new ExecutionStarted('exec-1', []));
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'SendWelcomeEmail', []));
-        $store->append(new WorkflowSignalReceived('exec-1', 'orderApproved', []));
-        $store->append(new WorkflowUpdateHandled('exec-1', 'changeAddress', [], null));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'SendWelcomeEmail', []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'orderApproved', []));
+        $store->append(new WorkflowUpdateHandled(ExecutionId::fromString('exec-1'), 'changeAddress', [], null));
 
         $kinds = array_map(static fn($e): string => $e->kind->value, $this->catalog()->readHistory($this->describedRun('exec-1')));
 
@@ -81,8 +82,8 @@ final class DbalWorkflowRunHistoryTest extends TestCase
     public function testAnActivityIsLabelledWithItsNameEvenOnCompletion(): void
     {
         $store = $this->eventStore();
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'SendWelcomeEmail', []));
-        $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'SendWelcomeEmail', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['ok' => true]));
 
         $labels = array_map(static fn($e): string => $e->label, $this->catalog()->readHistory($this->describedRun('exec-1')));
 
@@ -92,7 +93,7 @@ final class DbalWorkflowRunHistoryTest extends TestCase
     public function testACompletionWithoutItsSchedulingFallsBackToTheIdentifier(): void
     {
         // Truncated journal — a purge, a partial resume: the completion has only the id at hand.
-        $this->eventStore()->append(new ActivityCompleted('exec-1', 'act-orphan', null));
+        $this->eventStore()->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-orphan', null));
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 
@@ -102,8 +103,8 @@ final class DbalWorkflowRunHistoryTest extends TestCase
     public function testAnEventWithNoLaneInThisDashboardIsStillListed(): void
     {
         $store = $this->eventStore();
-        $store->append(new ExecutionStarted('exec-1', []));
-        $store->append(new SideEffectRecorded('exec-1', 'se-1', 'roll-42'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
+        $store->append(new SideEffectRecorded(ExecutionId::fromString('exec-1'), 'se-1', 'roll-42'));
 
         $history = $this->catalog()->readHistory($this->describedRun('exec-1'));
 

@@ -1,0 +1,3 @@
+# The package archive ships the panel, not its tests.
+/tests export-ignore
+/phpunit.xml export-ignore

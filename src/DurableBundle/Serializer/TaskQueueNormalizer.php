@@ -13,7 +13,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  * A TaskQueue as its name. The ObjectNormalizer rebuilds it through its private constructor,
  * without the name (#643).
  */
-final class TaskQueueNormalizer implements NormalizerInterface, DenormalizerInterface
+final readonly class TaskQueueNormalizer implements NormalizerInterface, DenormalizerInterface
 {
     /**
      * @param array<string, mixed> $context

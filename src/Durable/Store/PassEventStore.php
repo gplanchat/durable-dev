@@ -14,7 +14,7 @@ use Gplanchat\Durable\ExecutionId;
  * Handed to a pass's writers only. A fact from outside the pass (an activity outcome, a signal)
  * goes on the store itself, unfenced.
  */
-final class PassEventStore implements EventStoreInterface
+final readonly class PassEventStore implements EventStoreInterface
 {
     private function __construct(
         private readonly FencedEventStoreInterface $store,
@@ -27,8 +27,11 @@ final class PassEventStore implements EventStoreInterface
      */
     public static function open(EventStoreInterface $store, string $executionId): EventStoreInterface
     {
+        // Converted first: an empty id is refused over any store, not only over one that fences.
+        $id = ExecutionId::fromString($executionId);
+
         return $store instanceof FencedEventStoreInterface
-            ? new self($store, $store->claimPass($executionId))
+            ? new self($store, $store->claimPass($id))
             : $store;
     }
 

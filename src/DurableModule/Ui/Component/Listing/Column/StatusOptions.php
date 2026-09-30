@@ -14,7 +14,7 @@ use Magento\Framework\Data\OptionSourceInterface;
  * in the filter without anyone thinking about it, and a state removed disappears from it — which
  * is exactly what one wants of a filter, which lies the moment it offers a choice that is gone.
  */
-final class StatusOptions implements OptionSourceInterface
+final readonly class StatusOptions implements OptionSourceInterface
 {
     /**
      * @return list<array{value: string, label: string}>

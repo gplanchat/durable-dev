@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\DurableModule;
 
+use Gplanchat\Bridge\Temporal\Store\TaskQueueKind;
+use Gplanchat\Bridge\Temporal\Store\TaskQueuePollers;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
@@ -68,11 +70,47 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
         self::assertStringNotContainsString('Older ones are beyond', $page);
     }
 
-    private function renderBanner(BackendHealth $health, int $runs = 0): string
+    public function testAWorkerThatStoppedPollingIsAnErrorThatSaysWhatToStart(): void
+    {
+        $page = $this->renderBanner($this->health(), workers: [
+            'journal' => new TaskQueuePollers(TaskQueueKind::Workflow, 'durable-workflows', 1, new \DateTimeImmutable('-10 seconds')),
+            'activity' => new TaskQueuePollers(TaskQueueKind::Activity, 'durable-activities', 1, new \DateTimeImmutable('-5 minutes')),
+        ]);
+
+        self::assertStringContainsString('message-error', $page);
+        self::assertStringContainsString('durable:worker --role=activity', $page);
+        self::assertStringNotContainsString('--role=journal', $page);
+    }
+
+    public function testWorkersThatPollAreNamedWithoutAlarm(): void
+    {
+        $page = $this->renderBanner($this->health(), workers: [
+            'journal' => new TaskQueuePollers(TaskQueueKind::Workflow, 'durable-workflows', 2, new \DateTimeImmutable('-10 seconds')),
+        ]);
+
+        self::assertStringNotContainsString('message-error', $page);
+        self::assertStringContainsString('durable-workflows', $page);
+    }
+
+    public function testAQueueTheClusterWouldNotDescribeIsAWarningNotAMissingWorker(): void
+    {
+        $page = $this->renderBanner($this->health(), workers: [
+            'activity' => new TaskQueuePollers(TaskQueueKind::Activity, 'durable-activities', 0, null, 'deadline exceeded'),
+        ]);
+
+        self::assertStringContainsString('message-warning', $page);
+        self::assertStringContainsString('deadline exceeded', $page);
+        self::assertStringNotContainsString('--role=activity', $page);
+    }
+
+    /**
+     * @param array<string, TaskQueuePollers> $workers
+     */
+    private function renderBanner(BackendHealth $health, int $runs = 0, array $workers = []): string
     {
         require_once __DIR__ . '/Fixture/magento-template-globals.php';
 
-        $block = new BannerBlockDouble($health, $runs);
+        $block = new BannerBlockDouble($health, $runs, $workers);
         $escaper = new EscaperDouble();
 
         ob_start();
@@ -107,10 +145,27 @@ final class BannerBlockDouble
 {
     public const WINDOW = 200;
 
+    /**
+     * @param array<string, TaskQueuePollers> $workers
+     */
     public function __construct(
         private readonly BackendHealth $health,
         private readonly int $runs = 0,
+        private readonly array $workers = [],
     ) {}
+
+    /**
+     * @return array<string, TaskQueuePollers>
+     */
+    public function getWorkers(): array
+    {
+        return $this->workers;
+    }
+
+    public function getWorkerSilenceSeconds(): int
+    {
+        return \Gplanchat\DurableModule\Runtime\RuntimeFactory::WORKER_SILENCE_SECONDS;
+    }
 
     public function getHealth(): BackendHealth
     {

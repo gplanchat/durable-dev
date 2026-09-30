@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Dbal\Messenger;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityAttemptClaimInterface;
 use Symfony\Component\Lock\LockFactory;
 
@@ -20,16 +21,16 @@ use Symfony\Component\Lock\LockFactory;
  * ponytail: the claim is not refreshed while the activity runs, so an attempt longer than the TTL
  * can be started again by a copy; refresh from the activity heartbeat if that ever matters.
  */
-final class LockActivityAttemptClaim implements ActivityAttemptClaimInterface
+final readonly class LockActivityAttemptClaim implements ActivityAttemptClaimInterface
 {
     public function __construct(
         private readonly LockFactory $lockFactory,
         private readonly float $ttlSeconds = 300.0,
     ) {}
 
-    public function claim(string $executionId, string $activityId, int $attempt): ?\Closure
+    public function claim(ExecutionId $executionId, string $activityId, int $attempt): ?\Closure
     {
-        $lock = $this->lockFactory->createLock(\sprintf('durable-activity-%s-%s-%d', $executionId, $activityId, $attempt), $this->ttlSeconds);
+        $lock = $this->lockFactory->createLock(\sprintf('durable-activity-%s-%s-%d', $executionId->toString(), $activityId, $attempt), $this->ttlSeconds);
 
         return $lock->acquire() ? $lock->release(...) : null;
     }

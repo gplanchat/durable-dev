@@ -22,7 +22,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * job is pushed by the transport and never puts itself back on the queue. The resume job, for its
  * part, will need them — that is where the package will take `illuminate/queue`.
  */
-final class RunActivityJob implements ShouldQueue
+final readonly class RunActivityJob implements ShouldQueue
 {
     public function __construct(
         public readonly ActivityMessage $message,

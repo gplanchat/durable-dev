@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\Port\NexusOperationCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\SystemClock;
 use Psr\Clock\ClockInterface;
@@ -28,7 +29,7 @@ use Psr\Clock\ClockInterface;
  * an empty "task queue" column teaches the operator that the execution has no queue, when in fact
  * it is the backend that has no such notion. A missing key tells nothing false.
  */
-final class RunDashboard
+final readonly class RunDashboard
 {
     public const PAGE_SIZE = 20;
 
@@ -203,6 +204,9 @@ final class RunDashboard
             // host's business, otherwise the same run reads differently from one surface to the
             // next.
             'timeline' => RunTimeline::of($catalog->readHistory($run), $this->redactor),
+            // Where each Nexus operation is served and whether it is settled (#671), from a
+            // catalog whose backend can hold them; a journal cannot (DUR036).
+            'nexusOperations' => $catalog instanceof NexusOperationCatalogInterface ? $catalog->readNexusOperations($run) : [],
         ];
     }
 

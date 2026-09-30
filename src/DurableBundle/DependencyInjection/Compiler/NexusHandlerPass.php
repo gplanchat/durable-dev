@@ -35,7 +35,7 @@ use Symfony\Component\DependencyInjection\Reference;
  * fails **earlier** and names the services at fault, which a registry has no means of doing; the
  * registry catches all the hosts the pass does not see.
  */
-final class NexusHandlerPass implements CompilerPassInterface
+final readonly class NexusHandlerPass implements CompilerPassInterface
 {
     public const TAG = 'durable.nexus_handler';
 
@@ -151,6 +151,13 @@ final class NexusHandlerPass implements CompilerPassInterface
         if ($container->hasDefinition('durable.temporal.nexus_receiver')) {
             $container->getDefinition('durable.temporal.nexus_receiver')
                 ->addTag('messenger.receiver', ['alias' => 'durable_nexus']);
+        }
+        // …and `durable:health` and the dashboards expect a worker on its queue.
+        if ($container->hasDefinition('durable.worker_presence')) {
+            $presence = $container->getDefinition('durable.worker_presence');
+            /** @var list<string> $roles */
+            $roles = $presence->getArgument(1);
+            $presence->replaceArgument(1, [...$roles, 'nexus']);
         }
     }
 

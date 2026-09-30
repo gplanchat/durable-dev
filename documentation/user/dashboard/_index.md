@@ -5,8 +5,8 @@ weight: 17
 
 # The dashboard
 
-There is **one** dashboard. Sylius and Magento render it in their own admin chrome, and two more
-surfaces are on the way, but what they show, how a run is grouped, and the words they use are
+There is **one** dashboard. Sylius, Magento and Filament render it in their own admin chrome, and an
+API Platform surface is on the way, but what they show, how a run is grouped, and the words they use are
 decided once, in `gplanchat/durable`, beside the observation model the pages read.
 
 That is not tidiness. A panel one surface has and another lacks is a question one application can
@@ -31,6 +31,13 @@ says which of the three it is, before showing anything.
 The last one is the in-memory journal under PHP-FPM: the request rendering the dashboard has
 executed no workflow, so it sees nothing, and it is right. Hiding that would teach you that nothing
 ran at all.
+
+A cluster that answers can still have **no worker** on a role's queue. Nothing fails then: an
+execution stops at its first task of that kind. On Temporal, `bin/console durable:health` exits
+non-zero when a role's queue has gone two minutes without a poll, and names the
+`durable:worker --role` to start; alert on it. It checks workflow and activity when Temporal holds
+the journal, and nexus once the application serves a Nexus handler. On Temporal, the Sylius
+dashboard shows the same state above the run list, one line per role.
 
 ### 2. The runs
 
@@ -125,7 +132,8 @@ strings truncated. Anyone with access to the admin can open a run, so this page 
 masking goes by key name, so personal data under other keys still shows. The run page masks with the
 same redactor as those two: on the Sylius plugin, the service an application aliases to
 `Gplanchat\Durable\Observation\PayloadRedactorInterface`; on Magento, a preference the application
-declares for that interface.
+declares for that interface; on Filament, what the application binds that interface to in its
+container.
 
 ## A fact a backend does not have is shown as absent
 
@@ -143,14 +151,18 @@ Two absences look alike and are not:
 
 The chrome, and only the chrome.
 
-| | Sylius | Magento |
-| --- | --- | --- |
-| Where | Admin menu → Durable | **System > Durable processes > Process history** |
-| The list | A Sylius grid, filtered by outcome, and by workflow name and execution id prefix where the backend can apply them; cursor paging | The standard grid: paging, bookmarks, column controls, export, and a status filter whose options come from the status enum |
-| Paging | Cursor, 20 a page | Offset inside a 200-run window, whose ceiling the screen states |
-| Read-only | Yes | Yes |
+| | Sylius | Magento | Filament |
+| --- | --- | --- | --- |
+| Where | Admin menu → Durable | **System > Durable processes > Process history** | Panel navigation → **Durable runs** |
+| The list | A Sylius grid, filtered by outcome, and by workflow name and execution id prefix where the backend can apply them; cursor paging | The standard grid: paging, bookmarks, column controls, export, and a status filter whose options come from the status enum | A table filtered by workflow name and execution id prefix where the backend can apply them; cursor paging |
+| Paging | Cursor, 20 a page | Offset inside a 200-run window, whose ceiling the screen states | Cursor, 20 a page |
+| Read-only | Yes | Yes | Yes |
 
-Both are **read-only**, and will stay so: what you come to a dashboard for is to know whether an
+The Filament list is a table in the panel's own components rather than a Filament table: on
+Filament 3 a table reads an Eloquent query and nothing else, and a catalog's cursor only goes
+forward. It renders the same on Filament 3 and 4.
+
+All three are **read-only**, and will stay so: what you come to a dashboard for is to know whether an
 order went through, not to restart it by hand. Resuming an execution from a browser would bypass the
 per-execution lock.
 
@@ -160,5 +172,5 @@ how wide its column is, and a surface that renders no markup has none. Everythin
 ## See also
 
 - [Packages](../packages/) covers `gplanchat/durable-plugin` for the Sylius chrome,
-  `gplanchat/durable-magento` for the Magento one
+  `gplanchat/durable-magento` for the Magento one, `gplanchat/durable-filament` for the Filament one
 - [Backends](../backends/) says which of them records what

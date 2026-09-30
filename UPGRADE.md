@@ -187,6 +187,263 @@ public function DescribeTaskQueue(DescribeTaskQueueRequest $request, array $meta
 }
 ```
 
+### Laravel: an unserved Nexus operation and a missing workflow class now fail at registration (#714)
+
+**Who is affected**: a Laravel application that serves Nexus (`nexus.handlers`, `backend:
+temporal`). Resolving `NexusOperationRegistry` used to succeed in four cases where it now throws
+`InvalidArgumentException`, naming what is wrong:
+
+- an operation of a declared contract that neither a handler method nor a workflow carrying
+  `#[FulfilsNexusOperation]` serves. It used to be skipped, so a caller waited on a result nothing
+  produced. Symfony's `NexusHandlerPass` already refused it at compile time.
+- a class in `workflows` that does not exist. It used to be skipped while looking for the
+  operations workflows fulfil.
+- a `handler => contract` entry whose handler class does not exist. It used to boot as long as
+  workflows fulfilled some of the contract's operations.
+- a `handler => contract` entry whose handler carries an `#[AsNexusServiceHandler]` naming a
+  different contract.
+
+**What to do**: give the handler a method for the operation, or list the workflow that fulfils it
+in `workflows`. Fix or remove a misspelt workflow or handler class. Make the entry's contract and the
+attribute's agree, or list the handler alone so that the attribute names its contract.
+
+`nexus.handlers` also accepts a handler class on its own, whose contract its
+`#[AsNexusServiceHandler]` names: `'handlers' => [App\Nexus\BillingHandler::class]`. The
+`handler => contract` form keeps working, and is refused if it names another contract than the
+attribute.
+
+### The runtime ports take an `ExecutionId` too: projections, observers, lifecycle, transport (#682)
+
+**Who is affected**: an application that calls one of the thirteen interfaces below with a string
+execution id, or implements one of them: a custom run catalog or projection, a profiler or dispatch
+observer, an activity transport, a timer dispatcher, an attempt claim, a fenced event store, a
+lifecycle, a command buffer or a child runner, including a test double. This continues #638 on the
+next ring of ports. Nothing stored or sent changes: every implementation writes `toString()` to the
+same columns, lock keys, array keys and wire messages as before.
+
+| Interface                                            | Method                                                                   | Changes                        |
+|------------------------------------------------------|--------------------------------------------------------------------------|--------------------------------|
+| `Observation\WorkflowRunProjectionInterface`         | `recordStart()`, `recordOutcome()`                                        | argument                       |
+| `Observation\WorkflowRunWaitProjectionInterface`     | `recordWait()`                                                            | argument                       |
+| `Observation\WorkflowRunPickupProjectionInterface`   | `recordPickup()`                                                          | argument                       |
+| `Debug\WorkflowDispatchObserverInterface`            | `onWorkflowDispatchRequested()`                                           | argument                       |
+| `Debug\WorkflowExecutionObserverInterface`           | `onWorkflowRun()`, `onActivityExecuted()`                                 | argument                       |
+| `Transport\ActivityTransportInterface`               | `removePendingFor()`                                                      | argument                       |
+| `Port\ParentChildWorkflowCoordinatorInterface`       | `onParentClosed()`                                                        | argument                       |
+| `Port\WorkflowLifecycleInterface`                    | `onBeforeRun()`, `isCancellationPending()`, `onCancellationDelivered()`, `onCancelled()`, `onCompleted()`, `onSuspended()`, `onContinuedAsNew()`, `onFailed()` | argument |
+| `Port\WorkflowTimerDispatcher`                       | `dispatchTimerFire()`                                                     | argument                       |
+| `Port\WorkflowCommandBufferInterface`                | `scheduleChildWorkflow()`, `completeChildWorkflow()`, `failChildWorkflow()` | child id argument            |
+| `Port\ChildWorkflowRunnerInterface`                  | `runChild()`                                                              | child id; parent `?ExecutionId` |
+| `Port\ActivityAttemptClaimInterface`                 | `claim()`                                                                 | argument                       |
+| `Store\FencedEventStoreInterface`                    | `claimPass()`                                                             | argument                       |
+
+`WorkflowRunDescription::$runId` stays a `string`: it is the backend's own run id, possibly
+sanitised, not an id a port accepts. `PassFence` keeps its string id. The events, `ExecutionContext`
+and the public helpers still carry a string; they follow in the next parts of #682.
+
+**Rector does the calling side it can prove.** `ExecutionIdArgumentRector`, in the `durable-upgrade`
+set, now knows these thirteen interfaces. It wraps a `string` argument in `ExecutionId::fromString()`
+on a receiver typed as one of them, with the same limits as for #638: it skips an untyped receiver,
+a named, unpacked or nullable argument, and every call made inside a class that implements any port
+it knows. That last rule now covers more classes: a custom timer dispatcher or projection is
+migrated by hand, calls to the other ports included.
+
+**What to do**, in this order:
+
+1. Run the `durable-upgrade` set, then PHPStan or Psalm, and pass `ExecutionId::fromString($id)` at
+   each call left. An empty string is refused, including by `WorkflowFiberDriver::run()` and
+   `PassEventStore::open()` (over any store), which keep a `string` parameter for now and convert
+   on entry.
+2. **In a class that implements one of these interfaces**, change each listed parameter to
+   `ExecutionId` (`?ExecutionId` for the parent of `runChild()`). Call `->toString()` where the
+   body stores, binds, formats, serialises or compares the id. `json_encode()` turns the object
+   into `{}`, and `===` or a strict `in_array()` against a string is always false; an array key
+   fails loudly with a `TypeError`. Pass the object on unchanged to another port.
+3. A test double that records the ids it heard can record `->toString()` and keep its assertions.
+
+### Magento: `#[AsActivityHandler(contract)]` narrows what a handler serves (#715)
+
+**Who is affected**: only a handler declared in `di.xml` that carries `#[AsActivityHandler]` **and**
+implements more than one `#[AsActivity]` interface. Magento used to serve every such interface and
+ignored the attribute; it now serves only the named `contract`, as Symfony always did. A handler
+whose class lacks a method of the named contract is refused by name when the runtime is built.
+
+**What to write.** Nothing, if the named contract is the one you meant. If you relied on the other
+interfaces being served, drop the attribute (the interfaces then drive, as before) or move them to
+a handler of their own.
+
+### Laravel: the shipped migrations run on `durable.connection`
+
+**Who is affected**: a Laravel application whose `config/durable.php` names a `connection` other
+than the default one. `php artisan migrate` used to build Durable's tables on the default connection;
+the stores created their own copies on `durable.connection` at the first write, and later schema
+migrations never reached those. With `connection => null`, nothing changes.
+
+**What to do**:
+
+1. Run `php artisan migrate`. Migrations not yet run now land on `durable.connection`.
+2. Tables the stores created before a later schema change may lack it: `picked_up_at`,
+   `waiting_on`, the status index, `durable_execution_heads`. The four migrations that bring them
+   check before they alter, so running them on that connection is safe. The only rows they touch
+   are those of a missing `picked_up_at`, filled from `started_at`. They alter tables that must
+   exist: if the journal's database has none yet, run `php artisan migrate` first (step 1).
+   Then:
+
+   ```bash
+   php artisan migrate --database=<connection> \
+     --path=vendor/gplanchat/durable-bridge-illuminate/Migrations/2026_09_24_000000_add_picked_up_at_to_durable_workflow_runs.php \
+     --path=vendor/gplanchat/durable-bridge-illuminate/Migrations/2026_09_24_000001_add_waiting_on_to_durable_workflow_runs.php \
+     --path=vendor/gplanchat/durable-bridge-illuminate/Migrations/2026_09_25_000000_add_status_index_to_durable_workflow_runs.php \
+     --path=vendor/gplanchat/durable-bridge-illuminate/Migrations/2026_09_28_000000_create_durable_execution_heads.php
+   ```
+
+   `--database` also puts a `migrations` table on that connection, to record them.
+3. Drop the empty copies left on the default connection, if any.
+4. A copy published with `vendor:publish --tag=durable-migrations` belongs to the application and
+   keeps running on the default connection: make it extend
+   `Gplanchat\Bridge\Illuminate\Schema\DurableMigration` instead of
+   `Illuminate\Database\Migrations\Migration`.
+
+Recommending a connection of its own is **DUR054**.
+
+### A warning when the journal is on the application's default connection
+
+**Who is affected**: a Symfony application whose `durable.dbal.connection` is the default Doctrine
+connection (the default setting), and a Laravel application on the `illuminate` backend whose
+`durable.connection` is unset or names the default connection. Symfony logs a warning when a worker
+starts; Laravel logs one at boot, in the console only.
+
+**What to do**: nothing is required, and nothing is refused. To act on it, give the journal a
+connection of its own, as the configuration examples show (**DUR054**).
+
+### Laravel `illuminate` backend: a due timer fires (#726)
+
+`LaravelWorkflowTimerDispatcher` now queues a `FireWorkflowTimersJob`, which runs
+`FireWorkflowTimersHandler`, instead of a plain `ResumeWorkflowJob`. A plain resume never journalled
+`TimerCompleted`, so a run that slept suspended again on every pass and never woke up. Nothing to
+migrate: once `queue:work` restarts on the new code, a run stuck on a due timer wakes on its next
+resume, since the pass that suspends on the timer now queues the firing.
+
+
+### New: a Magento module serves Nexus operations (#668)
+
+**Who is affected**: nobody has to change anything. A Magento module can now serve a Nexus contract:
+list the handler in `di.xml` under `nexusHandlers` on `RuntimeFactory`, name its contract with
+`#[AsNexusServiceHandler(contract: …)]` as on Symfony, declare the workflows that fulfil the rest in
+`workflowClasses` with `#[FulfilsNexusOperation]`, and run `bin/magento durable:worker --role=nexus`.
+The module's README shows it. Laravel's `DeclaredNexusOperations` now delegates to the core's
+`NexusHandlerDeclarations`, which both hosts share, so a module gets the refusals of #714 above:
+an operation nobody serves, a workflow class that does not exist, or a contract the attribute
+contradicts stops the Nexus worker when it starts.
+
+### Temporal read model: a cancelled activity or timer says why (#701)
+
+Read through `TemporalReadThroughEventStore` (the bundle's event store on Temporal, the profiler,
+the dashboards), `ActivityCancelled` and `TimerCancelled` used to carry the reason
+`Cancelled by Temporal`. They now carry the reason the event-store backends record:
+`workflow_cancelled` when the workflow's own cancellation withdrew the operation, `race_superseded`
+otherwise. A replay through that store now reads a race loser as unsettled, as the worker does.
+Code that matched on `Cancelled by Temporal` should match on `ActivityCancellationReason` instead.
+Code that converts a history itself should build the converter with
+`TemporalEventConverter::forHistory($executionId, $events)` rather than `new TemporalEventConverter()`:
+a converter built with `new` only knows the markers it has already seen, and reads a
+workflow-cancelled operation that was cancelled before its marker as `race_superseded`.
+
+### Laravel: activity handlers are declared in `activity_handlers` (#713)
+
+`config/durable.php` gains an `activity_handlers` key beside `workflows`. Each class listed there
+serves the contract its `#[AsActivityHandler]` names, or else every interface it implements whose
+methods carry `#[AsActivityMethod]`, under the activity names the contract carries. A handler is
+resolved from the container each time one of its activities runs: bind it as a singleton to share
+one instance across a worker's tasks. A class that does not exist, that
+serves no activity, or that lacks a method of the contract it names is refused by name at boot.
+
+**What to do**: nothing, unless you registered activities by hand. Replace calls such as
+`$app->make(RegistryActivityExecutor::class)->register('greet.hello', ...)` with the handler class
+in the key:
+
+```php
+'activity_handlers' => [App\Activities\Greeter::class],
+```
+
+A direct `register()` still works and wins over a declared handler of the same name.
+
+### Journal events are built from an `ExecutionId`, and `Event::executionId()` returns one (#682)
+
+**Who is affected**: code that builds a journal event, such as a custom command buffer, a test or a
+fixture that appends events, or a custom `Event` class. Also code that reads `executionId()` from an
+event. **Nothing stored or sent changes.** `EventDataMapper::fromDomainEvent()` still writes the
+string under `execution_id`, the Temporal activity input still carries it as a string, payloads hold
+only plain data, and `InMemoryEventStore` still files each stream under the string.
+
+| Where                                                   | Changes                                                        |
+|---------------------------------------------------------|----------------------------------------------------------------|
+| `Event\Event::executionId()`                            | returns `ExecutionId`                                          |
+| The constructor of every class in `Gplanchat\Durable\Event` | first argument `ExecutionId` (the parent id for the three `ChildWorkflow*` events) |
+| `WorkflowExecutionFailed::fromStoredPayload()`, `unhandled…()`, `deadlineExceeded()`, `workflowHandlerFailure()`, `terminatedByParent()` | first argument `ExecutionId` |
+| `ActivityCatastrophicFailure::fromStoredPayload()`, `forThrowable()`; `ActivityTaskFailed::forThrowable()`; `ActivityFailed::fromEnvelope()` | first argument `ExecutionId` |
+| `Failure\WorkflowFailureClassifier::classify()`, `Failure\ActivityFailureEventFactory::fromActivityThrowable()` | first argument `ExecutionId` |
+
+The other ids an event carries keep their string type for now: the child id of the `ChildWorkflow*`
+events, `WorkflowCancellationRequested::sourceParentExecutionId()`, the next id of
+`WorkflowContinuedAsNew`, and the parent id of `terminatedByParent()`. They follow in the last part
+of #682.
+
+**Reading back is stricter in one case.** `EventDataMapper::toDomainEvent()` converts the stored
+`execution_id` with `ExecutionId::fromString()`, so a row stored with an empty id now throws
+`InvalidArgumentException` instead of producing an event for the empty execution. A store only holds
+such a row if a run was started under an empty id.
+
+**Rector does the building side it can prove.** The `durable-upgrade` set carries a new rule,
+`ExecutionIdEventArgumentRector`. It wraps the first argument in `ExecutionId::fromString()` in
+`new <Event>(...)`, for any class that implements `Event`, and in the static factories listed
+above, when that argument is typed `string` and the parameter it reaches is typed `ExecutionId`.
+A custom event whose constructor still takes a string is left alone until you retype it. It also
+leaves a named, unpacked, nullable, `mixed` or unknown argument alone, and it does not touch code
+that reads `executionId()`.
+
+**What to do**, in this order:
+
+1. **In a custom `Event` class**, type the constructor's id `ExecutionId` and return it from
+   `executionId()`. If you map it to storage yourself, write `->toString()`, not the object.
+2. Run the `durable-upgrade` set, then PHPStan or Psalm, and wrap each id left in
+   `ExecutionId::fromString()`. An empty string is refused.
+3. Where you read `$event->executionId()`, call `->toString()` when a string is needed: an array
+   key, a JSON field, a log line or a comparison with a string. `json_encode()` turns the object
+   into `{}`, and `===` against a string is always false. Compare two ids with `->equals()`.
+4. In a test, compare ids with `->toString()` or `->equals()`, not `assertSame()` on the objects:
+   two value objects with the same id are equal, not identical.
+
+### Static helper classes can no longer be instantiated
+
+Classes that hold no state and only offer static methods now have a private constructor.
+`new ReadableDuration()` and the like used to succeed and gave an object with nothing to call on
+it. It now fails with `Error: Call to private ... ::__construct()`. Nothing in this repository
+instantiated them.
+
+- **Core:** `ActivityEventJournal`, `ActivityFailureEventFactory`,
+  `AsyncChildWorkflowFailureProjector`, `EventDataMapper`, `JournalAssertions`,
+  `NexusFulfilmentParameterNames`, `PendingTimers`, `ReadableDuration`, `RecordedDetails`,
+  `StoredTimestamp`, `TimerWakeDelayCalculator`, `WaitReason`, `WorkflowQueryEvaluator`.
+- **Temporal bridge:** `DurableSearchAttributes`, `GrpcUnary`, `JournalExecutionIdResolver`,
+  `JsonPlainPayload`, `TemporalActivityScheduleInput`.
+- **Symfony bundle:** the six `DependencyInjection\Loader` classes, `DurableProfilerEventPresentation`
+  and `DurableProfilerTimeframe`. `DbalStores::registerDbalRunCatalog()` and
+  `EventStores::registerTemporalEventStore()` are now private; only their own class called them.
+- **Filament:** `StatusColor`.
+
+Some of these classes are also tagged `@internal`: they are plumbing, not API, and may change in a
+minor release. Psalm reports a use from outside the `Gplanchat\` namespace. The tagged
+ones are `ActivityFailureEventFactory`, `AsyncChildWorkflowFailureProjector`,
+`AwaitableCancellation`, `AwaitableInspector`, `PendingTimers`, `StubArguments`,
+`WorkflowFailureClassifier`, the Temporal bridge's `GrpcWire`, `JsonGatewayRequest`,
+`TemporalActivityScheduleInput`, `TemporalPolicyMapper` and `UpdateProtocol`, the profiler's two
+classes, and `StatusColor`.
+
+**What to do:** call the static methods on the class, for example `ReadableDuration::of($seconds)`.
+If you used a class that is now `@internal`, open an issue describing the use: it tells us which
+part of it should become API.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

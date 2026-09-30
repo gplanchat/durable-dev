@@ -16,6 +16,7 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -33,9 +34,9 @@ final class TheTimelineGroupsByActionTest extends TestCase
     public function testTheThreeEventsOfAnActivityAreOneAction(): void
     {
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
-            new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1),
-            new ActivityCompleted('exec-1', 'act-1', ['receipt' => 'r-1']),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', [], []),
+            new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['receipt' => 'r-1']),
         ]);
 
         self::assertCount(1, array_unique(array_column($history, 'actionKey')));
@@ -46,10 +47,10 @@ final class TheTimelineGroupsByActionTest extends TestCase
     {
         // #260: the method name is the fallback, as the timer id is for a timer without a summary.
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'demo.fulfilment.charge_card', [], ['activity_options' => ['summary' => 'Charge the card']]),
-            new ActivityTaskStarted('exec-1', 'act-1', 'demo.fulfilment.charge_card', 1),
-            new ActivityCompleted('exec-1', 'act-1', 'ch_1'),
-            new ActivityScheduled('exec-1', 'act-2', 'demo.fulfilment.ship_order', [], []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'demo.fulfilment.charge_card', [], ['activity_options' => ['summary' => 'Charge the card']]),
+            new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'demo.fulfilment.charge_card', 1),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-2', 'demo.fulfilment.ship_order', [], []),
         ]);
 
         self::assertSame('Charge the card', $history[0]->label);
@@ -62,8 +63,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // The grouping must tell them apart, otherwise the frieze puts two unrelated waits on a
         // single row and passes their sum off as a duration.
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
-            new ActivityScheduled('exec-1', 'act-2', 'notify', [], []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', [], []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-2', 'notify', [], []),
         ]);
 
         self::assertNotSame($history[0]->actionKey, $history[1]->actionKey);
@@ -72,8 +73,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
     public function testATimerIsAnActionToo(): void
     {
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'before reminder'),
-            new TimerCompleted('exec-1', 'tim-1'),
+            new TimerScheduled(ExecutionId::fromString('exec-1'), 'tim-1', 1700000000.0, 'before reminder'),
+            new TimerCompleted(ExecutionId::fromString('exec-1'), 'tim-1'),
         ]);
 
         self::assertSame('timer:tim-1', $history[0]->actionKey);
@@ -85,8 +86,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // "TimerScheduled" names the class, not the wait. A frieze row carries the name of its
         // action, and that is the one an operator came to read.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1700000000.0, 'before reminder'),
-            new TimerCompleted('exec-1', 'tim-1'),
+            new TimerScheduled(ExecutionId::fromString('exec-1'), 'tim-1', 1700000000.0, 'before reminder'),
+            new TimerCompleted(ExecutionId::fromString('exec-1'), 'tim-1'),
         ]);
 
         self::assertSame('before reminder', $history[0]->label);
@@ -98,7 +99,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // `null` is an answer — "this event is its own action all by itself" — and that is what
         // lets the frieze give it its row without inventing a key.
         $history = $this->read([
-            new WorkflowSignalReceived('exec-1', 'orderApproved', []),
+            new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'orderApproved', []),
         ]);
 
         self::assertNull($history[0]->actionKey);
@@ -109,10 +110,10 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // A workflow task is not a business fact, it is the mechanism by which the engine moves
         // forward. One row per occurrence drowned the interesting actions under the plumbing.
         $history = $this->read([
-            new ExecutionStarted('exec-1', []),
-            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
-            new ActivityCompleted('exec-1', 'act-1', null),
-            new ExecutionCompleted('exec-1', null),
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', [], []),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', null),
+            new ExecutionCompleted(ExecutionId::fromString('exec-1'), null),
         ], 'App\\OrderWorkflow');
 
         self::assertSame('workflow', $history[0]->actionKey);
@@ -125,8 +126,8 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // The trap is here: a received signal carries the same vocabulary as the execution. Filed
         // with it, it disappears into the first row instead of being the wait that it is.
         $history = $this->read([
-            new ExecutionStarted('exec-1', []),
-            new WorkflowSignalReceived('exec-1', 'orderApproved', []),
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'orderApproved', []),
         ], 'App\\OrderWorkflow');
 
         self::assertSame('workflow', $history[0]->actionKey);
@@ -137,7 +138,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
     {
         // The journal only knows a stream: the name comes from the caller, which holds the
         // execution's description. Without it, the first row would be called "ExecutionStarted".
-        $history = $this->read([new ExecutionStarted('exec-1', [])], 'App\\OrderWorkflow');
+        $history = $this->read([new ExecutionStarted(ExecutionId::fromString('exec-1'), [])], 'App\\OrderWorkflow');
 
         self::assertSame('App\\OrderWorkflow', $history[0]->label);
     }
@@ -145,9 +146,9 @@ final class TheTimelineGroupsByActionTest extends TestCase
     public function testAChildWorkflowKeepsItsOwnLineAndItsOwnName(): void
     {
         $history = $this->read([
-            new ExecutionStarted('exec-1', []),
-            new ChildWorkflowScheduled('exec-1', 'child-1', 'App\\ShipmentWorkflow', []),
-            new ChildWorkflowCompleted('exec-1', 'child-1', null),
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            new ChildWorkflowScheduled(ExecutionId::fromString('exec-1'), 'child-1', 'App\\ShipmentWorkflow', []),
+            new ChildWorkflowCompleted(ExecutionId::fromString('exec-1'), 'child-1', null),
         ], 'App\\OrderWorkflow');
 
         self::assertSame('child:child-1', $history[1]->actionKey);
@@ -164,9 +165,9 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // activity took twenty seconds to execute", and the operator facing a slow execution does
         // not know whether to look at their code or at their workers.
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
-            new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1),
-            new ActivityCompleted('exec-1', 'act-1', ['receipt' => 'r-1']),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', [], []),
+            new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['receipt' => 'r-1']),
         ]);
 
         self::assertFalse($history[0]->started, 'scheduling is not starting');
@@ -180,7 +181,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // operator comes to read. Working it out would ask them to subtract two timestamps from
         // two rows.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', microtime(true) + 30.0, 'before reminder'),
+            new TimerScheduled(ExecutionId::fromString('exec-1'), 'tim-1', microtime(true) + 30.0, 'before reminder'),
         ]);
 
         self::assertSame('before reminder (30.0 s)', $history[0]->label);
@@ -192,7 +193,7 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // would have a timer whose deadline is behind us announce half a century of waiting — and
         // it is the same guard that covers the journal with no recording timestamp.
         $history = $this->read([
-            new TimerScheduled('exec-1', 'tim-1', 1735689630.0, 'before reminder'),
+            new TimerScheduled(ExecutionId::fromString('exec-1'), 'tim-1', 1735689630.0, 'before reminder'),
         ]);
 
         self::assertSame('before reminder', $history[0]->label);
@@ -203,9 +204,9 @@ final class TheTimelineGroupsByActionTest extends TestCase
         // Red stops meaning anything as soon as it covers both: a failure is a breakdown, a
         // cancellation is an outcome somebody asked for.
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', [], []),
-            new ActivityTaskFailed('exec-1', 'act-1', 'charge', 1, 'RuntimeException', 'boom'),
-            new ActivityCancelled('exec-1', 'act-1', 'cancellation_requested'),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', [], []),
+            new ActivityTaskFailed(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1, 'RuntimeException', 'boom'),
+            new ActivityCancelled(ExecutionId::fromString('exec-1'), 'act-1', 'cancellation_requested'),
         ]);
 
         self::assertFalse($history[0]->failed, 'scheduling fails at nothing');

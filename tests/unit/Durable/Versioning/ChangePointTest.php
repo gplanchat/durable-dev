@@ -49,7 +49,7 @@ final class ChangePointTest extends TestCase
     public function testTheAnswerComesBackFromTheJournalOnReplay(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 1));
 
         // The deployed code can go up to version 3; the execution, though, is on 1.
         $version = $this->context($store)->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 3);
@@ -73,7 +73,7 @@ final class ChangePointTest extends TestCase
     public function testARecordedVersionBelowMinSupportedIsRefused(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 1));
 
         // The branch for version 1 was deleted: the code now plays 2 and 3 only.
         $this->expectException(WorkflowTaskFailure::class);
@@ -86,7 +86,7 @@ final class ChangePointTest extends TestCase
     {
         $store = new InMemoryEventStore();
         // Work recorded before any marker: this run passed the point under the original code.
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'charge', []));
 
         $this->expectException(WorkflowTaskFailure::class);
 
@@ -96,7 +96,7 @@ final class ChangePointTest extends TestCase
     public function testARecordedVersionAboveMaxSupportedIsRefused(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 3));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 3));
 
         // A rollback: the history was written by code that knew version 3.
         $this->expectException(WorkflowTaskFailure::class);
@@ -122,7 +122,7 @@ final class ChangePointTest extends TestCase
     public function testTwoChangePointsAreIndependent(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 1));
         $context = $this->context($store);
 
         self::assertSame(1, $context->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 2));

@@ -91,7 +91,7 @@ final class TheInProcessDispatcherDrainsWithoutRecursionTest extends TestCase
             $this->ran[] = 'fire ' . $message->executionId;
         });
 
-        $dispatcher->dispatchTimerFire('exec-1', 50);
+        $dispatcher->dispatchTimerFire(ExecutionId::fromString('exec-1'), 50);
 
         self::assertSame(['fire exec-1'], $this->ran);
     }
@@ -106,7 +106,7 @@ final class TheInProcessDispatcherDrainsWithoutRecursionTest extends TestCase
             $this->ran[] = 'fire ' . $message->executionId;
         }, budget: 0.05);
 
-        $dispatcher->dispatchTimerFire('exec-1', 60_000);
+        $dispatcher->dispatchTimerFire(ExecutionId::fromString('exec-1'), 60_000);
 
         self::assertSame([], $this->ran);
     }

@@ -5,8 +5,8 @@ weight: 17
 
 # Le tableau de bord
 
-Il n'y en a **qu'un**. Sylius et Magento le rendent dans leur propre habillage d'administration, et
-deux autres surfaces arrivent, mais ce qu'ils montrent, la façon dont une exécution est regroupée et
+Il n'y en a **qu'un**. Sylius, Magento et Filament le rendent dans leur propre habillage
+d'administration, et une surface API Platform arrive, mais ce qu'ils montrent, la façon dont une exécution est regroupée et
 les mots employés se décident une fois, dans `gplanchat/durable`, à côté du modèle d'observation que
 les pages lisent.
 
@@ -33,6 +33,14 @@ des trois c'est, avant de montrer quoi que ce soit.
 Le dernier cas est celui du journal en mémoire sous PHP-FPM : la requête qui rend le tableau de bord
 n'a exécuté aucun workflow, elle ne voit donc rien, et elle a raison. Le masquer vous apprendrait que
 rien n'a tourné du tout.
+
+Un cluster qui répond peut malgré tout n'avoir **aucun worker** sur la file d'un rôle. Rien n'échoue
+alors : une exécution s'arrête à sa première tâche de ce type. Sur Temporal,
+`bin/console durable:health` sort en erreur quand la file d'un rôle n'a été interrogée par personne
+depuis deux minutes, et nomme le `durable:worker --role` à démarrer : c'est ce code de sortie qu'il
+faut surveiller. La commande vérifie workflow et activity quand Temporal tient le journal, et nexus
+dès que l'application sert un gestionnaire Nexus. Sur Temporal, le tableau de bord Sylius
+affiche le même état au-dessus de la liste des exécutions, une ligne par rôle.
 
 ### 2. Les exécutions
 
@@ -131,7 +139,8 @@ exécution : cette page n'a donc pas de vue brute. Le masquage se fie au nom de 
 personnelles rangées sous d'autres clés restent visibles. La page d'une exécution masque avec le même
 outil que ces deux-là : sur le plugin Sylius, le service qu'une application déclare comme alias de
 `Gplanchat\Durable\Observation\PayloadRedactorInterface` ; sur Magento, une préférence que
-l'application déclare pour cette interface.
+l'application déclare pour cette interface ; sur Filament, ce à quoi l'application lie cette
+interface dans son conteneur.
 
 ## Un fait qu'un backend n'a pas est montré comme absent
 
@@ -149,14 +158,18 @@ Deux absences se ressemblent et n'en sont pas une seule :
 
 L'habillage, et rien que l'habillage.
 
-| | Sylius | Magento |
-| --- | --- | --- |
-| Où | Menu d'administration → Durable | **System > Durable processes > Process history** |
-| La liste | Une grille Sylius, filtrée par issue, et par nom de workflow et début de l'identifiant d'exécution là où le backend sait les appliquer ; pagination par curseur | La grille standard : pagination, signets, contrôle des colonnes, export, et un filtre d'état dont les options viennent de l'énumération |
-| Pagination | Curseur, 20 par page | Décalage dans une fenêtre de 200 exécutions, dont l'écran annonce le plafond |
-| Lecture seule | Oui | Oui |
+| | Sylius | Magento | Filament |
+| --- | --- | --- | --- |
+| Où | Menu d'administration → Durable | **System > Durable processes > Process history** | Navigation du panneau → **Exécutions Durable** |
+| La liste | Une grille Sylius, filtrée par issue, et par nom de workflow et début de l'identifiant d'exécution là où le backend sait les appliquer ; pagination par curseur | La grille standard : pagination, signets, contrôle des colonnes, export, et un filtre d'état dont les options viennent de l'énumération | Un tableau filtré par nom de workflow et début de l'identifiant d'exécution là où le backend sait les appliquer ; pagination par curseur |
+| Pagination | Curseur, 20 par page | Décalage dans une fenêtre de 200 exécutions, dont l'écran annonce le plafond | Curseur, 20 par page |
+| Lecture seule | Oui | Oui | Oui |
 
-Les deux sont en **lecture seule**, et le resteront : ce qu'on vient chercher sur un tableau de bord,
+La liste Filament est un tableau fait des composants du panneau plutôt qu'une table Filament : sur
+Filament 3, une table ne lit qu'une requête Eloquent, et le curseur d'un catalogue ne va qu'en avant.
+Elle se rend pareil sur Filament 3 et 4.
+
+Les trois sont en **lecture seule**, et le resteront : ce qu'on vient chercher sur un tableau de bord,
 c'est de savoir si une commande est passée, pas de la relancer à la main. Reprendre une exécution
 depuis un navigateur contournerait le verrou par exécution.
 
@@ -167,5 +180,5 @@ n'en a pas. Tout le reste est partagé.
 ## Voir aussi
 
 - [Paquets](../packages/) couvre `gplanchat/durable-plugin` pour l'habillage Sylius,
-  `gplanchat/durable-magento` pour celui de Magento
+  `gplanchat/durable-magento` pour celui de Magento, `gplanchat/durable-filament` pour celui de Filament
 - [Backends](../backends/) dit lequel enregistre quoi

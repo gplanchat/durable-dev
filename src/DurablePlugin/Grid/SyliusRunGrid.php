@@ -19,7 +19,7 @@ use Sylius\Component\Grid\View\GridViewFactoryInterface;
  * The only class of the plugin that names grid-bundle. The root analysis cannot see that bundle,
  * so this file is left out of it, and the Sylius bench covers it (the user's decision on #383).
  */
-final class SyliusRunGrid implements DataProviderInterface, RunGridViews
+final readonly class SyliusRunGrid implements DataProviderInterface, RunGridViews
 {
     public const GRID = 'gplanchat_durable_runs';
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
+use Gplanchat\Bridge\Temporal\Codec\PayloadCodecWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
@@ -36,8 +38,18 @@ final class WorkflowServiceClientFactory
      * here, once: ext-grpc when it is loaded, curl otherwise, and that fallback is logged once
      * per process. An explicit transport never falls back: asking for what is not installed
      * fails, loudly, at wiring time.
+     *
+     * A codec, when given, wraps the client whatever its transport (DUR055): every payload sent is
+     * encoded, every payload read decoded.
      */
-    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null, ?Psr18Http $jsonGateway = null): WorkflowServiceClientInterface
+    public static function create(TemporalConnection $settings, ?LoggerInterface $logger = null, ?GuzzleClientInterface $guzzle = null, ?Psr18Http $jsonGateway = null, ?PayloadCodecInterface $codec = null): WorkflowServiceClientInterface
+    {
+        $client = self::createClient($settings, $logger, $guzzle, $jsonGateway);
+
+        return null === $codec ? $client : new PayloadCodecWorkflowServiceClient($client, $codec);
+    }
+
+    private static function createClient(TemporalConnection $settings, ?LoggerInterface $logger, ?GuzzleClientInterface $guzzle, ?Psr18Http $jsonGateway): WorkflowServiceClientInterface
     {
         $transport = self::resolveLogged($settings, $logger);
 

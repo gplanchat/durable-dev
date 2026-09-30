@@ -41,10 +41,29 @@ php artisan vendor:publish --tag=durable-config
 ```php
 // config/durable.php
 'backend' => 'illuminate',   // or 'temporal', or 'memory'
-'connection' => null,        // the application's default
+'connection' => 'durable',   // a connection of its own, see below
 'workflows' => [App\Workflows\Onboarding::class],
+'activity_handlers' => [App\Activities\OnboardingActivities::class],
 'lock' => ['store' => null, 'ttl' => 300, 'wait' => 10],
 ```
+
+```php
+// config/database.php — the journal on a connection of its own
+'connections' => [
+    // …the application's…
+    'durable' => [
+        'driver' => 'pgsql',
+        'url' => env('DURABLE_DB_URL'),
+    ],
+],
+```
+
+Give the journal a connection of its own. `null` takes the application's default one, which is
+strongly discouraged (**DUR054**): Durable's transactions then nest inside business ones. The
+shipped migrations follow `connection`, so `php artisan migrate` creates the tables there. At boot,
+in the console, a journal on the default connection is warned about in the log. Better still, point
+the `durable` connection at a database and a database user of Durable's own, so that business code
+cannot reach the journal's tables at all.
 
 On the `temporal` backend, `temporal.guzzle_client` names a container binding whose
 `GuzzleHttp\ClientInterface` carries gRPC when the DSN says `transport=guzzle` — Laravel already
@@ -68,6 +87,12 @@ key names the classes. **What that does not change is the class**: one written f
 `gplanchat/durable-bundle` runs here unmodified, and resolves both by the name its `#[AsWorkflow]`
 attribute declares and by its FQCN.
 
+The `activity_handlers` key does the same for activities. Each class serves the contract its
+`#[AsActivityHandler]` names, or else every interface it implements whose methods carry
+`#[AsActivityMethod]`. It is resolved from the container each time one of its activities runs; bind it as a singleton to
+share one instance. A class
+that does not exist, serves no activity, or lacks a method of its contract is refused at boot.
+
 The list is also the cheap answer. Measured on a thousand classes: naming them costs 0,14 ms and
 does not grow with the application, while a reflection scan costs 15 ms **and loads all thousand
 into every process** to find five. There is no `durable:cache` for the same reason — a cached
@@ -81,9 +106,10 @@ heard of a `config/durable.php`.
 not a configuration, it is a fault, so the choice is a single value and a backend this package does
 not serve is refused **by name** at registration rather than at the first execution.
 
-`illuminate` puts the journal on the connection the application already owns. That is the whole
-point of **DUR030**: the journal append and the business write land in one transaction because they
-are the same connection.
+`illuminate` puts the journal in a SQL database through Laravel's database layer. Name a connection
+of its own in `connection`, not the application's default one (**DUR054**): on a shared connection,
+Durable's transactions nest inside the application's, and a business rollback erases journal
+events.
 
 ### The lock store is the one setting that can silently corrupt a run
 
@@ -107,8 +133,8 @@ that is where the plurality of processes lives.
 
 ## Not in this package
 
-- **A Filament dashboard.** `gplanchat/durable-filament` will require this package, and this package
-  will never require, suggest or detect Filament. A Laravel application without Filament hears
+- **A Filament dashboard.** `gplanchat/durable-filament` requires this package, and this package
+  never requires, suggests or detects Filament. A Laravel application without Filament hears
   nothing about it — the same one-directional shape as `durable-plugin` against `durable-bundle`.
 The `temporal` backend used to be on this list, and it no longer is: `backend => 'temporal'` binds
 the journal and the catalogue to a cluster, `durable:temporal-worker` drains the workflow tasks,

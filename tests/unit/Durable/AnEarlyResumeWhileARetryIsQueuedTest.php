@@ -157,7 +157,7 @@ final class AnEarlyResumeWhileARetryIsQueuedTest extends TestCase
                 return $this->inner->nextDueAt();
             }
 
-            public function removePendingFor(string $executionId, string $activityId): bool
+            public function removePendingFor(ExecutionId $executionId, string $activityId): bool
             {
                 return $this->inner->removePendingFor($executionId, $activityId);
             }

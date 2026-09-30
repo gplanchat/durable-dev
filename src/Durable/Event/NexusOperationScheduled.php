@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * A Nexus operation has been scheduled.
  *
@@ -17,14 +19,14 @@ namespace Gplanchat\Durable\Event;
 final readonly class NexusOperationScheduled implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private int $scheduledEventId,
         private string $endpoint,
         private string $service,
         private string $operation,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

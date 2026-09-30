@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  *
  * @see https://github.com/gplanchat/durable-dev/issues/420
  */
-final class TemporalReceiversPass implements CompilerPassInterface
+final readonly class TemporalReceiversPass implements CompilerPassInterface
 {
     private const RECEIVERS = [
         'durable.temporal.workflows_receiver',

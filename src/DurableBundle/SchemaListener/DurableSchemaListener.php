@@ -20,7 +20,7 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
  * The upstream counterpart is `MessengerTransportDoctrineSchemaListener`, which exists for the same
  * reason and about the same kind of table, held by a library rather than by an entity.
  */
-final class DurableSchemaListener
+final readonly class DurableSchemaListener
 {
     public function __construct(
         private readonly DurableSchema $schema,

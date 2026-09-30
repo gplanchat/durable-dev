@@ -14,6 +14,7 @@ use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WaitReason;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -29,7 +30,7 @@ final class WaitReasonTest extends TestCase
     public function testATimerSaysWhenItIsDue(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new TimerScheduled('exec', 'timer-1', 1790244000.0, 'grace period'));
+        $store->append(new TimerScheduled(ExecutionId::fromString('exec'), 'timer-1', 1790244000.0, 'grace period'));
 
         self::assertSame(
             'timer "grace period" due at 2026-09-24T10:00:00+00:00',
@@ -40,21 +41,21 @@ final class WaitReasonTest extends TestCase
     public function testAnActivitySaysItsNameAndItsLatestAttempt(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled('exec', 'act-1', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec'), 'act-1', 'charge', []));
         $activity = new ActivityAwaitable((new Deferred())->awaitable(), 'act-1');
 
         self::assertSame('activity charge', WaitReason::describe($activity, $store, 'exec'));
 
-        $store->append(new ActivityTaskStarted('exec', 'act-1', 'charge', 1));
-        $store->append(new ActivityTaskStarted('exec', 'act-1', 'charge', 2));
+        $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec'), 'act-1', 'charge', 1));
+        $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec'), 'act-1', 'charge', 2));
         self::assertSame('activity charge attempt 2 in flight', WaitReason::describe($activity, $store, 'exec'));
     }
 
     public function testAnAllNamesTheActivityStillPendingNotTheOneAlreadyDone(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled('exec', 'act-1', 'reserve', []));
-        $store->append(new ActivityScheduled('exec', 'act-2', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec'), 'act-1', 'reserve', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec'), 'act-2', 'charge', []));
         $done = new Deferred();
         $done->resolve('reserved');
         $all = new QuorumAwaitable([
@@ -68,7 +69,7 @@ final class WaitReasonTest extends TestCase
     public function testAWaitWithADeadlineNamesTheConditionFirst(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new TimerScheduled('exec', 'timer-1', 1790244000.0));
+        $store->append(new TimerScheduled(ExecutionId::fromString('exec'), 'timer-1', 1790244000.0));
         $any = new AnyAwaitable([
             new ConditionAwaitable(static fn(): bool => false),
             new TimerAwaitable((new Deferred())->awaitable(), 'timer-1'),
@@ -82,10 +83,10 @@ final class WaitReasonTest extends TestCase
         $journal = new InMemoryEventStore();
         $catalog = new InMemoryWorkflowRunCatalog($journal);
         $store = new ProjectingEventStore($journal, $catalog);
-        $catalog->recordStart('exec', 'App\\OrderWorkflow');
-        $store->append(new ExecutionStarted('exec', []));
+        $catalog->recordStart(ExecutionId::fromString('exec'), 'App\\OrderWorkflow');
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec'), []));
 
-        $store->append(new ActivityTaskStarted('exec', 'act-1', 'charge', 2));
+        $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec'), 'act-1', 'charge', 2));
 
         $run = $catalog->listRuns()->runs[0];
         self::assertSame(WorkflowRunStatus::Running, $run->status);

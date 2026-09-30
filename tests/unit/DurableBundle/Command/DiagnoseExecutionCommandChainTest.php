@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Bundle\Command;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
@@ -21,8 +22,8 @@ final class DiagnoseExecutionCommandChainTest extends TestCase
     public function testItPrintsThePredecessorAndTheSuccessor(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ExecutionStarted('exec-mid', ['continuedFromExecutionId' => 'exec-first']));
-        $store->append(new WorkflowContinuedAsNew('exec-mid', 'Next', [], [], 'exec-last'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-mid'), ['continuedFromExecutionId' => 'exec-first']));
+        $store->append(new WorkflowContinuedAsNew(ExecutionId::fromString('exec-mid'), 'Next', [], [], 'exec-last'));
 
         $tester = new CommandTester(new DiagnoseExecutionCommand(
             new InMemoryWorkflowMetadataStore(),

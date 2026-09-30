@@ -96,10 +96,10 @@ final class ChangePointOnAnOlderRunTest extends TestCase
 
     private function seedTwoActivities(InMemoryEventStore $store): void
     {
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'chargeCard', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 42));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipOrder', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipped'));
     }
 
     private function contextWithTwoRecordedActivities(): ExecutionContext

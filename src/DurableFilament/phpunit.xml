@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Runs from an application that installed the package with Filament 3 or 4: the tests boot
+     Laravel over that application's vendor/ (see tests/PanelTestCase.php). -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
+         colors="true"
+         failOnWarning="true"
+         cacheDirectory=".phpunit.cache"
+>
+    <testsuites>
+        <testsuite name="DurableFilament">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

@@ -11,6 +11,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Event\ActivityFailed;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -43,7 +44,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
 
     public function testFailureWithNonRetryableTypeIsReportedNonRetryable(): void
     {
-        $this->eventStore->append(new ActivityFailed('exec-nr', 'act-nr', 'App\\BusinessException', 'boom'));
+        $this->eventStore->append(new ActivityFailed(ExecutionId::fromString('exec-nr'), 'act-nr', 'App\\BusinessException', 'boom'));
         // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')
@@ -60,7 +61,7 @@ final class TemporalActivityWorkerNonRetryableTest extends TestCase
     {
         // A retryable (system) exception must keep nonRetryable=false so the
         // server's retry policy still applies.
-        $this->eventStore->append(new ActivityFailed('exec-r', 'act-r', 'App\\ServiceUnavailableException', 'boom'));
+        $this->eventStore->append(new ActivityFailed(ExecutionId::fromString('exec-r'), 'act-r', 'App\\ServiceUnavailableException', 'boom'));
         // @phpstan-ignore argument.type (a class the worker never loads: the name travels as a string)
         $metadata = (new ActivityOptions(nonRetryableExceptions: ['App\\BusinessException']))->toMetadata();
         $this->grpcClient->method('PollActivityTaskQueue')

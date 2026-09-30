@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * a workflow the loader refuses (an `ActivityStub` argument without its contract, for instance)
  * fails the container compilation instead of the first worker that builds the registry.
  */
-final class WorkflowPass implements CompilerPassInterface
+final readonly class WorkflowPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {

@@ -30,7 +30,7 @@ use Gplanchat\Durable\Observation\WorkflowRunWaitProjectionInterface;
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  */
-final class ProjectingEventStore implements FencedEventStoreInterface
+final readonly class ProjectingEventStore implements FencedEventStoreInterface
 {
     public function __construct(
         private readonly EventStoreInterface $inner,
@@ -44,11 +44,11 @@ final class ProjectingEventStore implements FencedEventStoreInterface
     }
 
     /** Forwarded to a store that fences; over one that cannot, a fence that fences nothing (DUR053). */
-    public function claimPass(string $executionId): PassFence
+    public function claimPass(ExecutionId $executionId): PassFence
     {
         return $this->inner instanceof FencedEventStoreInterface
             ? $this->inner->claimPass($executionId)
-            : PassFence::none($executionId);
+            : PassFence::none($executionId->toString());
     }
 
     public function appendFenced(Event $event, PassFence $fence): void

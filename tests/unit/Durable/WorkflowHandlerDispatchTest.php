@@ -82,8 +82,8 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-1', []));
-        $store->append(new WorkflowSignalReceived('disp-1', 'approve', ['by' => 'alice']));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-1'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-1'), 'approve', ['by' => 'alice']));
 
         $factory = (new WorkflowDefinitionLoader())->load(ApprovalWorkflow::class)['factory'];
 
@@ -95,8 +95,8 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-2', []));
-        $store->append(new WorkflowSignalReceived('disp-2', 'approve', ['by' => 'alice']));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-2'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-2'), 'approve', ['by' => 'alice']));
 
         $result = $engine->resume('disp-2', static function (WorkflowEnvironment $wf): array {
             $approvals = [];
@@ -123,8 +123,8 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-3', []));
-        $store->append(new WorkflowSignalReceived('disp-3', 'nobody-waits-for-it', ['x' => 1]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-3'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-3'), 'nobody-waits-for-it', ['x' => 1]));
 
         self::assertSame('done', $engine->resume('disp-3', static fn(WorkflowEnvironment $wf): string => 'done'));
         self::assertCount(1, $this->eventsOf($store, 'disp-3', WorkflowSignalReceived::class));
@@ -139,9 +139,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-4', []));
-        $store->append(new WorkflowSignalReceived('disp-4', 'tick', ['n' => 1]));
-        $store->append(new WorkflowSignalReceived('disp-4', 'tick', ['n' => 2]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-4'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-4'), 'tick', ['n' => 1]));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-4'), 'tick', ['n' => 2]));
 
         $handler = $this->accumulating(2);
 
@@ -154,9 +154,9 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-5', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-5'), []));
         foreach ([1, 2, 3] as $n) {
-            $store->append(new WorkflowSignalReceived('disp-5', 'tick', ['n' => $n]));
+            $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-5'), 'tick', ['n' => $n]));
         }
 
         $calls = 0;
@@ -188,8 +188,8 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('disp-6', []));
-        $store->append(new WorkflowSignalReceived('disp-6', 'tick', ['n' => 7]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('disp-6'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-6'), 'tick', ['n' => 7]));
 
         $result = $engine->resume('disp-6', static function (WorkflowEnvironment $wf): array {
             $ticks = [];
@@ -218,7 +218,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
-        $store->append(new ExecutionStarted('upd-1', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('upd-1'), []));
 
         $handler = static function (WorkflowEnvironment $wf): string {
             $approved = false;
@@ -244,7 +244,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         // The caller records the outcome, the way the server writes UPDATE_COMPLETED after the
         // worker's answer.
-        $store->append(new WorkflowUpdateHandled('upd-1', 'approve', ['by' => 'alice'], $pending->result));
+        $store->append(new WorkflowUpdateHandled(ExecutionId::fromString('upd-1'), 'approve', ['by' => 'alice'], $pending->result));
 
         // Replayed with no pending update: the update is read back from the journal, the handler
         // rebuilds the state, and the workflow takes the same path again.
@@ -255,7 +255,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
-        $store->append(new ExecutionStarted('upd-2', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('upd-2'), []));
 
         $result = $engine->resume('upd-2', static function (WorkflowEnvironment $wf): string {
             $attempts = 0;
@@ -286,15 +286,15 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('upd-3', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('upd-3'), []));
         $store->append(new WorkflowUpdateHandled(
-            'upd-3',
+            ExecutionId::fromString('upd-3'),
             'refuse',
             [],
             null,
             new FailureEnvelope(\DomainException::class, 'approval refused'),
         ));
-        $store->append(new WorkflowSignalReceived('upd-3', 'tick', ['n' => 1]));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('upd-3'), 'tick', ['n' => 1]));
 
         $result = $engine->resume('upd-3', static function (WorkflowEnvironment $wf): string {
             $ticks = [];
@@ -321,7 +321,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         // Temporal produces — the acceptance before the workflow commands (ADR DUR035).
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
-        $store->append(new ExecutionStarted('upd-4', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('upd-4'), []));
 
         $engine->resume('upd-4', static function (WorkflowEnvironment $wf): string {
             $approved = false;

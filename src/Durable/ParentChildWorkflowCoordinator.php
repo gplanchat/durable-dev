@@ -17,24 +17,24 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 /**
  * Applies {@see ParentClosePolicy} to the children still active when the parent closes.
  */
-final class ParentChildWorkflowCoordinator implements ParentChildWorkflowCoordinatorInterface
+final readonly class ParentChildWorkflowCoordinator implements ParentChildWorkflowCoordinatorInterface
 {
     public function __construct(
         private readonly EventStoreInterface $eventStore,
         private readonly ?WorkflowResumeDispatcher $resumeDispatcher = null,
     ) {}
 
-    public function onParentClosed(string $parentExecutionId, ParentClosureReason $reason): void
+    public function onParentClosed(ExecutionId $parentExecutionId, ParentClosureReason $reason): void
     {
-        foreach ($this->collectScheduledChildren(ExecutionId::fromString($parentExecutionId)) as $row) {
+        foreach ($this->collectScheduledChildren($parentExecutionId) as $row) {
             if (!self::isChildRunActive($this->eventStore, $row['childExecutionId']->toString())) {
                 continue;
             }
 
             match ($row['policy']) {
-                ParentClosePolicy::Terminate => $this->terminateChild($row['childExecutionId'], $parentExecutionId),
+                ParentClosePolicy::Terminate => $this->terminateChild($row['childExecutionId'], $parentExecutionId->toString()),
                 ParentClosePolicy::Abandon => null,
-                ParentClosePolicy::RequestCancel => $this->requestCancelChild($row['childExecutionId'], $parentExecutionId),
+                ParentClosePolicy::RequestCancel => $this->requestCancelChild($row['childExecutionId'], $parentExecutionId->toString()),
             };
         }
     }
@@ -78,7 +78,7 @@ final class ParentChildWorkflowCoordinator implements ParentChildWorkflowCoordin
     private function terminateChild(ExecutionId $childExecutionId, string $parentExecutionId): void
     {
         $this->eventStore->append(WorkflowExecutionFailed::terminatedByParent(
-            $childExecutionId->toString(),
+            $childExecutionId,
             $parentExecutionId,
         ));
         $this->resumeDispatcher?->dispatchResume($childExecutionId);
@@ -87,7 +87,7 @@ final class ParentChildWorkflowCoordinator implements ParentChildWorkflowCoordin
     private function requestCancelChild(ExecutionId $childExecutionId, string $parentExecutionId): void
     {
         $this->eventStore->append(new WorkflowCancellationRequested(
-            $childExecutionId->toString(),
+            $childExecutionId,
             'parent_request_cancel',
             $parentExecutionId,
         ));

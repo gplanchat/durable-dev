@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Bundle\Profiler;
 
 use Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface;
 use Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface;
+use Gplanchat\Durable\ExecutionId;
 
 /**
  * Process trace for one HTTP request: {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} dispatches
@@ -41,7 +42,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
      */
     #[\Override]
     public function onWorkflowDispatchRequested(
-        string $executionId,
+        ExecutionId $executionId,
         string $workflowType,
         array $payload,
         bool $isResume,
@@ -51,7 +52,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'dispatch',
-            'executionId' => $executionId,
+            'executionId' => $executionId->toString(),
             'workflowType' => $workflowType,
             'payload' => $payload,
             'isResume' => $isResume,
@@ -60,13 +61,13 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
     }
 
     #[\Override]
-    public function onWorkflowRun(string $executionId, string $workflowType, bool $isResume): void
+    public function onWorkflowRun(ExecutionId $executionId, string $workflowType, bool $isResume): void
     {
         $this->record([
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'workflow',
-            'executionId' => $executionId,
+            'executionId' => $executionId->toString(),
             'workflowType' => $workflowType,
             'isResume' => $isResume,
         ]);
@@ -74,7 +75,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
 
     #[\Override]
     public function onActivityExecuted(
-        string $executionId,
+        ExecutionId $executionId,
         string $activityId,
         string $activityName,
         float $durationSeconds,
@@ -85,7 +86,7 @@ final class DurableExecutionTrace implements WorkflowExecutionObserverInterface,
             'seq' => ++$this->seq,
             'at' => microtime(true),
             'kind' => 'activity',
-            'executionId' => $executionId,
+            'executionId' => $executionId->toString(),
             'activityId' => $activityId,
             'activityName' => $activityName,
             'durationSeconds' => $durationSeconds,

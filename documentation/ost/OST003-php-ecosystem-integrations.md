@@ -195,13 +195,11 @@ The paragraph above was a prediction when it was written. It is now a descriptio
 things that made it cheap are worth naming: the suite existed first, and the projection was a port
 rather than a concrete class.
 
-**One constraint no adapter may drop, and Laravel's satisfies it for free.** DUR030 sells durable
-execution on one database with no cluster, and that only pays if the journal append and the business
-write land in one transaction — otherwise the activity writes, the process dies before the journal
-records that it did, and replay runs it twice. A native Laravel adapter is on `DB::connection()` by
-construction, so `DB::transaction()` closes over both. Reaching the same guarantee by handing
-Doctrine DBAL the PDO out of `DB::connection()->getPdo()` is possible, and it is a workaround where
-the adapter is the plain answer.
+**What a native adapter brings is no Doctrine in a Laravel install, not a shared transaction.** An
+earlier version of this section argued that DUR030 only pays if the journal append and the business
+write land in one transaction. DUR054 retires that: nothing in Durable ever opened such a
+transaction, the journal should sit on a connection of its own, and an activity that writes and then
+dies is answered by idempotence.
 
 **Where the port is genuinely hard, and it is not storage.** `SingleResumeLockMiddleware` is a
 Symfony Messenger middleware, and `DbalEventStore`'s own docblock leans on it: without it, two

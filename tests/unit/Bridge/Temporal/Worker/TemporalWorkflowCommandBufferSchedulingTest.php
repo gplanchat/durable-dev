@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
@@ -65,7 +66,7 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
         );
 
         $buffer = $this->buffer();
-        $buffer->scheduleChildWorkflow('child-1', 'ChildType', ['a' => 1], $options);
+        $buffer->scheduleChildWorkflow(ExecutionId::fromString('child-1'), 'ChildType', ['a' => 1], $options);
 
         $attrs = $buffer->peek()[0]->getStartChildWorkflowExecutionCommandAttributes();
         self::assertNotNull($attrs);
@@ -78,7 +79,7 @@ final class TemporalWorkflowCommandBufferSchedulingTest extends TestCase
     public function testChildWorkflowDefaultsToTerminateOnTheConnectionQueue(): void
     {
         $buffer = $this->buffer();
-        $buffer->scheduleChildWorkflow('child-2', 'ChildType', [], ChildWorkflowOptions::defaults());
+        $buffer->scheduleChildWorkflow(ExecutionId::fromString('child-2'), 'ChildType', [], ChildWorkflowOptions::defaults());
 
         $attrs = $buffer->peek()[0]->getStartChildWorkflowExecutionCommandAttributes();
         self::assertNotNull($attrs);

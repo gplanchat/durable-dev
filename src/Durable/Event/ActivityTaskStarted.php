@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * Worker-side marker: activity execution attempt has started (idempotency vs duplicate deliveries).
  */
 final readonly class ActivityTaskStarted implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private string $activityId,
         private string $activityName,
         private int $attempt,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

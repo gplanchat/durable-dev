@@ -14,6 +14,8 @@ use Temporal\Api\Common\V1\Payloads;
  */
 final class JsonPlainPayload
 {
+    private function __construct() {}
+
     private const ENCODING = 'json/plain';
 
     public static function encode(mixed $data): Payload

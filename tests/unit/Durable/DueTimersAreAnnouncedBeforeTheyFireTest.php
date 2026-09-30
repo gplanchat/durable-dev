@@ -30,8 +30,8 @@ final class DueTimersAreAnnouncedBeforeTheyFireTest extends TestCase
     public function testTheDueTimersAreNamedBeforeTheyFire(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new TimerScheduled('exec-1', 'timer-1', 100.0, ''));
-        $journal->append(new TimerScheduled('exec-1', 'timer-2', 900.0, ''));
+        $journal->append(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-1', 100.0, ''));
+        $journal->append(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-2', 900.0, ''));
 
         $resumes = $this->fire($journal, now: 500.0);
 
@@ -41,7 +41,7 @@ final class DueTimersAreAnnouncedBeforeTheyFireTest extends TestCase
     public function testNoTimerDueSendsNoResume(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new TimerScheduled('exec-1', 'timer-1', 900.0, ''));
+        $journal->append(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-1', 900.0, ''));
 
         self::assertSame([], $this->fire($journal, now: 500.0)->sent);
     }
@@ -49,8 +49,8 @@ final class DueTimersAreAnnouncedBeforeTheyFireTest extends TestCase
     public function testACancelledTimerIsNotAnnounced(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new TimerScheduled('exec-1', 'timer-1', 100.0, ''));
-        $journal->append(new TimerCancelled('exec-1', 'timer-1', 'superseded'));
+        $journal->append(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-1', 100.0, ''));
+        $journal->append(new TimerCancelled(ExecutionId::fromString('exec-1'), 'timer-1', 'superseded'));
 
         self::assertSame([], $this->fire($journal, now: 500.0)->sent);
     }
@@ -62,7 +62,7 @@ final class DueTimersAreAnnouncedBeforeTheyFireTest extends TestCase
     public function testATimerPassSupersededAfterItsAnnouncementFiresNothing(): void
     {
         $journal = new InMemoryEventStore();
-        $journal->append(new TimerScheduled('exec-1', 'timer-1', 100.0, ''));
+        $journal->append(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-1', 100.0, ''));
         $resumes = new TimerRecordingResumes($journal, takeOverOnAnnouncement: true);
 
         $this->fire($journal, now: 500.0, resumes: $resumes);

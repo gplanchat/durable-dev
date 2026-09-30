@@ -16,10 +16,11 @@ l'exécution est enregistrée.
 | `gplanchat/durable-bundle` | câblage Symfony, transports Messenger, panneau du profileur | la bibliothèque et Symfony Messenger |
 | `gplanchat/durable-bridge-temporal` | le pilote Temporal, en gRPC | la bibliothèque, `ext-grpc`, un cluster Temporal |
 | `gplanchat/durable-bridge-dbal` | l'exécution durable sur une base SQL | la bibliothèque, Doctrine DBAL 3 ou 4, `symfony/lock` |
-| `gplanchat/durable-bridge-illuminate` | la même chose, sur la connexion que Laravel possède déjà | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
+| `gplanchat/durable-bridge-illuminate` | la même chose, par la couche de base de données de Laravel | la bibliothèque, `illuminate/database` 11, 12 ou 13 |
 | `gplanchat/durable-laravel` | le câblage Laravel : les ports liés depuis la configuration, le travail sur la file de l'application | la bibliothèque, le pont Illuminate, `illuminate/support` |
 | `gplanchat/durable-magento` | un module Magento 2.4 / Mage-OS : déclaration, workers, écran d'administration | la bibliothèque ; Temporal pour tout ce qui doit survivre à un processus |
 | `gplanchat/durable-plugin` | un tableau de bord Sylius pour les exécutions | le bundle, `knplabs/knp-menu` ; Sylius 2.x pour apparaître dans son menu |
+| `gplanchat/durable-filament` | un tableau de bord des exécutions dans un panneau Filament | l'intégration Laravel, Filament 3 ou 4 |
 | `gplanchat/durable-phpstan` | l'analyse statique des appels de stub face à leur contrat | la bibliothèque, `phpstan/phpstan` |
 | `gplanchat/durable-rector` | la migration automatisée depuis le SDK PHP de Temporal | la bibliothèque, `rector/rector` |
 
@@ -173,11 +174,12 @@ Les mêmes quatre stockages que le pont DBAL, et le même échange face à Tempo
 ci-dessus s'applique mot pour mot. Ce qui change, c'est la connexion : ceux-ci sont écrits contre
 `Illuminate\Database\Connection`, le constructeur de requêtes plutôt qu'Eloquent.
 
-C'est toute la raison d'être du paquet. **DUR030** ne paie que si l'ajout au journal et l'écriture
-métier atterrissent dans **une seule transaction**, et un stockage sur `DB::connection()` est dans
-`DB::transaction()` par construction. Passer à Doctrine DBAL le PDO tiré de
-`DB::connection()->getPdo()` atteint la même garantie et reste un contournement ; ceci est la
-réponse simple.
+Donnez aux stockages une connexion à eux dans `config/database.php`, pas la connexion par défaut de
+l'application (DUR054). Sur une connexion partagée, les transactions propres à Durable s'imbriquent
+dans celles de l'application : un rollback métier efface des événements du journal, et une prise de
+main reste invisible aux autres workers tant que le code métier n'a pas validé. Une activité qui
+écrit puis meurt se traite en la rendant idempotente, jamais par une transaction partagée avec le
+code métier.
 
 Les quatre tables sont livrées en migration, chargée depuis le paquet : `migrate` suffit.
 `vendor:publish --tag=durable-migrations` sert à les modifier, et à partir de là, elles sont à
@@ -227,7 +229,7 @@ par attribut de Symfony, donc la clé `workflows` nomme les classes. Mesuré : l
 même raison : `config:cache` met déjà en cache le fichier qu'il dupliquerait.
 
 **Le travail voyage sur la file que l'application draine déjà**, avec `php artisan queue:work` pour
-seul worker. Activités et reprises sont des jobs ; un minuteur est une reprise différée sur le délai
+seul worker. Activités et reprises sont des jobs ; un minuteur est un job de déclenchement différé sur le délai
 natif de la file.
 
 ### Ce n'est pas un moteur durable pour Laravel, et ce carré est pris
@@ -318,8 +320,8 @@ qui ne choisit pas ce backend ne le paie jamais, et celle qui le choisit s'enten
 installer. Scinder le pont, dont la partie couplée à Symfony fait huit fichiers sur 774, retirerait le
 poids, et c'est un change à part.
 
-**Un tableau de bord.** `gplanchat/durable-filament` exigera ce paquet, et ce paquet n'exigera, ne
-suggérera ni ne détectera jamais Filament.
+**Un tableau de bord.** [`gplanchat/durable-filament`](#gplanchatdurable-filament--le-tableau-de-bord-filament)
+exige ce paquet, et ce paquet n'exige, ne suggère ni ne détecte jamais Filament.
 
 ---
 
@@ -347,6 +349,38 @@ d'exécutions qu'il lit : la commande ci-dessus est donc toute l'installation.
 > `require` ici : le backend est suggéré par `gplanchat/durable`, une fois, pour toutes les
 > intégrations. Sans backend, le plugin s'installe quand même, la route et l'entrée de menu
 > fonctionnent, et le tableau de bord affiche son état dégradé au lieu d'exécutions vivantes.
+
+## `gplanchat/durable-filament`, le tableau de bord Filament {#gplanchatdurable-filament--le-tableau-de-bord-filament}
+
+```bash
+composer config minimum-stability beta
+composer config prefer-stable true
+composer require gplanchat/durable-filament
+```
+
+```php
+// app/Providers/Filament/AdminPanelProvider.php
+use Gplanchat\Durable\Filament\DurableFilamentPlugin;
+
+return $panel
+    // ...
+    ->plugin(DurableFilamentPlugin::make());
+```
+
+L'habillage Filament du [tableau de bord](../dashboard/), sur Filament 3 ou 4 : une entrée
+**Exécutions Durable** dans la navigation du panneau, la liste des exécutions avec pagination par
+curseur et les filtres par nom et par identifiant d'exécution que le backend sait appliquer, et une
+page par exécution avec son état, ce qu'elle attend, ses opérations Nexus et son historique. En
+anglais et en français.
+
+Il **observe** ; il n'exécute pas. Il exige `gplanchat/durable-laravel` et lit le catalogue
+d'exécutions que ce paquet lie pour son backend : en mémoire, Illuminate ou Temporal. Rien en lui ne
+nomme un backend, et rien dans `gplanchat/durable-laravel` ne nomme Filament.
+
+> [!NOTE]
+> La page d'une exécution liste ses opérations Nexus quand le catalogue les rapporte, ce que seul
+> celui de Temporal sait faire : un journal ne peut pas tenir d'opération Nexus, donc en mémoire et
+> sur Illuminate la section n'apparaît jamais.
 
 ## `gplanchat/durable-magento`, l'intégration Magento {#gplanchatdurable-magento--lintégration-magento}
 

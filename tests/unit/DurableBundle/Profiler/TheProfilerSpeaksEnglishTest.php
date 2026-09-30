@@ -22,6 +22,7 @@ use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -40,22 +41,22 @@ final class TheProfilerSpeaksEnglishTest extends TestCase
      */
     public static function storeEvents(): iterable
     {
-        yield 'execution started' => [new ExecutionStarted('e-1', []), 'Execution started'];
-        yield 'execution completed' => [new ExecutionCompleted('e-1', null), 'Execution finished'];
-        yield 'continued as new' => [new WorkflowContinuedAsNew('e-1', 'Next', []), 'Continue as new'];
-        yield 'activity scheduled' => [new ActivityScheduled('e-1', 'a-1', 'Charge', []), 'Activity queued'];
-        yield 'activity completed' => [new ActivityCompleted('e-1', 'a-1', null), 'Activity succeeded'];
-        yield 'activity cancelled' => [new ActivityCancelled('e-1', 'a-1', 'no reason'), 'Activity cancelled'];
-        yield 'timer scheduled' => [new TimerScheduled('e-1', 't-1', 0.0), 'Timer scheduled'];
-        yield 'timer fired' => [new TimerCompleted('e-1', 't-1'), 'Timer fired'];
-        yield 'timer cancelled' => [new TimerCancelled('e-1', 't-1', 'no reason'), 'Timer cancelled'];
-        yield 'side effect' => [new SideEffectRecorded('e-1', 's-1', null), 'Side effect recorded'];
-        yield 'child scheduled' => [new ChildWorkflowScheduled('e-1', 'c-1', 'Child', []), 'Child workflow scheduled'];
-        yield 'child completed' => [new ChildWorkflowCompleted('e-1', 'c-1', null), 'Child workflow finished'];
-        yield 'signal' => [new WorkflowSignalReceived('e-1', 'approve', []), 'Signal received'];
-        yield 'update' => [new WorkflowUpdateHandled('e-1', 'raise', [], null), 'Update handled'];
-        yield 'execution cancelled' => [new WorkflowExecutionCancelled('e-1', 'no reason'), 'Execution cancelled'];
-        yield 'cancellation requested' => [new WorkflowCancellationRequested('e-1', 'no reason'), 'Cancellation requested'];
+        yield 'execution started' => [new ExecutionStarted(ExecutionId::fromString('e-1'), []), 'Execution started'];
+        yield 'execution completed' => [new ExecutionCompleted(ExecutionId::fromString('e-1'), null), 'Execution finished'];
+        yield 'continued as new' => [new WorkflowContinuedAsNew(ExecutionId::fromString('e-1'), 'Next', []), 'Continue as new'];
+        yield 'activity scheduled' => [new ActivityScheduled(ExecutionId::fromString('e-1'), 'a-1', 'Charge', []), 'Activity queued'];
+        yield 'activity completed' => [new ActivityCompleted(ExecutionId::fromString('e-1'), 'a-1', null), 'Activity succeeded'];
+        yield 'activity cancelled' => [new ActivityCancelled(ExecutionId::fromString('e-1'), 'a-1', 'no reason'), 'Activity cancelled'];
+        yield 'timer scheduled' => [new TimerScheduled(ExecutionId::fromString('e-1'), 't-1', 0.0), 'Timer scheduled'];
+        yield 'timer fired' => [new TimerCompleted(ExecutionId::fromString('e-1'), 't-1'), 'Timer fired'];
+        yield 'timer cancelled' => [new TimerCancelled(ExecutionId::fromString('e-1'), 't-1', 'no reason'), 'Timer cancelled'];
+        yield 'side effect' => [new SideEffectRecorded(ExecutionId::fromString('e-1'), 's-1', null), 'Side effect recorded'];
+        yield 'child scheduled' => [new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), 'c-1', 'Child', []), 'Child workflow scheduled'];
+        yield 'child completed' => [new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), 'c-1', null), 'Child workflow finished'];
+        yield 'signal' => [new WorkflowSignalReceived(ExecutionId::fromString('e-1'), 'approve', []), 'Signal received'];
+        yield 'update' => [new WorkflowUpdateHandled(ExecutionId::fromString('e-1'), 'raise', [], null), 'Update handled'];
+        yield 'execution cancelled' => [new WorkflowExecutionCancelled(ExecutionId::fromString('e-1'), 'no reason'), 'Execution cancelled'];
+        yield 'cancellation requested' => [new WorkflowCancellationRequested(ExecutionId::fromString('e-1'), 'no reason'), 'Cancellation requested'];
     }
 
     #[DataProvider('storeEvents')]

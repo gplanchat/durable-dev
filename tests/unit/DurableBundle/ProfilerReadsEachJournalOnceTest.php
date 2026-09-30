@@ -25,8 +25,8 @@ final class ProfilerReadsEachJournalOnceTest extends TestCase
     public function testEachJournalIsReadOnceAndCountedOnce(): void
     {
         $inner = new InMemoryEventStore();
-        $inner->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
-        $inner->append(new ActivityScheduled('exec-2', 'act-2', 'ship', []));
+        $inner->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
+        $inner->append(new ActivityScheduled(ExecutionId::fromString('exec-2'), 'act-2', 'ship', []));
         $store = new class ($inner) implements EventStoreInterface {
             /** @var array<string, int> */
             public array $calls = [];
@@ -60,7 +60,7 @@ final class ProfilerReadsEachJournalOnceTest extends TestCase
             }
         };
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('exec-1', 'Order', [], false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('exec-1'), 'Order', [], false, 'async');
 
         $collector = new DurableDataCollector($trace, new InMemoryWorkflowMetadataStore(), $store);
         $collector->collect(new Request(['durable_execution' => 'exec-2']), new Response());

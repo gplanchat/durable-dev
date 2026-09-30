@@ -31,7 +31,7 @@ use Gplanchat\Durable\Store\StoredTimestamp;
  *
  * @see DUR030
  */
-final class DbalEventStore implements FencedEventStoreInterface
+final readonly class DbalEventStore implements FencedEventStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,
@@ -46,7 +46,7 @@ final class DbalEventStore implements FencedEventStoreInterface
         $this->connection->insert($this->table, $this->row($event), ['recorded_at' => 'datetime_immutable']);
     }
 
-    public function claimPass(string $executionId): PassFence
+    public function claimPass(ExecutionId $executionId): PassFence
     {
         $this->schema->ensure();
         $heads = $this->schema->headsTable();
@@ -59,16 +59,16 @@ final class DbalEventStore implements FencedEventStoreInterface
             $platform instanceof SQLitePlatform => \sprintf('INSERT OR IGNORE INTO %s (execution_id, epoch) VALUES (?, 0)', $heads),
             $platform instanceof AbstractMySQLPlatform => \sprintf('INSERT IGNORE INTO %s (execution_id, epoch) VALUES (?, 0)', $heads),
             default => \sprintf('INSERT INTO %s (execution_id, epoch) VALUES (?, 0) ON CONFLICT (execution_id) DO NOTHING', $heads),
-        }, [$executionId]);
+        }, [$executionId->toString()]);
 
         // The update locks the row until the claim commits: a fenced append waits for it (DUR053).
         $epoch = $this->connection->transactional(function (Connection $connection) use ($heads, $executionId): int {
-            $connection->executeStatement(\sprintf('UPDATE %s SET epoch = epoch + 1 WHERE execution_id = ?', $heads), [$executionId]);
+            $connection->executeStatement(\sprintf('UPDATE %s SET epoch = epoch + 1 WHERE execution_id = ?', $heads), [$executionId->toString()]);
 
-            return (int) $connection->fetchOne(\sprintf('SELECT epoch FROM %s WHERE execution_id = ?', $heads), [$executionId]);
+            return (int) $connection->fetchOne(\sprintf('SELECT epoch FROM %s WHERE execution_id = ?', $heads), [$executionId->toString()]);
         });
 
-        return new PassFence($executionId, $epoch);
+        return new PassFence($executionId->toString(), $epoch);
     }
 
     public function appendFenced(Event $event, PassFence $fence): void

@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Nexus;
 
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
@@ -57,7 +58,7 @@ final class NexusOperationFailureTest extends TestCase
 
     public function testAnUnhandledFailureIsClassifiedWithItsOrigin(): void
     {
-        $failed = WorkflowFailureClassifier::classify('exec-1', $this->failure(NexusOperationFailureKind::OperationFailed));
+        $failed = WorkflowFailureClassifier::classify(ExecutionId::fromString('exec-1'), $this->failure(NexusOperationFailureKind::OperationFailed));
 
         self::assertSame(WorkflowExecutionFailed::KIND_UNHANDLED_NEXUS_OPERATION, $failed->kind());
         $context = $failed->context();
@@ -71,7 +72,7 @@ final class NexusOperationFailureTest extends TestCase
     {
         // Without its branch in the classifier, the failure would fall into the catch-all and
         // the origin of the call would be lost — the failure mode §3.6 exists to prevent.
-        $failed = WorkflowFailureClassifier::classify('exec-1', $this->failure(NexusOperationFailureKind::Cancellation));
+        $failed = WorkflowFailureClassifier::classify(ExecutionId::fromString('exec-1'), $this->failure(NexusOperationFailureKind::Cancellation));
 
         self::assertNotSame(WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER, $failed->kind());
     }

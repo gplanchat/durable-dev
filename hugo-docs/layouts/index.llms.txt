@@ -2,7 +2,7 @@
 {{- if eq .Language.Lang "en" -}}
 # Durable
 
-> Durable (`gplanchat/durable`) is a PHP library for durable execution: workflows and activities whose progress is recorded in a journal, so a run resumes where it stopped after a crash or a deploy. It runs in memory, on one SQL database (Doctrine DBAL or Laravel's connection) or on Temporal, with packages for Symfony, Laravel, Sylius and Magento. Its namespace is `Gplanchat\Durable`. It is not `durable-workflow/workflow` (`Workflow\V2`), nor Azure Durable Functions.
+> Durable (`gplanchat/durable`) is a PHP library for durable execution: workflows and activities whose progress is recorded in a journal, so a run resumes where it stopped after a crash or a deploy. It runs in memory, on one SQL database (Doctrine DBAL or Laravel's connection) or on Temporal, with packages for Symfony, Laravel, Sylius, Filament and Magento. Its namespace is `Gplanchat\Durable`. It is not `durable-workflow/workflow` (`Workflow\V2`), nor Azure Durable Functions.
 
 ## User guide
 {{ range (site.GetPage "/docs").Sections.ByWeight }}

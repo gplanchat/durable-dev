@@ -1,0 +1,57 @@
+{
+    "name": "gplanchat/durable-filament",
+    "description": "Filament panel plugin for gplanchat/durable: a read-only dashboard of workflow runs",
+    "keywords": [
+        "laravel",
+        "filament",
+        "filament-plugin",
+        "durable-execution",
+        "workflow",
+        "dashboard"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "filament/filament": "^3.3 || ^4.0",
+        "gplanchat/durable": "self.version",
+        "gplanchat/durable-laravel": "self.version",
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0",
+        "livewire/livewire": "^3.5",
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Filament\\": "./"
+        },
+        "exclude-from-classmap": [
+            "/tests/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Gplanchat\\Durable\\Filament\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Gplanchat\\Durable\\Filament\\DurableFilamentServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

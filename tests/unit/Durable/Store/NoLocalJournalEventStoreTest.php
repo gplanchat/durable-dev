@@ -23,7 +23,7 @@ final class NoLocalJournalEventStoreTest extends TestCase
      */
     public static function everyCall(): iterable
     {
-        yield 'append' => [static fn(NoLocalJournalEventStore $store) => $store->append(new ExecutionStarted('exec-1', [])), 'append'];
+        yield 'append' => [static fn(NoLocalJournalEventStore $store) => $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), [])), 'append'];
         yield 'readStream' => [static fn(NoLocalJournalEventStore $store) => iterator_to_array($store->readStream(ExecutionId::fromString('exec-1'))), 'readStream'];
         yield 'readStreamWithRecordedAt' => [static fn(NoLocalJournalEventStore $store) => iterator_to_array($store->readStreamWithRecordedAt(ExecutionId::fromString('exec-1'))), 'readStreamWithRecordedAt'];
         yield 'countEventsInStream' => [static fn(NoLocalJournalEventStore $store) => $store->countEventsInStream(ExecutionId::fromString('exec-1')), 'countEventsInStream'];

@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityFailureEventFactory;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use PHPUnit\Framework\TestCase;
@@ -41,7 +42,7 @@ final class AnActivityFailureReportsItsAttemptTest extends TestCase
         ]));
 
         $onTemporal = self::failure(3, $failed);
-        $journal = ActivityFailureEventFactory::fromActivityThrowable('exec-1', 'act-1', 'Charge', 3, new \RuntimeException('card declined'), ActivityRetryState::MaximumAttemptsReached);
+        $journal = ActivityFailureEventFactory::fromActivityThrowable(ExecutionId::fromString('exec-1'), 'act-1', 'Charge', 3, new \RuntimeException('card declined'), ActivityRetryState::MaximumAttemptsReached);
         self::assertInstanceOf(ActivityFailed::class, $journal);
         $onTheJournal = DurableActivityFailedException::toThrowable($journal);
         self::assertInstanceOf(DurableActivityFailedException::class, $onTheJournal);

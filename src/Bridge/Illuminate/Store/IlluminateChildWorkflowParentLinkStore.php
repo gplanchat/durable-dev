@@ -19,7 +19,7 @@ use Illuminate\Database\Connection;
  *
  * @see DUR041
  */
-final class IlluminateChildWorkflowParentLinkStore implements ChildWorkflowParentLinkStoreInterface
+final readonly class IlluminateChildWorkflowParentLinkStore implements ChildWorkflowParentLinkStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,

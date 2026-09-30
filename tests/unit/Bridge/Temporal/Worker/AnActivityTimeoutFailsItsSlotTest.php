@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityFailureEventFactory;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -58,7 +59,7 @@ final class AnActivityTimeoutFailsItsSlotTest extends TestCase
      */
     public function testTheFailureIsTheOneTheJournalBackendsRaise(): void
     {
-        $journal = ActivityFailureEventFactory::fromActivityThrowable('exec-1', 'act-1', 'SlowOne', 1, new \RuntimeException('Activity start-to-close timeout exceeded.'), ActivityRetryState::Timeout);
+        $journal = ActivityFailureEventFactory::fromActivityThrowable(ExecutionId::fromString('exec-1'), 'act-1', 'SlowOne', 1, new \RuntimeException('Activity start-to-close timeout exceeded.'), ActivityRetryState::Timeout);
         self::assertInstanceOf(ActivityFailed::class, $journal);
         $onTheJournal = DurableActivityFailedException::toThrowable($journal);
 

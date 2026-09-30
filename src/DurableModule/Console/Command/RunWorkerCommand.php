@@ -14,9 +14,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  * `bin/magento durable:worker` — the loop that makes executions advance.
  *
  * **One process, one queue, one role.** `--role=journal` answers workflow tasks, `--role=activity`
- * drains activity tasks. Separating them is not a preference: these are two distinct queues on the
- * Temporal side, and an operator tunes their concurrency apart — a slow activity must not delay the
- * resume of a journal.
+ * drains activity tasks, `--role=nexus` serves the module's Nexus operations (#668). Separating them
+ * is not a preference: these are distinct queues on the Temporal side, and an operator tunes their
+ * concurrency apart — a slow activity must not delay the resume of a journal.
  *
  * Without the `journal` role, an execution appended to the cluster does not advance: its history
  * fills and no one answers its tasks. Without the `activity` role, it advances up to its first
@@ -41,6 +41,7 @@ class RunWorkerCommand extends Command
     private const OPTION_ROLE = 'role';
     private const ROLE_JOURNAL = 'journal';
     private const ROLE_ACTIVITY = 'activity';
+    private const ROLE_NEXUS = 'nexus';
     private const OPTION_MAX_TASKS = 'max-tasks';
     private const OPTION_TIME_LIMIT = 'time-limit';
 
@@ -58,7 +59,7 @@ class RunWorkerCommand extends Command
                 self::OPTION_ROLE,
                 null,
                 InputOption::VALUE_REQUIRED,
-                sprintf('Which queue to drain: %s or %s.', self::ROLE_JOURNAL, self::ROLE_ACTIVITY),
+                sprintf('Which queue to drain: %s, %s or %s.', self::ROLE_JOURNAL, self::ROLE_ACTIVITY, self::ROLE_NEXUS),
                 self::ROLE_JOURNAL,
             )
             ->addOption(
@@ -91,11 +92,14 @@ class RunWorkerCommand extends Command
         $tick = match ($role) {
             self::ROLE_JOURNAL => $this->runtimeFactory->journalWorker()->processOne(...),
             self::ROLE_ACTIVITY => $this->runtimeFactory->activityWorker()->pollOnce(...),
+            // The module's declared Nexus operations (#668), on the DSN's nexus_task_queue.
+            self::ROLE_NEXUS => $this->runtimeFactory->nexusWorker()->pollOnce(...),
             default => throw new \InvalidArgumentException(sprintf(
-                'Unknown worker role "%s". One process, one queue, one role: %s or %s.',
+                'Unknown worker role "%s". One process, one queue, one role: %s, %s or %s.',
                 $role,
                 self::ROLE_JOURNAL,
                 self::ROLE_ACTIVITY,
+                self::ROLE_NEXUS,
             )),
         };
         // The bound is a console option, so an integer of seconds; `microtime()` returns a float.

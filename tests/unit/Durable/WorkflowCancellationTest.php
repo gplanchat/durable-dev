@@ -153,7 +153,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->resumeExpectingSuspension('exec-6', $handler);
 
         // A signal that satisfies the condition lands after the delivery.
-        $this->eventStore->append(new WorkflowSignalReceived('exec-6', 'approve', []));
+        $this->eventStore->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-6'), 'approve', []));
         $this->drainActivities('exec-6');
 
         // Task 2: the replay must reach the catch again, not walk past the condition.
@@ -202,7 +202,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->resumeExpectingSuspension('exec-7', $handler);
 
         // Task 3: the signal releases the compensation, recorded after the delivery.
-        $this->eventStore->append(new WorkflowSignalReceived('exec-7', 'approve', []));
+        $this->eventStore->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-7'), 'approve', []));
         self::assertSame('compensated', $this->engine->resume('exec-7', $handler));
     }
 
@@ -227,7 +227,7 @@ final class WorkflowCancellationTest extends TestCase
 
     public function testAWorkflowThatNeverAwaitsCompletesWithoutObservingTheCancellation(): void
     {
-        $this->eventStore->append(new ExecutionStarted('exec-4', []));
+        $this->eventStore->append(new ExecutionStarted(ExecutionId::fromString('exec-4'), []));
         $this->requestCancellation('exec-4');
 
         self::assertSame('done', $this->engine->resume('exec-4', static fn(WorkflowEnvironment $env): string => 'done'));
@@ -275,7 +275,7 @@ final class WorkflowCancellationTest extends TestCase
 
     private function requestCancellation(string $executionId): void
     {
-        $this->eventStore->append(new WorkflowCancellationRequested($executionId, 'operator', null));
+        $this->eventStore->append(new WorkflowCancellationRequested(ExecutionId::fromString($executionId), 'operator', null));
     }
 
     private function drainActivities(string $executionId): void

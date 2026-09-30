@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * A Nexus operation has failed.
  *
@@ -13,11 +15,11 @@ namespace Gplanchat\Durable\Event;
 final readonly class NexusOperationFailed implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private int $scheduledEventId,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

@@ -23,6 +23,8 @@ use Temporal\Api\Enums\V1\WorkflowIdReusePolicy as TemporalIdReusePolicy;
  * The signatures used to accept `mixed` — not out of flexibility, but because the values crossed
  * an array before arriving. Now that they cross the port typed, the `match` is exhaustive and the
  * compiler answers for it.
+ *
+ * @internal
  */
 final class TemporalPolicyMapper
 {

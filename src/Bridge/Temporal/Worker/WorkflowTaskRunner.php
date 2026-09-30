@@ -34,7 +34,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  * The fiber is non-persistent: each workflow task starts a fresh fiber that replays the full history.
  * No pcntl_fork(), no Swoole, no RoadRunner — standard PHP-CLI only.
  */
-final class WorkflowTaskRunner
+final readonly class WorkflowTaskRunner
 {
     private readonly ExecutionRuntime $runtime;
 

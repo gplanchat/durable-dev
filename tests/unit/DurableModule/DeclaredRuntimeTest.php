@@ -7,6 +7,8 @@ namespace unit\DurableModule;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Gplanchat\DurableModule\Runtime\UndeclaredWorkflowException;
 use PHPUnit\Framework\TestCase;
+use unit\DurableModule\Fixture\LyingOrderActivities;
+use unit\DurableModule\Fixture\NarrowedOrderActivities;
 use unit\DurableModule\Fixture\OrderWorkflow;
 use unit\DurableModule\Fixture\RecordingOrderActivities;
 
@@ -57,5 +59,27 @@ final class DeclaredRuntimeTest extends TestCase
         $this->expectExceptionMessageMatches('/di\.xml/');
 
         $runtime->run(OrderWorkflow::class, ['orderId' => 'ORD-4242']);
+    }
+
+    /**
+     * As on Symfony, `#[AsActivityHandler(contract)]` narrows what a handler serves: the handler
+     * also implements `AuditActivities`, but names `OrderActivities`.
+     */
+    public function testAHandlerCarryingTheAttributeIsServedOnlyForTheContractItNames(): void
+    {
+        $runtime = (new RuntimeFactory(activityHandlers: [new NarrowedOrderActivities()]))->create();
+
+        self::assertSame(
+            ['test.order.charge', 'test.order.reserve', 'test.order.notify'],
+            $runtime->declaredActivities(),
+        );
+    }
+
+    public function testAHandlerLackingAMethodOfItsNamedContractIsRefusedByName(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/LyingOrderActivities/');
+
+        (new RuntimeFactory(activityHandlers: [new LyingOrderActivities()]))->create();
     }
 }

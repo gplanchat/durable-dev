@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * A scheduled activity has been taken off the queue without executing (e.g. loser of a race / any).
  */
 final readonly class ActivityCancelled implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private string $activityId,
         private string $reason,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

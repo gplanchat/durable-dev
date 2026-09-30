@@ -27,7 +27,7 @@ final class InMemoryEventStore implements FencedEventStoreInterface
 
     public function append(Event $event): void
     {
-        $id = $event->executionId();
+        $id = $event->executionId()->toString();
         if (!isset($this->streams[$id])) {
             $this->streams[$id] = [];
         }
@@ -37,11 +37,12 @@ final class InMemoryEventStore implements FencedEventStoreInterface
         ];
     }
 
-    public function claimPass(string $executionId): PassFence
+    public function claimPass(ExecutionId $executionId): PassFence
     {
-        $this->epochs[$executionId] = ($this->epochs[$executionId] ?? 0) + 1;
+        $id = $executionId->toString();
+        $this->epochs[$id] = ($this->epochs[$id] ?? 0) + 1;
 
-        return new PassFence($executionId, $this->epochs[$executionId]);
+        return new PassFence($id, $this->epochs[$id]);
     }
 
     public function appendFenced(Event $event, PassFence $fence): void

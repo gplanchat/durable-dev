@@ -20,7 +20,7 @@ use Psr\Http\Message\ResponseInterface;
  * h2c needs HTTP/2 prior knowledge: Guzzle's own way, `multiplex: require_*`, wants libcurl 8.14,
  * so the version is set raw instead — Guzzle applies raw cURL options after its own choice.
  */
-final class GuzzleGrpcTransport implements GrpcTransport
+final readonly class GuzzleGrpcTransport implements GrpcTransport
 {
     public function __construct(
         private readonly TemporalConnection $connection,

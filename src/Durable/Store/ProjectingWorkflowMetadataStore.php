@@ -17,7 +17,7 @@ use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
  *
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  */
-final class ProjectingWorkflowMetadataStore implements WorkflowMetadataStore
+final readonly class ProjectingWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly WorkflowMetadataStore $inner,
@@ -27,7 +27,7 @@ final class ProjectingWorkflowMetadataStore implements WorkflowMetadataStore
     public function save(ExecutionId $executionId, string $workflowType, array $payload): void
     {
         $this->inner->save($executionId, $workflowType, $payload);
-        $this->projection->recordStart($executionId->toString(), $workflowType);
+        $this->projection->recordStart($executionId, $workflowType);
     }
 
     public function markCompleted(ExecutionId $executionId): void

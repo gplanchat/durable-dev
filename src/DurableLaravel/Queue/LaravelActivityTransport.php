@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Queue;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
@@ -85,7 +86,7 @@ final class LaravelActivityTransport implements ActivityTransportInterface
     }
 
     /** Best effort, and Laravel does not allow it: a queued job cannot be removed by its content. */
-    public function removePendingFor(string $executionId, string $activityId): bool
+    public function removePendingFor(ExecutionId $executionId, string $activityId): bool
     {
         return false;
     }

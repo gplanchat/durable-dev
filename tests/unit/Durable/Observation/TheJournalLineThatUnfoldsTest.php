@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
@@ -24,7 +25,7 @@ final class TheJournalLineThatUnfoldsTest extends TestCase
     public function testAnEventCarriesWhatItWasCalledWith(): void
     {
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', ['orderId' => 'ORD-4242'], []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', ['orderId' => 'ORD-4242'], []),
         ]);
 
         self::assertSame(WorkflowRunEventKind::Activity, $history[0]->kind);
@@ -39,8 +40,8 @@ final class TheJournalLineThatUnfoldsTest extends TestCase
     public function testTheResultIsThereToo(): void
     {
         $history = $this->read([
-            new ActivityScheduled('exec-1', 'act-1', 'charge', ['orderId' => 'ORD-4242'], []),
-            new ActivityCompleted('exec-1', 'act-1', ['receipt' => 'rcpt-7']),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', ['orderId' => 'ORD-4242'], []),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['receipt' => 'rcpt-7']),
         ]);
 
         self::assertStringContainsString(

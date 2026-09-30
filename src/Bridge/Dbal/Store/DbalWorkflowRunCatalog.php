@@ -33,7 +33,7 @@ use Gplanchat\Durable\Store\StoredTimestamp;
  *
  * @see DUR030
  */
-final class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
+final readonly class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterface
 {
     private const BACKEND = 'SQL database';
 

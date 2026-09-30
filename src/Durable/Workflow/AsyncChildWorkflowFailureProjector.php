@@ -12,9 +12,13 @@ use Gplanchat\Durable\Store\EventStoreInterface;
 /**
  * Projects an async child's failure onto {@see ChildWorkflowFailed}, relying on the child journal
  * ({@see WorkflowExecutionFailed}) when it is present.
+ *
+ * @internal
  */
 final class AsyncChildWorkflowFailureProjector
 {
+    private function __construct() {}
+
     public static function toParentJournalEvent(
         EventStoreInterface $store,
         string $parentExecutionId,
@@ -24,7 +28,7 @@ final class AsyncChildWorkflowFailureProjector
         $wf = self::lastWorkflowExecutionFailed($store, ExecutionId::fromString($childExecutionId));
         if (null !== $wf) {
             return new ChildWorkflowFailed(
-                $parentExecutionId,
+                ExecutionId::fromString($parentExecutionId),
                 $childExecutionId,
                 $wf->failureMessage(),
                 $wf->failureCode(),
@@ -35,7 +39,7 @@ final class AsyncChildWorkflowFailureProjector
         }
 
         return new ChildWorkflowFailed(
-            $parentExecutionId,
+            ExecutionId::fromString($parentExecutionId),
             $childExecutionId,
             $failure->getMessage(),
             (int) $failure->getCode(),

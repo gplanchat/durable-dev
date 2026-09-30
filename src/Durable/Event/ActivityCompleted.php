@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 final readonly class ActivityCompleted implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private string $activityId,
         private mixed $result,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

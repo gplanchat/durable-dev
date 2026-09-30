@@ -51,8 +51,8 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
 
         $this->failRun('exec-failed-1');
         $this->failRun('exec-failed-2');
-        $this->eventStore()->append(new ExecutionCompleted('exec-done', 'ok'));
-        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'cancelled'));
+        $this->eventStore()->append(new ExecutionCompleted(ExecutionId::fromString('exec-done'), 'ok'));
+        $this->eventStore()->append(new WorkflowExecutionCancelled(ExecutionId::fromString('exec-cancelled'), 'cancelled'));
 
         $page = $this->catalog()->listRuns(WorkflowRunStatus::Failed);
 
@@ -64,7 +64,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
     {
         $this->startRun('exec-done', 'App\\OrderWorkflow');
         $this->startRun('exec-running', 'App\\OrderWorkflow');
-        $this->eventStore()->append(new ExecutionCompleted('exec-done', 'ok'));
+        $this->eventStore()->append(new ExecutionCompleted(ExecutionId::fromString('exec-done'), 'ok'));
 
         self::assertSame(['exec-running'], $this->idsOf($this->catalog()->listRuns(WorkflowRunStatus::Running)->runs));
         self::assertSame(['exec-done'], $this->idsOf($this->catalog()->listRuns(WorkflowRunStatus::Completed)->runs));
@@ -128,7 +128,7 @@ final class DbalWorkflowRunCatalogPagingTest extends TestCase
     private function failRun(string $executionId): void
     {
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
-            $executionId,
+            ExecutionId::fromString($executionId),
             new \RuntimeException('boom'),
         ));
     }

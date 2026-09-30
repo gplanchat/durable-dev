@@ -10,7 +10,7 @@ This page summarizes how you **author** activities in Durable. Normative detail 
 ## Two pieces
 
 1. **Activity contract interface.** Methods the workflow may call, each marked with **`#[AsActivityMethod]`**. From the workflow you interact through **`ActivityStub`** (**ActivityInvoker** in ADRs).
-2. **Activity implementation class.** A concrete class carrying **`#[AsActivityHandler]`**, naming the contract it implements. That attribute is what registers the class: the bundle autoconfigures it, and without it the workflow finds no handler at run time.
+2. **Activity implementation class.** A concrete class carrying **`#[AsActivityHandler]`**, naming the contract it implements. On Symfony, that attribute is what registers the class: the bundle autoconfigures it, and without it the workflow finds no handler at run time. Laravel lists the class in `activity_handlers` in `config/durable.php`, where the attribute, if present, names the contract it serves; without it, the class serves its interfaces whose methods carry `#[AsActivityMethod]`. Magento lists it in the `activityHandlers` argument of `RuntimeFactory` in `di.xml`. Neither scans attributes: an unlisted class serves nothing. See [who registers what, per host](../getting-started/#register-workflows-and-activities).
 
 ## Example: activity contract and implementation
 
@@ -53,49 +53,77 @@ Register **`OrderActivitiesHandler`** with your activity worker / container so t
 
 ## Example: calling an activity from a workflow
 
-From the workflow you never use **`OrderActivitiesHandler`** directly. You obtain a stub from **`WorkflowEnvironment`** and **`await`** the call (the stub returns an **`Awaitable`**).
+From the workflow you never use **`OrderActivitiesHandler`** directly. Declare a stub of the
+contract as a parameter of the workflow method, and **`await`** each call. A call on the stub
+returns an **`Awaitable`**. Durable builds the stub and passes it in; the caller that starts the
+workflow never passes it.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-// Inside a #[AsWorkflowMethod] on your workflow class:
-$activities = $this->environment->activityStub(OrderActivities::class);
-
-$receipt = $this->environment->await($activities->charge($orderId));
+/** @param ActivityStub<OrderActivities> $activities */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    #[Activities(OrderActivities::class)]
+    ActivityStub $activities,
+    WorkflowEnvironment $env,
+): string {
+    return $env->await($activities->charge($orderId));
+}
 ```
+
+Some workflows build the stub themselves with `$env->activityStub(OrderActivities::class)`: see
+[When to build the stub yourself](../workflows/#when-to-build-the-stub-yourself).
 
 The **`ActivityStub`** type (see [Creating a workflow](../workflows/) for the **ActivityInvoker** naming note) resolves method names via reflection on **`OrderActivities`** and builds **`#[AsActivityMethod]`** payloads.
 
 ## ActivityOptions (timeouts, retries, task queue)
 
-Pass **`ActivityOptions`** as the **second argument** to **`activityStub()`**. Every **`Awaitable`** returned by that stub uses these settings when the activity is scheduled.
-
-Retry limits and durations are **value objects**, not numbers; see [Options and value objects](../options/).
+Give the options to **`#[Activities]`**. Every **`Awaitable`** returned by that stub uses them
+when the activity is scheduled. An attribute argument cannot call a constructor, so durations are
+given in seconds:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\WorkflowEnvironment;
 
-// 5 attempts, 120s each, 2s before the first retry.
-$options = ActivityOptions::of(
-    5,
-    120,
-    2,
-    [PaymentRefusedException::class],
-    summary: 'Charge order payment',
-);
-
-$activities = $this->environment->activityStub(OrderActivities::class, $options);
-
-$result = $this->environment->await($activities->charge($orderId));
+/** @param ActivityStub<OrderActivities> $activities */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    // 5 attempts, 120s each, 2s before the first retry.
+    #[Activities(
+        OrderActivities::class,
+        attempts: 5,
+        startToClose: 120.0,
+        initialInterval: 2.0,
+        nonRetryable: [PaymentRefusedException::class],
+        summary: 'Charge order payment',
+    )]
+    ActivityStub $activities,
+    WorkflowEnvironment $env,
+): string {
+    return $env->await($activities->charge($orderId));
+}
 ```
+
+When the options depend on the workflow's input, build them as an **`ActivityOptions`** value
+object and pass it as the second argument of `$env->activityStub()`. Retry limits and durations are
+then **value objects**, not numbers; see [Options and value objects](../options/).
 
 > [!WARNING]
 > With no `RetryLimit`, attempts are **unlimited**, which is Temporal's default. An activity that always
@@ -112,37 +140,35 @@ $result = $this->environment->await($activities->charge($orderId));
 > deadline to bound anything else. See
 > [Bounding a wait in time](../workflows/#bounding-a-wait-in-time).
 
-Create **separate stubs** when different calls need different policies: one with aggressive
+Declare **separate stubs** when different calls need different policies: one with aggressive
 retries for a flaky HTTP call, another with stricter timeouts for a fast path:
 
 ```php
-/** @var ActivityStub<SearchActivities> */
-private readonly ActivityStub $flaky;
-
-/** @var ActivityStub<PricingActivities> */
-private readonly ActivityStub $strict;
-
-// … dans le constructeur :
-$this->flaky  = $env->activityStub(SearchActivities::class, ActivityOptions::of(
-    10,
-    initialInterval: Duration::milliseconds(200),
-));
-
-$this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of(
-    RetryLimit::once(),
-    timeouts: 2,
-));
+/**
+ * @param ActivityStub<SearchActivities>  $flaky
+ * @param ActivityStub<PricingActivities> $strict
+ */
+#[AsWorkflowMethod]
+public function run(
+    string $query,
+    #[Activities(SearchActivities::class, attempts: 10, initialInterval: 0.2)]
+    ActivityStub $flaky,
+    #[Activities(PricingActivities::class, attempts: 1, startToClose: 2.0)]
+    ActivityStub $strict,
+    WorkflowEnvironment $env,
+): array {
+    // ...
+}
 ```
 
 > [!NOTE]
-> Declaring the property **`readonly`** is what lets
+> The **`@param ActivityStub<Contract>`** docblock is what lets
 > [`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) check the calls you
-> make through the stub: PHPStan infers the contract from `activityStub()` and can follow it to
-> the call site. A mutable property loses it, and then an explicit
-> `/** @var ActivityStub<Contract> */` is needed. Either way, a contract it cannot resolve leaves
-> the call unknown to the analyser, never silently accepted. An
-> [`#[Activities]` argument](../workflows/#arguments-durable-supplies) needs its
-> `@param ActivityStub<Contract>` docblock for the same reason.
+> make through the stub. PHP has no runtime generics, so the attribute names the contract for
+> Durable and the docblock names it for PHPStan; the extension reports a docblock that names
+> another contract than the attribute. A stub you build yourself into a **`readonly`** property
+> needs no docblock: PHPStan infers the contract from `activityStub()`. Either way, a contract it
+> cannot resolve leaves the call unknown to the analyser, never silently accepted.
 
 
 ## Idempotency

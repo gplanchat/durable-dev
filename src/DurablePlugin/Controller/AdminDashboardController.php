@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Controller;
 
+use Gplanchat\Durable\Bundle\Observation\WorkerPresence;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Plugin\Grid\RunGridViews;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -18,12 +19,14 @@ use Twig\Environment;
  * The page now does nothing but carry: the filter and the cursor to the catalogue, the view model
  * to the template. Everything that knew how to speak gRPC has moved to the Temporal bridge.
  */
-final class AdminDashboardController
+final readonly class AdminDashboardController
 {
     public function __construct(
         private readonly Environment $twig,
         /** The run list as a Sylius grid (#383); absent without sylius/grid-bundle. */
         private readonly ?RunGridViews $grid = null,
+        /** Who polls each `durable:worker` role; absent where no worker polls a Temporal cluster. */
+        private readonly ?WorkerPresence $workers = null,
     ) {}
 
     #[IsGranted('ROLE_ADMINISTRATION_ACCESS')]
@@ -48,6 +51,7 @@ final class AdminDashboardController
             ? $view->listing('' === $status ? 'all' : $status, '' === $cursor ? null : $cursor)
             : ['resources' => $grid['resources']] + $grid['page']->model;
         $model['pagination']['isFirstPage'] = '' === $cursor;
+        $model['workers'] = $this->workerRows($model['backend'] ?? []);
 
         return new Response($this->twig->render('@DurablePlugin/admin/dashboard/index.html.twig', $model));
     }
@@ -90,6 +94,30 @@ final class AdminDashboardController
                 : $urls->generate('gplanchat_durable_plugin_admin_run_show', ['runId' => $runId] + $position),
             Response::HTTP_MOVED_PERMANENTLY,
         );
+    }
+
+    /**
+     * A missing worker fails nothing: executions stop at their first task of its kind, and the list
+     * alone looks healthy. Asked only of a backend that answers, and only on the list page: the run
+     * page is about one run. Uncached, like Magento's banner: a cluster that answers the health
+     * check and then hangs costs one 5 s probe per role on this render.
+     *
+     * @param array<string, mixed> $backend
+     *
+     * @return list<array{role: string, pollers: int, polling: bool, error: ?string, seconds: int}>
+     */
+    private function workerRows(array $backend): array
+    {
+        if (null === $this->workers || true !== ($backend['available'] ?? false) || true === ($backend['ephemeral'] ?? false)) {
+            return [];
+        }
+        $since = $this->workers->since();
+        $rows = [];
+        foreach ($this->workers->describe() as $role => $queue) {
+            $rows[] = ['role' => $role, 'pollers' => $queue->pollers, 'polling' => $queue->polledSince($since), 'error' => $queue->error, 'seconds' => WorkerPresence::SILENCE_SECONDS];
+        }
+
+        return $rows;
     }
 
     private function requireTheSyliusAdmin(): void

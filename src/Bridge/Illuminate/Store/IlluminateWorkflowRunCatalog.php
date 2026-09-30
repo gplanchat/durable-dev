@@ -39,7 +39,7 @@ use Illuminate\Database\Query\Builder;
  * @see DUR037 observing a run is a projection
  * @see DUR041
  */
-final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
+final readonly class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
 {
     private const BACKEND = 'Laravel database';
 
@@ -52,26 +52,26 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
 
     // -- write side: WorkflowRunProjectionInterface ----------------------------------------------
 
-    public function recordStart(string $executionId, string $workflowType): void
+    public function recordStart(ExecutionId $executionId, string $workflowType): void
     {
         $this->schema->ensure();
 
         $known = $this->connection->table($this->table)
-            ->where('execution_id', $executionId)
+            ->where('execution_id', $executionId->toString())
             ->exists();
 
         if ($known) {
             // A continue-as-new rewrites the type without erasing the start date: the row keeps
             // its place in the order, and the cursor that designates it stays valid.
             $this->connection->table($this->table)
-                ->where('execution_id', $executionId)
+                ->where('execution_id', $executionId->toString())
                 ->update(['workflow_type' => $workflowType]);
 
             return;
         }
 
         $this->connection->table($this->table)->insert([
-            'execution_id' => $executionId,
+            'execution_id' => $executionId->toString(),
             'workflow_type' => $workflowType,
             'status' => WorkflowRunStatus::Running->value,
             'started_at' => self::now(),
@@ -79,7 +79,7 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         ]);
     }
 
-    public function recordPickup(string $executionId): void
+    public function recordPickup(ExecutionId $executionId): void
     {
         $this->schema->ensure();
         // A table created before the column existed is left alone: a worker never fails on it.
@@ -88,12 +88,12 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         }
 
         $this->connection->table($this->table)
-            ->where('execution_id', $executionId)
+            ->where('execution_id', $executionId->toString())
             ->whereNull('picked_up_at')
             ->update(['picked_up_at' => self::now()]);
     }
 
-    public function recordWait(string $executionId, ?string $waitingOn): void
+    public function recordWait(ExecutionId $executionId, ?string $waitingOn): void
     {
         $this->schema->ensure();
         if (!$this->schema->runsTableTracksWait()) {
@@ -101,16 +101,16 @@ final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface,
         }
 
         $this->connection->table($this->table)
-            ->where('execution_id', $executionId)
+            ->where('execution_id', $executionId->toString())
             ->update(['waiting_on' => $waitingOn]);
     }
 
-    public function recordOutcome(string $executionId, WorkflowRunStatus $status): void
+    public function recordOutcome(ExecutionId $executionId, WorkflowRunStatus $status): void
     {
         $this->schema->ensure();
 
         $this->connection->table($this->table)
-            ->where('execution_id', $executionId)
+            ->where('execution_id', $executionId->toString())
             ->update(['status' => $status->value, 'ended_at' => self::now()]);
     }
 

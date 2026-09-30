@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Testing\JournalAssertions;
 use PHPUnit\Framework\AssertionFailedError;
@@ -29,7 +30,7 @@ final class JournalAssertionsTest extends TestCase
     public function testAWorkflowThatDidNotFailIsReported(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ExecutionStarted('exec-1', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
 
         $this->expectException(AssertionFailedError::class);
         $this->expectExceptionMessage('The workflow "exec-1" did not fail');
@@ -59,8 +60,8 @@ final class JournalAssertionsTest extends TestCase
     private function journalFailingWith(\Throwable $cause): InMemoryEventStore
     {
         $store = new InMemoryEventStore();
-        $store->append(new ExecutionStarted('exec-1', []));
-        $store->append(WorkflowExecutionFailed::workflowHandlerFailure('exec-1', $cause));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
+        $store->append(WorkflowExecutionFailed::workflowHandlerFailure(ExecutionId::fromString('exec-1'), $cause));
 
         return $store;
     }

@@ -31,7 +31,7 @@ use PHPStan\Type\TypeCombinator;
  *
  * @implements Rule<InClassMethodNode>
  */
-final class ActivitiesParameterRule implements Rule
+final readonly class ActivitiesParameterRule implements Rule
 {
     public function getNodeType(): string
     {

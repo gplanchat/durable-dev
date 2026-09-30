@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Plugin\Tests\Unit;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Plugin\Controller\AdminDashboardController;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -108,8 +109,8 @@ final class TheRunHasItsOwnAddressTest extends TestCase
     private function twoRuns(): WorkflowRunCatalogInterface
     {
         $catalog = new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
-        $catalog->recordStart('run-1', 'App\\OrderWorkflow');
-        $catalog->recordStart('run-2', 'App\\OrderWorkflow');
+        $catalog->recordStart(ExecutionId::fromString('run-1'), 'App\\OrderWorkflow');
+        $catalog->recordStart(ExecutionId::fromString('run-2'), 'App\\OrderWorkflow');
 
         return $catalog;
     }

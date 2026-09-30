@@ -10,7 +10,6 @@ use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
-use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Illuminate\Container\Container;
@@ -23,6 +22,32 @@ interface TwoStepActivities
 
     #[AsActivityMethod('two.second')]
     public function second(string $after): string;
+}
+
+final class TwoStepHandler implements TwoStepActivities
+{
+    /** @var list<string> */
+    public static array $ran = [];
+
+    /** @return list<string> */
+    public static function ran(): array
+    {
+        return self::$ran;
+    }
+
+    public function first(): string
+    {
+        self::$ran[] = 'first';
+
+        return 'a';
+    }
+
+    public function second(string $after): string
+    {
+        self::$ran[] = 'second';
+
+        return 'b';
+    }
 }
 
 #[AsWorkflow('two-step')]
@@ -62,24 +87,13 @@ final class AMemoryRunCompletesInTheCallersProcessTest extends TestCase
 {
     public function testARunWithTwoActivitiesCompletesInTheCall(): void
     {
-        $app = $this->memory([TwoStepWorkflow::class]);
-        $ran = [];
-        $activities = $app->make(RegistryActivityExecutor::class);
-        $activities->register('two.first', static function () use (&$ran): string {
-            $ran[] = 'first';
-
-            return 'a';
-        });
-        $activities->register('two.second', static function () use (&$ran): string {
-            $ran[] = 'second';
-
-            return 'b';
-        });
+        TwoStepHandler::$ran = [];
+        $app = $this->memory([TwoStepWorkflow::class], [TwoStepHandler::class]);
 
         $app->make(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun(ExecutionId::fromString('run-1'), 'two-step', []);
 
         self::assertTrue($app->make(WorkflowMetadataStore::class)->get(ExecutionId::fromString('run-1'))['completed'] ?? false);
-        self::assertSame(['first', 'second'], $ran);
+        self::assertSame(['first', 'second'], TwoStepHandler::ran());
     }
 
     public function testARunThatSleepsWakesInTheCall(): void
@@ -93,11 +107,12 @@ final class AMemoryRunCompletesInTheCallersProcessTest extends TestCase
 
     /**
      * @param list<class-string> $workflows
+     * @param list<class-string> $activityHandlers
      */
-    private function memory(array $workflows): Container
+    private function memory(array $workflows, array $activityHandlers = []): Container
     {
         $app = new Container();
-        $app->instance('config', new \ArrayObject(['durable' => ['backend' => 'memory', 'workflows' => $workflows]], \ArrayObject::ARRAY_AS_PROPS));
+        $app->instance('config', new \ArrayObject(['durable' => ['backend' => 'memory', 'workflows' => $workflows, 'activity_handlers' => $activityHandlers]], \ArrayObject::ARRAY_AS_PROPS));
         (new DurableServiceProvider($app))->register();
 
         return $app;

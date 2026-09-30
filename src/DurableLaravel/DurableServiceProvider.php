@@ -30,6 +30,7 @@ use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
+use Gplanchat\Durable\Laravel\Activity\DeclaredActivityHandlers;
 use Gplanchat\Durable\Laravel\Nexus\DeclaredNexusOperations;
 use Gplanchat\Durable\Laravel\Queue\InProcessWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelActivityTransport;
@@ -143,6 +144,39 @@ final class DurableServiceProvider extends ServiceProvider
         // in the same process. The Symfony counterpart protects itself with a
         // DispatchAfterCurrentBusStamp; here, it is the connection that must be a real queue.
         $this->refuseAQueueThatRunsInline();
+
+        $this->warnWhenTheJournalSharesTheDefaultConnection();
+    }
+
+    /**
+     * DUR054, decision 6: warned about, never refused. On the application's default connection,
+     * Durable's fencing transactions nest inside business ones, and a business rollback erases
+     * journal events. Console only: that is where workers boot, and a web request would repeat the
+     * warning on every hit.
+     */
+    private function warnWhenTheJournalSharesTheDefaultConnection(): void
+    {
+        $config = $this->durableConfig();
+        if (($config['backend'] ?? 'illuminate') !== 'illuminate' || !$this->app->bound(LoggerInterface::class)) {
+            return;
+        }
+        if (method_exists($this->app, 'runningInConsole') && !$this->app->runningInConsole()) {
+            return;
+        }
+
+        $default = $this->app->bound('config') ? ($this->app['config']['database']['default'] ?? null) : null;
+        $connection = $config['connection'] ?? null;
+        if (null !== $connection && '' !== $connection && $connection !== $default) {
+            return;
+        }
+
+        $this->app->make(LoggerInterface::class)->warning(\sprintf(
+            'Durable: the journal is on the application\'s default connection "%s". Durable\'s '
+            . 'transactions then nest inside business ones, and a business rollback erases journal '
+            . 'events. Give it a connection of its own in config/database.php and name it in '
+            . 'durable.connection (DUR054).',
+            \is_string($default) ? $default : 'default',
+        ));
     }
 
     /** @return array<string, mixed> */
@@ -284,6 +318,8 @@ final class DurableServiceProvider extends ServiceProvider
                 \is_string($temporal['guzzle_client'] ?? null) && '' !== $temporal['guzzle_client'] ? $app->make($temporal['guzzle_client']) : null,
                 // transport=http over the application's PSR-18 client instead of curl.
                 self::psr18Http($app, $temporal),
+                // DUR055: the application's codec, which reads its own key; Durable reads none.
+                \is_string($temporal['payload_codec'] ?? null) && '' !== $temporal['payload_codec'] ? $app->make($temporal['payload_codec']) : null,
             ),
         );
         // The graph is the bridge's (#356); each binding below is one of its objects.
@@ -436,7 +472,7 @@ final class DurableServiceProvider extends ServiceProvider
      *
      * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
      * could provide it: this package therefore only has to assemble it, not to rewrite it. A timer,
-     * for its part, is a deferred resume — the queue carries the delay, like Messenger's
+     * for its part, is a deferred timer firing — the queue carries the delay, like Messenger's
      * `DelayStamp`.
      *
      * @param array<string, mixed> $config
@@ -455,7 +491,10 @@ final class DurableServiceProvider extends ServiceProvider
             return $value;
         };
 
-        $this->app->singleton(RegistryActivityExecutor::class, fn() => new RegistryActivityExecutor());
+        /** @var list<string> $activityHandlers */
+        $activityHandlers = $config['activity_handlers'] ?? [];
+        $declaredActivities = new DeclaredActivityHandlers($activityHandlers);
+        $this->app->singleton(RegistryActivityExecutor::class, fn($app) => $declaredActivities->registerInto(new RegistryActivityExecutor(), $app));
         // The port, not only the class: `RunActivityJob` asks for an `ActivityMessageProcessor`,
         // which asks for an `ActivityExecutor`. Without this line the container tries to
         // instantiate an interface, and the activity fails on the first attempt.
@@ -552,7 +591,7 @@ final class DurableServiceProvider extends ServiceProvider
     {
         /** @var array<string, mixed> $nexus */
         $nexus = $config['nexus'] ?? [];
-        /** @var array<class-string, class-string> $handlers */
+        /** @var array<array-key, class-string> $handlers */
         $handlers = $nexus['handlers'] ?? [];
         /** @var list<class-string> $workflows */
         $workflows = $config['workflows'] ?? [];

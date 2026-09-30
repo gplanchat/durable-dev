@@ -18,7 +18,7 @@ use Gplanchat\Durable\WorkflowRegistry;
  * A message that names the failure without naming the remedy makes someone open the code of an
  * installed package.
  */
-final class DeclaredWorkflowTypes
+final readonly class DeclaredWorkflowTypes
 {
     /** @param list<class-string> $declared the classes `config/durable.php` names */
     public function __construct(

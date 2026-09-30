@@ -32,7 +32,7 @@ final class ACopyOfARunningAttemptIsDeferredTest extends TestCase
         $runs = 0;
         $store = new InMemoryEventStore();
         $processor = $this->processor($store, $runs, new class implements ActivityAttemptClaimInterface {
-            public function claim(string $executionId, string $activityId, int $attempt): ?\Closure
+            public function claim(ExecutionId $executionId, string $activityId, int $attempt): ?\Closure
             {
                 return null;
             }
@@ -56,7 +56,7 @@ final class ACopyOfARunningAttemptIsDeferredTest extends TestCase
             /** @var list<string> */
             public array $log = [];
 
-            public function claim(string $executionId, string $activityId, int $attempt): \Closure
+            public function claim(ExecutionId $executionId, string $activityId, int $attempt): \Closure
             {
                 $this->log[] = "claim {$activityId}#{$attempt}";
 

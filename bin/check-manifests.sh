@@ -26,6 +26,9 @@ for dir in $(sed -n 's#^ *"\(src/[^|]*\)/|.*#\1#p' bin/splitsh-publish.sh); do
         # ponytail: not checked. phpstan and rector ship nikic/php-parser inside their phar, so
         # every PhpParser\ symbol reads as undeclared. Revisit if either stops bundling it.
         src/DurablePhpstan|src/DurableRector) continue ;;
+        # ponytail: not checked. Filament pulls laravel/framework, which needs Symfony 7, so it is
+        # not in the root vendor/ (the Symfony 6.4 lines would break). Its own suite checks it.
+        src/DurableFilament) continue ;;
     esac
     echo "── composer-require-checker $dir"
     config=()

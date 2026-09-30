@@ -46,6 +46,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class CoreServices
 {
+    private function __construct() {}
+
     public static function registerWorkflowDefinitionLoader(ContainerBuilder $container): void
     {
         if ($container->hasDefinition(WorkflowDefinitionLoader::class)) {

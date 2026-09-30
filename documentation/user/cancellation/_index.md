@@ -15,6 +15,7 @@ Temporal's `CanceledFailure`.
 
 ```php
 use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
@@ -25,28 +26,24 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[AsWorkflow(name: 'checkout')]
 final class CheckoutWorkflow
 {
-    /** @var ActivityStub<OrderActivities> */
-    private readonly ActivityStub $orders;
-
-    public function __construct(
-        private readonly WorkflowEnvironment $environment,
-    ) {
-        $this->orders = $environment->activityStub(OrderActivities::class);
-    }
-
+    /** @param ActivityStub<OrderActivities> $orders */
     #[AsWorkflowMethod]
-    public function run(string $orderId): string
-    {
+    public function run(
+        string $orderId,
+        #[Activities(OrderActivities::class)]
+        ActivityStub $orders,
+        WorkflowEnvironment $env,
+    ): string {
         $saga = new Saga();
 
         try {
-            $reservation = $this->environment->await($this->orders->reserve($orderId));
-            $saga->addCompensation(fn () => $this->environment->await($this->orders->release($reservation)));
+            $reservation = $env->await($orders->reserve($orderId));
+            $saga->addCompensation(fn () => $env->await($orders->release($reservation)));
 
-            $charge = $this->environment->await($this->orders->charge($orderId));
-            $saga->addCompensation(fn () => $this->environment->await($this->orders->refund($charge)));
+            $charge = $env->await($orders->charge($orderId));
+            $saga->addCompensation(fn () => $env->await($orders->refund($charge)));
 
-            return $this->environment->await($this->orders->ship($orderId));
+            return $env->await($orders->ship($orderId));
         } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
             $saga->compensate();
 

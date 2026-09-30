@@ -50,6 +50,12 @@
         .durable-failed { color: #d63939; }
         .durable-events summary { cursor: pointer; }
         .durable-events pre { margin: .5rem 0 0; padding: .5rem; font-size: .8em; white-space: pre-wrap; word-break: break-word; background: var(--tblr-bg-surface-secondary); color: var(--tblr-body-color); border-radius: var(--tblr-border-radius); }
+        /* A Nexus operation's state: one still waiting is not a failure, and does not look like one (#671). */
+        .durable-nexus-state { padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+        .durable-nexus-state.in_flight { background: #dbeafe; color: #1e40af; }
+        .durable-nexus-state.completed { background: #dcfce7; color: #166534; }
+        .durable-nexus-state.failed, .durable-nexus-state.timed_out { background: #fee2e2; color: #991b1b; }
+        .durable-nexus-state.cancelled { background: #f3f4f6; color: #374151; }
     </style>
 
         <div class="container-xl my-4">
@@ -70,6 +76,18 @@
                         <small class="text-secondary">{{ 'dashboard.backend_checked'|trans({'%name%': backend.name, '%time%': backend.checkedAt|date('Y-m-d H:i:s', false)}, 'durable') }}</small>
                     {% endif %}
                 </div>
+
+                {# A missing worker fails nothing: executions stop at their first task of its kind.
+                   Named by its `durable:worker` role, and blamed only when the backend answered. #}
+                {% for worker in workers|default([]) %}
+                    {% if worker.polling %}
+                        <div class="alert alert-success" role="status">{{ 'dashboard.worker_polling'|trans({'%role%': worker.role}, 'durable') }}</div>
+                    {% elseif worker.error is not null %}
+                        <div class="alert alert-warning" role="status">{{ 'dashboard.worker_unknown'|trans({'%role%': worker.role, '%error%': worker.error}, 'durable') }}</div>
+                    {% else %}
+                        <div class="alert alert-danger" role="alert">{{ 'dashboard.worker_missing'|trans({'%role%': worker.role, '%seconds%': worker.seconds}, 'durable') }}</div>
+                    {% endif %}
+                {% endfor %}
 
                 {% if backend.available and runs is defined %}
                     {# The scope is stated, and the scope is the point: a "Total" heading with twenty
@@ -195,6 +213,32 @@
                                         <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
                                         <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.executionId }}</code>{% if selectedRun.runId != selectedRun.executionId %} <small class="text-secondary">{{ 'details.backend_run'|trans({'%id%': selectedRun.runId}, 'durable') }}</small>{% endif %}</p>
                                         <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('status.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
+
+                                        {# The waits served by someone else (#671): where each one is, and whether it is
+                                           over. In flight is not a failure, and it must not read like one. #}
+                                        {% if selectedRun.nexusOperations|default([]) is not empty %}
+                                            <h4 class="h5">{{ 'nexus.title'|trans({}, 'durable') }}</h4>
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col">{{ 'nexus.endpoint'|trans({}, 'durable') }}</th>
+                                                        <th scope="col">{{ 'nexus.service'|trans({}, 'durable') }}</th>
+                                                        <th scope="col">{{ 'nexus.operation'|trans({}, 'durable') }}</th>
+                                                        <th scope="col">{{ 'nexus.state'|trans({}, 'durable') }}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for op in selectedRun.nexusOperations %}
+                                                        <tr>
+                                                            <td><code>{{ op.endpoint }}</code></td>
+                                                            <td>{{ op.service }}</td>
+                                                            <td>{{ op.operation }}</td>
+                                                            <td><span class="durable-nexus-state {{ op.state.value }}">{{ ('nexus.state.' ~ op.state.value)|trans({}, 'durable') }}</span></td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        {% endif %}
 
                                         {% if selectedRun.timeline.actions is empty %}
                                             <p class="text-secondary mb-0">{{ 'details.no_history'|trans({}, 'durable') }}</p>

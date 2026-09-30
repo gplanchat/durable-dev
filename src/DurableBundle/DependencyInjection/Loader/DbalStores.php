@@ -35,6 +35,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class DbalStores
 {
+    private function __construct() {}
+
     /**
      * The DBAL catalog, and the two pens that feed it.
      *
@@ -44,7 +46,7 @@ final class DbalStores
      *
      * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
      */
-    public static function registerDbalRunCatalog(ContainerBuilder $container, Reference $connection, Reference $schema): void
+    private static function registerDbalRunCatalog(ContainerBuilder $container, Reference $connection, Reference $schema): void
     {
         $container->register('durable.dbal.run_projection', DbalWorkflowRunProjection::class)
             ->setArguments([$connection, $schema])

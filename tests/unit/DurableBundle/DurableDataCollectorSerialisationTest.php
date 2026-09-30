@@ -6,6 +6,7 @@ namespace unit\Gplanchat\DurableBundle;
 
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -112,7 +113,7 @@ final class DurableDataCollectorSerialisationTest extends TestCase
     private static function collectorHavingObserved(array $payload): DurableDataCollector
     {
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('exec-1', 'Order', $payload, false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('exec-1'), 'Order', $payload, false, 'async');
 
         $collector = new DurableDataCollector($trace, new InMemoryWorkflowMetadataStore(), new InMemoryEventStore());
         $collector->collect(new Request(), new Response());

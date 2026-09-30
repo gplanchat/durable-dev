@@ -26,7 +26,7 @@ use Temporal\Api\History\V1\HistoryEvent;
  * signals and child workflows under the kind of the execution. The special cases come before the
  * general case.
  */
-final class TemporalRunHistoryReader
+final readonly class TemporalRunHistoryReader
 {
     /**
      * The `Payloads` fields of the history, by their name in the message's JSON serialization.

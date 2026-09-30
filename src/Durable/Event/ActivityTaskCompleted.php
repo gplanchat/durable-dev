@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * Worker-side marker: raw activity invocation finished successfully (before {@see ActivityCompleted} in workflow history).
  */
 final readonly class ActivityTaskCompleted implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private string $activityId,
         private mixed $result,
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

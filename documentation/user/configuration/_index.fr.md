@@ -62,6 +62,9 @@ durable:
         # A service id implementing both PSR-17 RequestFactoryInterface and StreamFactoryInterface (Guzzle's HttpFactory, nyholm's Psr17Factory). Defaults to psr18_client, which Symfony's Psr18Client satisfies on its own.
         psr17_factory:        null
 
+        # A service id: the application's PayloadCodecInterface, which encodes every payload sent to Temporal and decodes every payload read (DUR055). The codec holds its own key, from the application's secrets or environment; Durable reads none. null sends payloads as they are.
+        payload_codec:        null
+
         # false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.
         journal:              null # Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.temporal.journal" option is deprecated: set durable.backend instead.)
     activity_transport:
@@ -149,7 +152,7 @@ ignoré sinon, le laisser à ses défauts ne coûte donc rien.
 
 | Clé | Type | Défaut | Description |
 |-----|------|--------|-------------|
-| `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. |
+| `connection` | identifiant de service | `doctrine.dbal.default_connection` | La `Doctrine\DBAL\Connection` dans laquelle les magasins écrivent. Donnez-leur une connexion à eux : partager celle de l'application est fortement déconseillé (DUR054), car les transactions de Durable s'imbriquent alors dans les transactions métier. |
 | `auto_setup` | booléen | `true` | Crée les tables manquantes à la première écriture, jamais dans une transaction ouverte. Passez-la à `false` dès que Doctrine Migrations tient le schéma, pour que les deux ne l'écrivent pas l'un derrière l'autre. `bin/console durable:setup` crée les tables dans tous les cas. |
 | `lock_factory` | identifiant de service | `lock.factory` | La `LockFactory` qui sérialise les reprises d'une même exécution. **Elle ne vaut que ce que vaut votre magasin de verrous** : une fabrique en mémoire ou locale au processus, avec plusieurs workers, vous redonne la panne que le verrou existe pour empêcher. |
 | `allow_local_lock` | booléen | `false` | Le conteneur refuse un magasin local au processus (`flock`, `semaphore`, `in-memory`, `null`) derrière `lock_factory` : à la compilation pour un DSN littéral, à la première construction du verrou pour un DSN lu dans une variable d'environnement. `true` l'accepte, pour un seul worker. `framework.lock` attend une URL DBAL (`pgsql://…`, `mysql://…`), pas un nom de connexion Doctrine. |
@@ -188,6 +191,7 @@ profileur Symfony fonctionne d'un processus à l'autre.
 | `guzzle_client` | un id de service ou `null` | `null` | Le `GuzzleHttp\ClientInterface` de l'application, utilisé par `transport=guzzle` dans le DSN : son proxy, ses options TLS et ses middlewares s'appliquent au gRPC. Ignoré par tout autre transport ; `null` construit un client par défaut. Sous Laravel, la même clé de `config/durable.php` nomme une liaison du conteneur ; sous Magento, c'est l'argument `guzzle` de `RuntimeFactory` dans `di.xml`. |
 | `psr18_client` | un id de service ou `null` | `null` | Le client PSR-18 de l'application, utilisé par `transport=http` (la passerelle JSON) à la place de curl. Ignoré par tout autre transport. |
 | `psr17_factory` | un id de service ou `null` | `psr18_client` | Un service qui implémente à la fois les factories PSR-17 de requêtes et de flux — le `HttpFactory` de Guzzle, le `Psr17Factory` de nyholm. Le `Psr18Client` de Symfony est à la fois client et factory, d'où la valeur par défaut. Sous Laravel, les deux clés de `config/durable.php` nomment des liaisons du conteneur ; sous Magento, un `Psr18Http` est l'argument `jsonGateway` de `RuntimeFactory` dans `di.xml`. |
+| `payload_codec` | un id de service ou `null` | `null` | Le `PayloadCodecInterface` de l'application : chaque payload envoyé à Temporal est encodé, chaque payload lu décodé ([DUR055](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR055-a-payload-codec-at-the-client-boundary.md)). Le codec lit sa propre clé, dans les secrets Symfony ou l'environnement ; Durable n'en lit aucune. |
 
 ### Format du DSN
 
@@ -411,6 +415,7 @@ SQL ne s'y appliquent pas.
 | `temporal.dsn` | `temporal.dsn` | argument `temporalDsn`, qui l'emporte sur `durable/temporal/dsn` | identique |
 | `temporal.search_attributes` | `temporal.search_attributes` | `durable/temporal/search_attributes` | identique |
 | `temporal.guzzle_client`, `temporal.psr18_client`, `temporal.psr17_factory` | les trois mêmes clés | arguments `guzzle`, `jsonGateway` | identique |
+| `temporal.payload_codec` | `temporal.payload_codec`, une liaison du conteneur ; le codec lit sa clé dans `.env` | argument `codec` de `RuntimeFactory`, dans le `di.xml` de la boutique ; le codec lit sa clé dans `env.php` | identique (DUR055) |
 | `backend: dbal` avec un `temporal.dsn` (servir Nexus depuis un journal SQL) | — (`nexus.handlers` exige `backend: temporal`) | — | à ajouter sous Laravel |
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | — (les activités tournent dans le processus, ou sur la file de tâches de Temporal) | propre à l'hôte : la file de chaque hôte |
 | `messenger.buses` | — | — | propre à l'hôte : Messenger seulement |
@@ -420,8 +425,8 @@ SQL ne s'y appliquent pas.
 | `activity_contracts.cache`, `activity_contracts.contracts` | — | — | à ajouter sous Laravel et Magento |
 | `child_workflow.async_messenger` | — | — | propre à l'hôte : Messenger seulement |
 | workflows : `#[AsWorkflow]` sur un service | `workflows` | argument `workflowClasses` | propre à l'hôte : aucun des deux conteneurs ne s'autoconfigure par attribut |
-| gestionnaires d'activités : `#[AsActivityHandler]` sur un service | — (l'application les enregistre elle-même sur `RegistryActivityExecutor`) | argument `activityHandlers` | à ajouter sous Laravel : une clé à côté de `workflows` |
-| gestionnaires Nexus : `#[AsNexusServiceHandler]` sur un service | `nexus.handlers` | — | propre à l'hôte : Magento ne sert aucune opération Nexus |
+| gestionnaires d'activités : `#[AsActivityHandler]` sur un service | `activity_handlers` : les classes des gestionnaires, chacune servant le contrat que nomme son `#[AsActivityHandler]`, ou à défaut ses interfaces aux méthodes `#[AsActivityMethod]` | argument `activityHandlers` | propre à l'hôte : aucun des deux conteneurs ne s'autoconfigure par attribut ; Laravel refuse au démarrage un gestionnaire qui ne sert aucune activité |
+| gestionnaires Nexus : `#[AsNexusServiceHandler]` sur un service | `nexus.handlers` : `gestionnaire => contrat`, ou la classe du gestionnaire seule quand son `#[AsNexusServiceHandler]` nomme le contrat | argument `nexusHandlers` ; le `#[AsNexusServiceHandler]` du gestionnaire nomme le contrat | propre à l'hôte : aucun des deux conteneurs ne s'autoconfigure par attribut |
 
 ---
 

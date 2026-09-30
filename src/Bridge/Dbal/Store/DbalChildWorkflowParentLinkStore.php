@@ -15,7 +15,7 @@ use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
  *
  * @see DUR030
  */
-final class DbalChildWorkflowParentLinkStore implements ChildWorkflowParentLinkStoreInterface
+final readonly class DbalChildWorkflowParentLinkStore implements ChildWorkflowParentLinkStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,

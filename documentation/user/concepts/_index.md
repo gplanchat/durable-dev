@@ -323,7 +323,7 @@ Durable runs on four backends that share the same workflow and activity code:
 ### Illuminate
 
 - The same four stores and the same trade, on `Illuminate\Database\Connection` rather than
-  Doctrine's; a store on `DB::connection()` is inside `DB::transaction()` by construction.
+  Doctrine's, on a connection of its own rather than the application's (DUR054).
 - It is not a fourth value of `backend` and never will be: a Laravel application does not
   read the bundle's YAML. What binds it is `gplanchat/durable-laravel`, through its own
   `config/durable.php`.
@@ -358,7 +358,7 @@ synchronous bus. With the Temporal backend the transport is a **gRPC-backed poll
 the same consumer interface, a different underlying protocol.
 
 **Laravel** uses the **queue the application already drains**. Activities and resumes are jobs, a timer
-is a deferred resume on the queue's own delay, and `php artisan queue:work` is the only worker.
+is a deferred timer-firing job on the queue's own delay, and `php artisan queue:work` is the only worker.
 
 **Magento** uses neither. Workers are `bin/magento durable:worker --role=journal|activity` commands
 that poll the backend directly; nothing rides Magento's own `MessageQueue`, because on Temporal an

@@ -69,13 +69,25 @@ final class TemporalHistoryReplayConformanceTest extends TemporalServerTestCase
 
     private static function assertHistoriesAgree(WorkflowHistorySourceInterface $reference, WorkflowHistorySourceInterface $subject): void
     {
-        // Activity: one slot, its outcome, its identity and its payload.
+        // Activity: its outcome, its identity and its payload.
         self::assertEquals($reference->findActivitySlotResult(0)?->result, $subject->findActivitySlotResult(0)?->result);
         self::assertNull($subject->findActivitySlotResult(0)?->failed);
         self::assertNotNull($subject->findScheduledActivityId(0));
-        self::assertNull($subject->findScheduledActivityId(1));
-        self::assertNull($subject->findActivitySlotResult(1));
         self::assertSame($reference->activityNameForSlot(0), $subject->activityNameForSlot(0));
+
+        // The race loser: scheduled, cancelled, and read back as unsettled, as on the reference.
+        // Read as a rejection, it would win the race it lost (#681, #701).
+        self::assertNotNull($subject->findScheduledActivityId(1));
+        self::assertNull($reference->findActivitySlotResult(1));
+        self::assertNull($subject->findActivitySlotResult(1), 'the race loser stays unsettled');
+        self::assertSame($reference->activityNameForSlot(1), $subject->activityNameForSlot(1));
+        self::assertNotNull($subject->findTimerSlotResult(1), 'the race timer fired');
+        self::assertNull($subject->findTimerSlotResult(1)->failed);
+
+        // Two activities, no third.
+        self::assertNull($subject->findScheduledActivityId(2));
+        self::assertNull($subject->findActivitySlotResult(2));
+        self::assertNull($subject->activityNameForSlot(2));
         self::assertNotNull($subject->activityNameForSlot(0));
         self::assertEquals($reference->activityPayloadForSlot(0), $subject->activityPayloadForSlot(0));
 

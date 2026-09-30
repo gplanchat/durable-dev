@@ -16,14 +16,11 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
 
 /**
- * Event journal on the connection Laravel already owns.
+ * Event journal on an Illuminate connection.
  *
- * This is the whole point of the bridge, and not merely idiomatic convenience: DUR030 sells durable
- * execution on **one** database without a cluster, which only pays off if the journal append and
- * the business write fall inside the same transaction. An activity writing through Eloquent while a
- * Doctrine journal writes through a second PDO is two transactional scopes: the process dies
- * between the two, replay replays the activity, and the guarantee being advertised never existed.
- * Here the store sits on `DB::connection()`, so `DB::transaction()` closes over both.
+ * Give it a connection of its own, not the application's default one (DUR054): the transactions
+ * {@see claimPass()} and {@see appendFenced()} open would otherwise nest inside the application's,
+ * and a business rollback would erase journal events.
  *
  * (De)serialization goes entirely through {@see EventDataMapper}: the rows have the same shape as
  * those of the DBAL bridge and as the records of the Temporal journal. This is not a writing
@@ -39,7 +36,7 @@ use Illuminate\Database\QueryException;
  * @see DUR030
  * @see DUR041
  */
-final class IlluminateEventStore implements FencedEventStoreInterface
+final readonly class IlluminateEventStore implements FencedEventStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,
@@ -54,22 +51,23 @@ final class IlluminateEventStore implements FencedEventStoreInterface
         $this->connection->table($this->table)->insert($this->row($event));
     }
 
-    public function claimPass(string $executionId): PassFence
+    public function claimPass(ExecutionId $executionId): PassFence
     {
         $this->schema->ensure();
+        $id = $executionId->toString();
         $heads = $this->connection->table($this->schema->headsTable());
 
         // The first claim creates the row; two first claims racing each other leave one row.
-        $heads->clone()->insertOrIgnore(['execution_id' => $executionId, 'epoch' => 0]);
+        $heads->clone()->insertOrIgnore(['execution_id' => $id, 'epoch' => 0]);
 
         // The update locks the row until the claim commits: a fenced append waits for it (DUR053).
-        $epoch = $this->connection->transaction(static function () use ($heads, $executionId): int {
-            $heads->clone()->where('execution_id', $executionId)->increment('epoch');
+        $epoch = $this->connection->transaction(static function () use ($heads, $id): int {
+            $heads->clone()->where('execution_id', $id)->increment('epoch');
 
-            return (int) $heads->clone()->where('execution_id', $executionId)->value('epoch');
+            return (int) $heads->clone()->where('execution_id', $id)->value('epoch');
         });
 
-        return new PassFence($executionId, $epoch);
+        return new PassFence($id, $epoch);
     }
 
     public function appendFenced(Event $event, PassFence $fence): void

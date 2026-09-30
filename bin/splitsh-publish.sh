@@ -41,6 +41,7 @@ SPLITS=(
     "src/DurableModule/|durable-magento"
     "src/DurablePhpstan/|durable-phpstan"
     "src/DurableRector/|durable-rector"
+    "src/DurableFilament/|durable-filament"
 )
 
 # Push using Authorization: Basic so the credential helper from CI (GITHUB_TOKEN) cannot override

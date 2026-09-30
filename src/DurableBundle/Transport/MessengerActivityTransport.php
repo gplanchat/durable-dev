@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Transport;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
 use Symfony\Component\Messenger\Envelope;
@@ -99,7 +100,7 @@ final class MessengerActivityTransport implements ActivityTransportInterface
         return true;
     }
 
-    public function removePendingFor(string $executionId, string $activityId): bool
+    public function removePendingFor(ExecutionId $executionId, string $activityId): bool
     {
         return false;
     }

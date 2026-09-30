@@ -127,6 +127,74 @@ final class NexusOnLaravelTest extends TestCase
         self::assertInstanceOf(NexusOperationRegistry::class, $app->make(NexusOperationRegistry::class));
     }
 
+    /** Ported from Symfony's NexusHandlerPassTest (#714). */
+    public function testAnOperationNobodyCoversIsRefusedAtStartup(): void
+    {
+        // `settle` has no method on the handler and no workflow claims it.
+        $app = $this->container('temporal', [DeferredBillingHandler::class => DeferredBillingService::class]);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\LogicException::class);
+        // One pattern: a second expectExceptionMessageMatches() replaces the first.
+        $this->expectExceptionMessageMatches('/operation "settle" .* does not implement settle\(\) and no workflow claims it/');
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
+    public function testAMissingWorkflowClassIsRefusedByName(): void
+    {
+        // @phpstan-ignore argument.type (a workflow class that does not exist, on purpose)
+        $app = $this->container('temporal', [BillingHandler::class => BillingService::class], ['App\\Workflows\\Missing']);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('App\\Workflows\\Missing');
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
+    public function testAKeyedHandlerClassThatDoesNotExistIsRefusedByName(): void
+    {
+        // A workflow fulfils `settle`, so before #714 the registry booted with `charge` unserved.
+        $app = $this->container('temporal', ['App\\Nexus\\Missing' => DeferredBillingService::class], [SettleWorkflow::class]);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('"App\\Nexus\\Missing" is declared in durable.nexus.handlers, but no such class exists');
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
+    public function testAHandlerListedAloneServesTheContractItsAttributeNames(): void
+    {
+        $app = $this->container('temporal', [BillingHandler::class]);
+        (new DurableServiceProvider($app))->register();
+
+        self::assertTrue($app->make(NexusOperationRegistry::class)->serves(NexusService::named('billing'), NexusOperationName::named('charge')));
+    }
+
+    public function testAHandlerListedAloneWithoutTheAttributeIsRefusedByName(): void
+    {
+        $app = $this->container('temporal', [DeferredBillingHandler::class]);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(DeferredBillingHandler::class . ' is listed alone in durable.nexus.handlers, so its contract must come from #[AsNexusServiceHandler]');
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
+    public function testAContractThatDisagreesWithTheAttributeIsRefused(): void
+    {
+        $app = $this->container('temporal', [BillingHandler::class => DeferredBillingService::class]);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(\sprintf('gives %s the contract %s, but its #[AsNexusServiceHandler] names %s', BillingHandler::class, DeferredBillingService::class, BillingService::class));
+
+        $app->make(NexusOperationRegistry::class);
+    }
+
     public function testTheNexusWorkerIsAssembledUnderTemporal(): void
     {
         $app = $this->container('temporal', []);
@@ -136,8 +204,8 @@ final class NexusOnLaravelTest extends TestCase
     }
 
     /**
-     * @param array<class-string, class-string> $handlers
-     * @param list<class-string>                $workflows
+     * @param array<array-key, class-string> $handlers
+     * @param list<class-string>             $workflows
      */
     private function container(string $backend, array $handlers, array $workflows = []): Container
     {

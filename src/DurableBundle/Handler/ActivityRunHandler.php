@@ -13,7 +13,7 @@ use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 /**
  * Consumes {@see ActivityMessage} through Symfony Messenger (configured activities transport).
  */
-final class ActivityRunHandler
+final readonly class ActivityRunHandler
 {
     public function __construct(
         private readonly ActivityMessageProcessor $activityMessageProcessor,

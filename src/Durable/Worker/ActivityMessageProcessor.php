@@ -35,7 +35,7 @@ use Psr\Clock\ClockInterface;
  * Reusable by the Symfony bundle ({@see \Gplanchat\Durable\Bundle\Handler\ActivityRunHandler})
  * and by other runtimes (workers consuming the same transport abstraction).
  */
-final class ActivityMessageProcessor
+final readonly class ActivityMessageProcessor
 {
     private readonly ClockInterface $clock;
 
@@ -62,7 +62,8 @@ final class ActivityMessageProcessor
     {
         // A copy of an attempt another worker holds: not now, and not never, since a holder that
         // died keeps its claim until the lock TTL. The host delivers it again later (#590).
-        $release = $this->attemptClaim->claim($message->executionId, $message->activityId, $message->attempt);
+        $id = ExecutionId::fromString($message->executionId);
+        $release = $this->attemptClaim->claim($id, $message->activityId, $message->attempt);
         if (null === $release) {
             throw new ActivityAttemptDeferred($message->executionId, $message->activityId, $message->attempt);
         }
@@ -76,6 +77,7 @@ final class ActivityMessageProcessor
 
     private function processClaimed(ActivityMessage $message): ?\Throwable
     {
+        $id = ExecutionId::fromString($message->executionId);
         // A redelivery of an attempt that already ran is answered by the journal, not run again:
         // re-running a failed attempt would also queue its retry a second time (#319). An outcome
         // was followed by a resume, which may be the very send that failed and caused this
@@ -86,7 +88,7 @@ final class ActivityMessageProcessor
             $message->activityId,
             $message->attempt,
         )) {
-            $this->resumeDispatcher->dispatchResume(ExecutionId::fromString($message->executionId));
+            $this->resumeDispatcher->dispatchResume($id);
 
             return null;
         }
@@ -146,7 +148,7 @@ final class ActivityMessageProcessor
                 $message->attempt,
             )) {
                 $this->eventStore->append(new ActivityTaskStarted(
-                    $message->executionId,
+                    $id,
                     $message->activityId,
                     $message->activityName,
                     $message->attempt,
@@ -159,7 +161,7 @@ final class ActivityMessageProcessor
             if (true === $this->heartbeatSender->isCancellationRequested()) {
                 $duration = self::secondsSince($t0);
                 $this->workflowExecutionObserver?->onActivityExecuted(
-                    $message->executionId,
+                    $id,
                     $message->activityId,
                     $message->activityName,
                     $duration,
@@ -181,7 +183,7 @@ final class ActivityMessageProcessor
             }
             $duration = self::secondsSince($t0);
             $this->workflowExecutionObserver?->onActivityExecuted(
-                $message->executionId,
+                $id,
                 $message->activityId,
                 $message->activityName,
                 $duration,
@@ -194,13 +196,13 @@ final class ActivityMessageProcessor
             $settled = true;
             // Sent before the append and again after (DUR050): a worker that dies in between leaves
             // a resume that waits for the outcome, instead of an outcome nobody resumes.
-            $this->resumeDispatcher->dispatchResumeAwaiting(ExecutionId::fromString($message->executionId), AwaitedFact::activity($message->activityId));
+            $this->resumeDispatcher->dispatchResumeAwaiting($id, AwaitedFact::activity($message->activityId));
             $this->eventStore->append(new ActivityCompleted(
-                $message->executionId,
+                $id,
                 $message->activityId,
                 $result,
             ));
-            $this->resumeDispatcher->dispatchResume(ExecutionId::fromString($message->executionId));
+            $this->resumeDispatcher->dispatchResume($id);
         } catch (\Throwable $e) {
             if ($settled) {
                 throw $e;
@@ -208,7 +210,7 @@ final class ActivityMessageProcessor
             if (isset($t0)) {
                 $duration = self::secondsSince($t0);
                 $this->workflowExecutionObserver?->onActivityExecuted(
-                    $message->executionId,
+                    $id,
                     $message->activityId,
                     $message->activityName,
                     $duration,
@@ -240,7 +242,7 @@ final class ActivityMessageProcessor
             };
 
             $this->eventStore->append(ActivityTaskFailed::forThrowable(
-                $message->executionId,
+                $id,
                 $message->activityId,
                 $message->activityName,
                 $message->attempt,
@@ -272,14 +274,14 @@ final class ActivityMessageProcessor
         $this->activityTransport->enqueue(
             $message->retryingIn(null !== $delay && !$delay->isZero() ? $delay : null),
         );
-        $this->eventStore->append(new ActivityRetryQueued($message->executionId, $message->activityId, $message->attempt + 1));
+        $this->eventStore->append(new ActivityRetryQueued(ExecutionId::fromString($message->executionId), $message->activityId, $message->attempt + 1));
     }
 
     private function appendActivityFailure(ActivityMessage $message, \Throwable $e, ActivityRetryState $retryState): void
     {
         $this->resumeDispatcher->dispatchResumeAwaiting(ExecutionId::fromString($message->executionId), AwaitedFact::activity($message->activityId));
         $this->eventStore->append(ActivityFailureEventFactory::fromActivityThrowable(
-            $message->executionId,
+            ExecutionId::fromString($message->executionId),
             $message->activityId,
             $message->activityName,
             $message->attempt,
@@ -293,7 +295,7 @@ final class ActivityMessageProcessor
     {
         $this->resumeDispatcher->dispatchResumeAwaiting(ExecutionId::fromString($message->executionId), AwaitedFact::activity($message->activityId));
         $this->eventStore->append(new ActivityCancelled(
-            $message->executionId,
+            ExecutionId::fromString($message->executionId),
             $message->activityId,
             $reason,
         ));

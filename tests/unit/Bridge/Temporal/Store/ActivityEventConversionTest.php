@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Store;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\EventType;
@@ -22,7 +23,7 @@ final class ActivityEventConversionTest extends TestCase
 {
     public function testTheScheduledActivityReadsBackAsItWasWritten(): void
     {
-        $written = new ActivityScheduled('exec-1', 'act-1', 'quote', ['lines' => ['a', 'b']], ['queue' => 'default']);
+        $written = new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'quote', ['lines' => ['a', 'b']], ['queue' => 'default']);
 
         $event = new HistoryEvent();
         $event->setEventId(5);

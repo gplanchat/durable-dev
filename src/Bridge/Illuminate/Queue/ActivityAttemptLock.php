@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Illuminate\Queue;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityAttemptClaimInterface;
 use Illuminate\Contracts\Cache\LockProvider;
 
@@ -21,16 +22,16 @@ use Illuminate\Contracts\Cache\LockProvider;
  *
  * @see \Gplanchat\Bridge\Dbal\Messenger\LockActivityAttemptClaim the Symfony counterpart
  */
-final class ActivityAttemptLock implements ActivityAttemptClaimInterface
+final readonly class ActivityAttemptLock implements ActivityAttemptClaimInterface
 {
     public function __construct(
         private readonly LockProvider $locks,
         private readonly int $ttlSeconds = 300,
     ) {}
 
-    public function claim(string $executionId, string $activityId, int $attempt): ?\Closure
+    public function claim(ExecutionId $executionId, string $activityId, int $attempt): ?\Closure
     {
-        $lock = $this->locks->lock(\sprintf('durable-activity-%s-%s-%d', $executionId, $activityId, $attempt), $this->ttlSeconds);
+        $lock = $this->locks->lock(\sprintf('durable-activity-%s-%s-%d', $executionId->toString(), $activityId, $attempt), $this->ttlSeconds);
 
         return $lock->get() ? static function () use ($lock): void {
             $lock->release();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 
 /**
@@ -18,14 +19,14 @@ use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
  * command built by {@see TemporalWorkflowCommandBuffer::scheduleChildWorkflow()} was reached by
  * no caller.
  */
-final class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
+final readonly class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
 {
     public function defersChildStart(): bool
     {
         return true;
     }
 
-    public function runChild(string $childExecutionId, string $workflowType, array $input, ?string $parentExecutionId = null): mixed
+    public function runChild(ExecutionId $childExecutionId, string $workflowType, array $input, ?ExecutionId $parentExecutionId = null): mixed
     {
         // The start command is already in the buffer; the awaitable stays unsettled until the
         // history carries the child's outcome.

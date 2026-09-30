@@ -18,7 +18,7 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  * Follows {@code next_page_token} page-by-page without loading the full history into memory.
  * Implements the cursor pattern defined in DUR001 §"Temporal (server API)".
  */
-final class TemporalHistoryCursor
+final readonly class TemporalHistoryCursor
 {
     private const MAX_PAGE_SIZE = 200;
 

@@ -135,7 +135,7 @@ final class DurableSearchAttributesTest extends TestCase
     public function testAChildStartCarriesBothAttributes(): void
     {
         $buffer = new TemporalWorkflowCommandBuffer(self::enabled(), 'parent-1');
-        $buffer->scheduleChildWorkflow('child-1', 'App\\ChildWorkflow', [], new ChildWorkflowOptions());
+        $buffer->scheduleChildWorkflow(ExecutionId::fromString('child-1'), 'App\\ChildWorkflow', [], new ChildWorkflowOptions());
 
         self::assertSame(
             ['DurableWorkflowName' => 'App.ChildWorkflow', 'DurableExecutionId' => 'child-1'],

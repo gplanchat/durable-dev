@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\Transport;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Symfony\Component\Messenger\Envelope;
@@ -19,19 +20,19 @@ use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
  * without it the wake-up is delivered in the middle of the pass under way, which then re-reads a
  * half-written journal.
  */
-final class MessengerWorkflowTimerDispatcher implements WorkflowTimerDispatcher
+final readonly class MessengerWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {
     public function __construct(
         private readonly MessageBusInterface $messageBus,
     ) {}
 
-    public function dispatchTimerFire(string $executionId, int $delayMs = 0): void
+    public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void
     {
         $stamps = [new DispatchAfterCurrentBusStamp()];
         if ($delayMs > 0) {
             $stamps[] = new DelayStamp($delayMs);
         }
 
-        $this->messageBus->dispatch(new Envelope(new FireWorkflowTimersMessage($executionId), $stamps));
+        $this->messageBus->dispatch(new Envelope(new FireWorkflowTimersMessage($executionId->toString()), $stamps));
     }
 }

@@ -12,9 +12,13 @@ use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
 /**
  * Single JSON envelope for the activity inputs scheduled by the journal interpreter
  * (executionId + identifiers + payload + metadata), decoded by {@see \Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker}.
+ *
+ * @internal
  */
 final class TemporalActivityScheduleInput
 {
+    private function __construct() {}
+
     /**
      * @return array{executionId: string, activityId: string, activityName: string, payload: array<string, mixed>, metadata: array<string, mixed>}
      */
@@ -26,7 +30,7 @@ final class TemporalActivityScheduleInput
         }
 
         return [
-            'executionId' => $scheduled->executionId(),
+            'executionId' => $scheduled->executionId()->toString(),
             'activityId' => $scheduled->activityId(),
             'activityName' => $scheduled->activityName(),
             'payload' => $args,

@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Exception;
 
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\DeclaredActivityFailureInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -35,7 +36,7 @@ final class AFailedRestoreIsToldInTheMessageTest extends TestCase
         $previous = ini_set('error_log', $log);
 
         try {
-            $thrown = DurableActivityFailedException::toThrowable(new ActivityFailed('exec-1', 'act-1', UnrestorableFailure::class, 'refused', 0, [
+            $thrown = DurableActivityFailedException::toThrowable(new ActivityFailed(ExecutionId::fromString('exec-1'), 'act-1', UnrestorableFailure::class, 'refused', 0, [
                 '_durable_declared' => true,
                 '_durable_declared_class' => UnrestorableFailure::class,
                 '_durable_declared_payload' => [],

@@ -14,6 +14,7 @@ use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlew
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireAsyncRoutingPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireLockFactoryPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\TemporalReceiversPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WarnOnSharedJournalConnectionPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -75,5 +76,8 @@ final class DurableBundle extends Bundle
         // service: the pass's message says what to configure, not only what is missing.
         $container->addCompilerPass(new RequireLockFactoryPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 20);
         $container->addCompilerPass(new RequireAsyncRoutingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 20);
+        // Before RegisterListenersPass reads the kernel.event_listener tags; DoctrineBundle's alias
+        // for the default connection exists by then (DUR054).
+        $container->addCompilerPass(new WarnOnSharedJournalConnectionPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 20);
     }
 }

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Gplanchat\DurableModule\Block\Adminhtml;
 
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RunTimeline;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
+use Gplanchat\Durable\Port\NexusOperationCatalogInterface;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
@@ -86,6 +88,20 @@ class ProcessDetail extends Template
         }
 
         return $this->timeline;
+    }
+
+    /**
+     * Where each Nexus operation of the run is served, and whether it is settled (#672), from a
+     * catalog that can hold them; the memory backend cannot (DUR036).
+     *
+     * @return list<NexusOperationSummary>
+     */
+    public function getNexusOperations(): array
+    {
+        $run = $this->getRun();
+        $catalog = $this->runtimeFactory->catalog();
+
+        return $run !== null && $catalog instanceof NexusOperationCatalogInterface ? $catalog->readNexusOperations($run) : [];
     }
 
     /**

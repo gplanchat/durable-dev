@@ -16,7 +16,7 @@ use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
 use Symfony\Component\Messenger\Transport\Sender\SendersLocatorInterface;
 use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
 
-final class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatcher
+final readonly class MessengerWorkflowResumeDispatcher implements WorkflowResumeDispatcher
 {
     public function __construct(
         private readonly MessageBusInterface $bus,

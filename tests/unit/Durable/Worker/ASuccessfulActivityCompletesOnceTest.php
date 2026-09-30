@@ -88,9 +88,9 @@ final class ASuccessfulActivityCompletesOnceTest extends TestCase
     public function testTheNewShapeReadsAsRequestedStartedSettled(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', ['amount' => 10]));
-        $store->append(new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1));
-        $store->append(new ActivityCompleted('exec-1', 'act-1', 'ch_1'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', ['amount' => 10]));
+        $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'));
 
         $history = (new JournalRunHistoryReader($store))->read('exec-1');
 
@@ -105,7 +105,7 @@ final class ASuccessfulActivityCompletesOnceTest extends TestCase
     public function testANewRunShowsTheActivitySettledOnTheTimeline(): void
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
         $this->processAll(static fn(): string => 'ch_1', store: $store);
 
         $actions = RunTimeline::of((new JournalRunHistoryReader($store))->read('exec-1'))->actions;
@@ -120,10 +120,10 @@ final class ASuccessfulActivityCompletesOnceTest extends TestCase
     private function journalWrittenBefore(): InMemoryEventStore
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', ['amount' => 10]));
-        $store->append(new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1));
-        $store->append(new ActivityTaskCompleted('exec-1', 'act-1', 'ch_1'));
-        $store->append(new ActivityCompleted('exec-1', 'act-1', 'ch_1'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', ['amount' => 10]));
+        $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1));
+        $store->append(new ActivityTaskCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'));
 
         return $store;
     }

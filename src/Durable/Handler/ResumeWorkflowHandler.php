@@ -35,7 +35,7 @@ use Gplanchat\Durable\WorkflowRegistry;
  * Six hosts of the selector do not go through the bundle; leaving it there would have meant as
  * many copies of the resume semantics, divergent at the first fix.
  */
-final class ResumeWorkflowHandler
+final readonly class ResumeWorkflowHandler
 {
     public function __construct(
         private readonly ExecutionEngine $engine,
@@ -71,7 +71,7 @@ final class ResumeWorkflowHandler
 
         // A worker has the run now (#447). Recorded here rather than on ExecutionStarted: resume()
         // never appends it, and a run that waits on a signal appends nothing at all.
-        $this->pickups?->recordPickup($executionId);
+        $this->pickups?->recordPickup($id);
 
         $lookupKey = $metadata['workflowType'];
         $payload = $metadata['payload'];
@@ -90,7 +90,7 @@ final class ResumeWorkflowHandler
             // The catalog that records pickups usually records waits too (#324): one projection, two facts.
             // Recorded even without words, so that it clears the previous wait instead of leaving it stale.
             if ($this->pickups instanceof WorkflowRunWaitProjectionInterface) {
-                $this->pickups->recordWait($executionId, $e->waitingOn());
+                $this->pickups->recordWait($id, $e->waitingOn());
             }
             if ($e->shouldDispatchResume()) {
                 if (!$e->waitingOnTimer()) {
@@ -104,7 +104,7 @@ final class ResumeWorkflowHandler
                     if (null === $ms) {
                         $ms = 0;
                     }
-                    $this->timerDispatcher->dispatchTimerFire($executionId, max(0, $ms));
+                    $this->timerDispatcher->dispatchTimerFire($id, max(0, $ms));
                 }
             }
 
@@ -117,7 +117,7 @@ final class ResumeWorkflowHandler
             $nextAlias = $this->workflowDefinitionLoader->aliasForTemporalInterop($e->workflowType);
             $this->metadataStore->save($newId, $nextAlias, $e->payload);
             // resume() never writes a start: this one is the only place the new run names its predecessor.
-            $this->eventStore->append(new ExecutionStarted($newExecutionId, [
+            $this->eventStore->append(new ExecutionStarted(ExecutionId::fromString($newExecutionId), [
                 'workflowType' => $nextAlias,
                 'continuedFromExecutionId' => $executionId,
             ]));
@@ -168,7 +168,7 @@ final class ResumeWorkflowHandler
             $this->resumeDispatcher->dispatchResumeAwaiting($parent, $child);
             $this->eventStore->append(null !== $failure
                 ? AsyncChildWorkflowFailureProjector::toParentJournalEvent($this->eventStore, $parentId, $childExecutionId, $failure)
-                : new ChildWorkflowCompleted($parentId, $childExecutionId, $result));
+                : new ChildWorkflowCompleted(ExecutionId::fromString($parentId), $childExecutionId, $result));
         }
 
         $this->resumeDispatcher->dispatchResume($parent);

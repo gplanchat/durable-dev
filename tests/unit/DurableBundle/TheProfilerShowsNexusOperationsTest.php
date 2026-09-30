@@ -11,6 +11,7 @@ use Gplanchat\Durable\Event\NexusOperationCompleted;
 use Gplanchat\Durable\Event\NexusOperationFailed;
 use Gplanchat\Durable\Event\NexusOperationScheduled;
 use Gplanchat\Durable\Event\NexusOperationTimedOut;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use PHPUnit\Framework\TestCase;
@@ -31,7 +32,7 @@ final class TheProfilerShowsNexusOperationsTest extends TestCase
     public function testAnOperationWithNoOutcomeIsShownInFlight(): void
     {
         $events = new InMemoryEventStore();
-        $events->append(new NexusOperationScheduled('exec-1', 5, 'demo-shop-stock', 'stock', 'reserve'));
+        $events->append(new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'demo-shop-stock', 'stock', 'reserve'));
 
         $collector = $this->collect($events);
 
@@ -56,8 +57,8 @@ final class TheProfilerShowsNexusOperationsTest extends TestCase
         ];
         $id = 0;
         foreach ($outcomes as $label => $outcome) {
-            $events->append(new NexusOperationScheduled('exec-1', ++$id, 'demo-business-billing', 'billing', 'op-' . $id));
-            $events->append(new $outcome('exec-1', $id));
+            $events->append(new NexusOperationScheduled(ExecutionId::fromString('exec-1'), ++$id, 'demo-business-billing', 'billing', 'op-' . $id));
+            $events->append(new $outcome(ExecutionId::fromString('exec-1'), $id));
         }
 
         $collector = $this->collect($events);

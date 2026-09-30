@@ -85,8 +85,8 @@ final class DashboardTest extends WebTestCase
     public function testDashboardFiltersByStatus(): void
     {
         $client = $this->clientWithRecordedRun('dash-done');
-        $this->record('dash-failed', WorkflowExecutionFailed::workflowHandlerFailure('dash-failed', new \RuntimeException('boom')));
-        $this->record('dash-cancelled', new WorkflowExecutionCancelled('dash-cancelled', 'stopped'));
+        $this->record('dash-failed', WorkflowExecutionFailed::workflowHandlerFailure(ExecutionId::fromString('dash-failed'), new \RuntimeException('boom')));
+        $this->record('dash-cancelled', new WorkflowExecutionCancelled(ExecutionId::fromString('dash-cancelled'), 'stopped'));
 
         self::assertSame(['dash-failed' => 'FAILED'], $this->listedRuns($client, 'failed'));
         self::assertSame(['dash-cancelled' => 'CANCELLED'], $this->listedRuns($client, 'cancelled'));
@@ -120,7 +120,7 @@ final class DashboardTest extends WebTestCase
     {
         $client = static::createClient();
         $client->disableReboot();
-        $this->record($executionId, new ExecutionCompleted($executionId, 'Hello'));
+        $this->record($executionId, new ExecutionCompleted(ExecutionId::fromString($executionId), 'Hello'));
 
         return $client;
     }
@@ -133,9 +133,9 @@ final class DashboardTest extends WebTestCase
         $container = static::getContainer();
         $container->get(WorkflowMetadataStore::class)->save(ExecutionId::fromString($executionId), 'GreetingWorkflow', []);
         $journal = $container->get(EventStoreInterface::class);
-        $journal->append(new ExecutionStarted($executionId, []));
-        $journal->append(new ActivityScheduled($executionId, 'act-1', 'SendGreeting', []));
-        $journal->append(new ActivityCompleted($executionId, 'act-1', 'Hello'));
+        $journal->append(new ExecutionStarted(ExecutionId::fromString($executionId), []));
+        $journal->append(new ActivityScheduled(ExecutionId::fromString($executionId), 'act-1', 'SendGreeting', []));
+        $journal->append(new ActivityCompleted(ExecutionId::fromString($executionId), 'act-1', 'Hello'));
         $journal->append($ending);
     }
 }

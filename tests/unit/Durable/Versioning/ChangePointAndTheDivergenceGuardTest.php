@@ -34,9 +34,9 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         // The execution is on version 1: its journal carries `discountedCharge` at slot 0,
         // and that is exactly what the v1 branch of the code asks for. No divergence.
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 90));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 1));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'discountedCharge', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 90));
 
         $context = $this->context($store);
         $version = $context->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 1);
@@ -58,10 +58,10 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         // the default branch asks for exactly that. Both branches are therefore legitimate —
         // each for the execution it concerns.
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'plainCharge', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 100));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'plainCharge', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 100));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipOrder', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipped'));
 
         $context = $this->context($store);
         $version = $context->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 1);
@@ -81,11 +81,11 @@ final class ChangePointAndTheDivergenceGuardTest extends TestCase
         // The change point is honoured, and ANOTHER slot is changed without declaring it. That
         // is where the value of the exception is decided: it covers only what it names.
         $store = new InMemoryEventStore();
-        $store->append(new VersionMarked(self::EXECUTION, 'add-discount', 1));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'discountedCharge', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 90));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-2', 'shipOrder', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-2', 'shipped'));
+        $store->append(new VersionMarked(ExecutionId::fromString(self::EXECUTION), 'add-discount', 1));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'discountedCharge', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 90));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipOrder', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipped'));
 
         $context = $this->context($store);
         $context->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 1);

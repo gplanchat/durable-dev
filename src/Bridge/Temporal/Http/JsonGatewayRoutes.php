@@ -13,7 +13,7 @@ namespace Gplanchat\Bridge\Temporal\Http;
  * workflow/Nexus task responses. That is the server's choice, and the reason the JSON gateway
  * serves clients but not workers. `JsonGatewayRoutesTest` holds this table to the descriptor.
  */
-final class JsonGatewayRoutes
+final readonly class JsonGatewayRoutes
 {
     /** @var array<string, array{0: string, 1: string}> */
     public const ROUTES = [

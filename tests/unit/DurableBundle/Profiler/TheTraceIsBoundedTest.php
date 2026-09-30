@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\DurableBundle\Profiler;
 
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -18,7 +19,7 @@ final class TheTraceIsBoundedTest extends TestCase
     {
         $trace = new DurableExecutionTrace();
         for ($i = 1; $i <= 5000; ++$i) {
-            $trace->onWorkflowRun("exec-{$i}", 'Order', false);
+            $trace->onWorkflowRun(ExecutionId::fromString("exec-{$i}"), 'Order', false);
         }
 
         $timeline = $trace->getTimeline();

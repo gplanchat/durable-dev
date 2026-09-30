@@ -832,10 +832,10 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     {
         $events = [];
         foreach ($this->activityNames as $activityId => $name) {
-            $events[] = new ActivityScheduled($executionId, $activityId, $name, []);
+            $events[] = new ActivityScheduled(ExecutionId::fromString($executionId), $activityId, $name, []);
         }
         foreach ($this->timerDeadlines as $timerId => $deadline) {
-            $events[] = new TimerScheduled($executionId, $timerId, $deadline);
+            $events[] = new TimerScheduled(ExecutionId::fromString($executionId), $timerId, $deadline);
         }
 
         return $events;

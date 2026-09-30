@@ -33,7 +33,7 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
  *
  * @see \Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc for query/update RPCs
  */
-final class WorkflowClient implements WorkflowClientInterface
+final readonly class WorkflowClient implements WorkflowClientInterface
 {
     private const GRPC_NOT_FOUND = 5;
 

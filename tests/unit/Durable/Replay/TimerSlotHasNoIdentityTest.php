@@ -43,8 +43,8 @@ final class TimerSlotHasNoIdentityTest extends TestCase
         // The behaviour as it is, and not as one would wish it: the slot resolves, no divergence
         // is reported. That is the hole.
         $store = new InMemoryEventStore();
-        $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
-        $store->append(new TimerCompleted(self::EXECUTION, 'timer-1'));
+        $store->append(new TimerScheduled(ExecutionId::fromString(self::EXECUTION), 'timer-1', 1_000_000.0, ''));
+        $store->append(new TimerCompleted(ExecutionId::fromString(self::EXECUTION), 'timer-1'));
 
         $context = $this->context($store);
         $awaitable = $context->timer(Duration::seconds(3600.0));
@@ -58,7 +58,7 @@ final class TimerSlotHasNoIdentityTest extends TestCase
         // different instants, can carry the same deadline. The deadline therefore does not
         // identify the call — that is what forbids comparing it.
         $store = new InMemoryEventStore();
-        $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
+        $store->append(new TimerScheduled(ExecutionId::fromString(self::EXECUTION), 'timer-1', 1_000_000.0, ''));
 
         $events = iterator_to_array($store->readStream(ExecutionId::fromString(self::EXECUTION)));
         $recorded = $events[0];
@@ -73,10 +73,10 @@ final class TimerSlotHasNoIdentityTest extends TestCase
         // What bounds the hole. A slot shift escapes the guard only if it touches **nothing but**
         // timers; as soon as an activity moves with it, the name catches it.
         $store = new InMemoryEventStore();
-        $store->append(new TimerScheduled(self::EXECUTION, 'timer-1', 1_000_000.0, ''));
-        $store->append(new TimerCompleted(self::EXECUTION, 'timer-1'));
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'chargeCard', []));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 42));
+        $store->append(new TimerScheduled(ExecutionId::fromString(self::EXECUTION), 'timer-1', 1_000_000.0, ''));
+        $store->append(new TimerCompleted(ExecutionId::fromString(self::EXECUTION), 'timer-1'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'chargeCard', []));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 42));
 
         $context = $this->context($store);
         $context->timer(Duration::seconds(3600.0));

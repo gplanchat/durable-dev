@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Debug;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * The observer for when nobody observes.
  *
@@ -16,12 +18,12 @@ namespace Gplanchat\Durable\Debug;
  * execution nobody watches runs the same. It is the same reason that makes `Psr\Log\NullLogger` a
  * legitimate null object.
  */
-final class NullWorkflowExecutionObserver implements WorkflowExecutionObserverInterface
+final readonly class NullWorkflowExecutionObserver implements WorkflowExecutionObserverInterface
 {
-    public function onWorkflowRun(string $executionId, string $workflowType, bool $isResume): void {}
+    public function onWorkflowRun(ExecutionId $executionId, string $workflowType, bool $isResume): void {}
 
     public function onActivityExecuted(
-        string $executionId,
+        ExecutionId $executionId,
         string $activityId,
         string $activityName,
         float $durationSeconds,

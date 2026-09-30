@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Store\ActivityEventJournal;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -48,7 +49,7 @@ final class ARetryIsNotARedeliveryTest extends TestCase
     public function testAnActivityThatSucceededIsSettledWhateverTheAttempt(): void
     {
         // A finished activity is not replayed: the attempt number does not come into it.
-        $store = $this->journalWith(new ActivityCompleted('exec-1', 'act-1', 'receipt'));
+        $store = $this->journalWith(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'receipt'));
 
         self::assertInstanceOf(ActivityCompleted::class, $this->settledFor($store, attempt: 7));
     }
@@ -73,7 +74,7 @@ final class ARetryIsNotARedeliveryTest extends TestCase
     private function failedOnAttempt(int $attempt, ?ActivityRetryState $retryState): ActivityFailed
     {
         return new ActivityFailed(
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             'act-1',
             \RuntimeException::class,
             'the payment gateway did not answer',

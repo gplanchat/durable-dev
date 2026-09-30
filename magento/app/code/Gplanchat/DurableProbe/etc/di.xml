@@ -24,11 +24,18 @@
                     to start for it.
                 -->
                 <item name="demo_order_nexus" xsi:type="string">Gplanchat\DurableProbe\Workflow\OrderNexusWorkflow</item>
+                <!-- Fulfils billing/charge for the handler below (#669), by its attribute. -->
+                <item name="probe_charge" xsi:type="string">Gplanchat\DurableProbe\Workflow\ProbeChargeWorkflow</item>
             </argument>
             <argument name="activityHandlers" xsi:type="array">
                 <item name="probe_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\RecordingOrderActivities</item>
                 <item name="demo_order" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\DemoOrderActivities</item>
                 <item name="probe_every_case" xsi:type="object">Gplanchat\DurableProbe\Workflow\Activity\ProbeEveryCaseActivities</item>
+            </argument>
+            <!-- The bench serves billing (#669): the handler is listed, its contract named by its
+                 #[AsNexusServiceHandler]; served by the nexus role of bin/magento durable:worker. -->
+            <argument name="nexusHandlers" xsi:type="array">
+                <item name="probe_billing" xsi:type="object">Gplanchat\DurableProbe\Nexus\ProbeBillingHandler</item>
             </argument>
         </arguments>
     </type>

@@ -15,7 +15,7 @@ use Temporal\Api\Protocol\V1\Message;
  * (acceptance and response of an update — see {@see UpdateProtocol}), and the query handlers of
  * the execution (needed to answer queries after replay).
  */
-final class WorkflowTaskResult
+final readonly class WorkflowTaskResult
 {
     /**
      * @param list<Command>             $commands

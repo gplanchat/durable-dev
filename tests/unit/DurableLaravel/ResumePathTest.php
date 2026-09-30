@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Laravel\Queue\FireWorkflowTimersJob;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Queue\ResumeWorkflowJob;
@@ -60,23 +61,25 @@ final class ResumePathTest extends TestCase
         self::assertTrue($metadata->get(ExecutionId::fromString('exec-9'))['completed'] ?? false);
     }
 
-    public function testATimerIsADeferredResumeOnTheQueuesOwnDelay(): void
+    public function testATimerIsADeferredTimerFiringOnTheQueuesOwnDelay(): void
     {
         $queue = new FakeQueue();
         $timers = new LaravelWorkflowTimerDispatcher(new FakeQueueFactory($queue), null, 'durable');
 
-        $timers->dispatchTimerFire('exec-1', 2400);
+        $timers->dispatchTimerFire(ExecutionId::fromString('exec-1'), 2400);
 
-        self::assertInstanceOf(ResumeWorkflowJob::class, $queue->pushed[0]['job']);
+        // A plain resume replays without firing the timer: only the timer handler does that (#726).
+        self::assertInstanceOf(FireWorkflowTimersJob::class, $queue->pushed[0]['job']);
+        self::assertSame('exec-1', $queue->pushed[0]['job']->message->executionId);
         // Rounded up: a workflow woken too early resumes before its due date.
         self::assertSame(3, $queue->pushed[0]['delay']);
         self::assertSame('durable', $queue->pushed[0]['queue']);
     }
 
-    public function testATimerWithoutDelayIsAPlainResume(): void
+    public function testATimerWithoutDelayIsPushedAtOnce(): void
     {
         $queue = new FakeQueue();
-        (new LaravelWorkflowTimerDispatcher(new FakeQueueFactory($queue)))->dispatchTimerFire('exec-1');
+        (new LaravelWorkflowTimerDispatcher(new FakeQueueFactory($queue)))->dispatchTimerFire(ExecutionId::fromString('exec-1'));
 
         self::assertNull($queue->pushed[0]['delay']);
     }

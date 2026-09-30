@@ -6,6 +6,7 @@ namespace unit\Gplanchat\DurableBundle;
 
 use Gplanchat\Durable\Bundle\DataCollector\DurableDataCollector;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
@@ -24,8 +25,8 @@ final class TheProfilerSaysWhatARunWaitsOnTest extends TestCase
     {
         $events = new InMemoryEventStore();
         $catalog = new InMemoryWorkflowRunCatalog($events);
-        $catalog->recordStart('exec-1', 'App\\OrderWorkflow');
-        $catalog->recordWait('exec-1', 'timer due at 2026-09-24T10:00:00+00:00');
+        $catalog->recordStart(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow');
+        $catalog->recordWait(ExecutionId::fromString('exec-1'), 'timer due at 2026-09-24T10:00:00+00:00');
 
         $detail = $this->collect($catalog, $events)->getExecutionsDetail()[0];
 
@@ -40,7 +41,7 @@ final class TheProfilerSaysWhatARunWaitsOnTest extends TestCase
     private function collect(?InMemoryWorkflowRunCatalog $catalog, InMemoryEventStore $events): DurableDataCollector
     {
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('exec-1', 'App\\OrderWorkflow', [], false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow', [], false, 'async');
 
         $collector = new DurableDataCollector($trace, new InMemoryWorkflowMetadataStore(), $events, new KeyPatternPayloadRedactor(), $catalog);
         $collector->collect(new Request(), new Response());

@@ -40,7 +40,7 @@ final class TheProviderWiresTheClockTest extends TestCase
         self::assertSame(1_700_000_005.0, $transport->nextDueAt());
 
         $journal = $app->make(EventStoreInterface::class);
-        $journal->append(new \Gplanchat\Durable\Event\WorkflowSignalReceived('exec-1', 'go', []));
+        $journal->append(new \Gplanchat\Durable\Event\WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'go', []));
         foreach ($journal->readStreamWithRecordedAt(ExecutionId::fromString('exec-1')) as $row) {
             self::assertSame('1700000000', $row['recordedAt']->format('U'));
         }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Migrations\Migration;
+use Gplanchat\Bridge\Illuminate\Schema\DurableMigration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * @see DUR030
  */
-return new class extends Migration {
+return new class extends DurableMigration {
     public function up(): void
     {
         Schema::create('durable_events', function (Blueprint $table): void {

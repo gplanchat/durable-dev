@@ -9,6 +9,7 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -40,8 +41,8 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
 
     protected function startRun(string $executionId, string $workflowType): void
     {
-        $this->catalog->recordStart($executionId, $workflowType);
-        $this->events->append(new ExecutionStarted($executionId, []));
+        $this->catalog->recordStart(ExecutionId::fromString($executionId), $workflowType);
+        $this->events->append(new ExecutionStarted(ExecutionId::fromString($executionId), []));
     }
 
     protected function canTellAPickup(): bool
@@ -51,7 +52,7 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
 
     protected function pickUp(string $executionId): void
     {
-        $this->catalog->recordPickup($executionId);
+        $this->catalog->recordPickup(ExecutionId::fromString($executionId));
     }
 
     protected function canTellAWait(): bool
@@ -61,16 +62,16 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
 
     protected function recordWait(string $executionId, ?string $waitingOn): void
     {
-        $this->catalog->recordWait($executionId, $waitingOn);
+        $this->catalog->recordWait(ExecutionId::fromString($executionId), $waitingOn);
     }
 
     protected function endRun(string $executionId, WorkflowRunStatus $outcome): void
     {
         $this->events->append(match ($outcome) {
-            WorkflowRunStatus::Completed => new ExecutionCompleted($executionId, 'ok'),
-            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled($executionId, 'cancelled'),
-            WorkflowRunStatus::ContinuedAsNew => new WorkflowContinuedAsNew($executionId, 'App\\NextWorkflow', []),
-            WorkflowRunStatus::Failed => WorkflowExecutionFailed::fromStoredPayload($executionId, [
+            WorkflowRunStatus::Completed => new ExecutionCompleted(ExecutionId::fromString($executionId), 'ok'),
+            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled(ExecutionId::fromString($executionId), 'cancelled'),
+            WorkflowRunStatus::ContinuedAsNew => new WorkflowContinuedAsNew(ExecutionId::fromString($executionId), 'App\\NextWorkflow', []),
+            WorkflowRunStatus::Failed => WorkflowExecutionFailed::fromStoredPayload(ExecutionId::fromString($executionId), [
                 'kind' => WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER,
                 'failureClass' => \RuntimeException::class,
                 'failureMessage' => 'boom',
@@ -79,6 +80,6 @@ final class InMemoryWorkflowRunCatalogConformanceTest extends WorkflowRunCatalog
             ]),
             WorkflowRunStatus::Running => self::fail('Running is not an outcome'),
         });
-        $this->catalog->recordOutcome($executionId, $outcome);
+        $this->catalog->recordOutcome(ExecutionId::fromString($executionId), $outcome);
     }
 }

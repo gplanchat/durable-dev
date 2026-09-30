@@ -11,6 +11,8 @@ use Symfony\Component\Messenger\Exception\TransportException;
  * status carried in the response trailers.
  *
  * Kept free of curl so the framing and the status mapping have a test that needs no server.
+ *
+ * @internal
  */
 final class GrpcWire
 {

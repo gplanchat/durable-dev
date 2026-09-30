@@ -52,7 +52,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
  *
  * @see \Gplanchat\Bridge\Dbal\Messenger\SingleResumeLockMiddleware the Symfony counterpart
  */
-final class ResumeLock
+final readonly class ResumeLock
 {
     /** Between two attempts: short enough not to hold things up, long enough not to burn CPU. */
     private const POLL_MICROSECONDS = 100_000;

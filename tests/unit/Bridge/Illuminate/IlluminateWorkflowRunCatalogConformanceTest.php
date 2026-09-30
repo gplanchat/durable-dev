@@ -54,16 +54,16 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
             $this->catalog(),
         );
         $metadata->save(ExecutionId::fromString($executionId), $workflowType, []);
-        $this->journal()->append(new ExecutionStarted($executionId, []));
+        $this->journal()->append(new ExecutionStarted(ExecutionId::fromString($executionId), []));
     }
 
     protected function endRun(string $executionId, WorkflowRunStatus $outcome): void
     {
         $this->journal()->append(match ($outcome) {
-            WorkflowRunStatus::Completed => new ExecutionCompleted($executionId, 'ok'),
-            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled($executionId, 'cancelled'),
-            WorkflowRunStatus::ContinuedAsNew => new WorkflowContinuedAsNew($executionId, 'App\\NextWorkflow', []),
-            WorkflowRunStatus::Failed => WorkflowExecutionFailed::fromStoredPayload($executionId, [
+            WorkflowRunStatus::Completed => new ExecutionCompleted(ExecutionId::fromString($executionId), 'ok'),
+            WorkflowRunStatus::Cancelled => new WorkflowExecutionCancelled(ExecutionId::fromString($executionId), 'cancelled'),
+            WorkflowRunStatus::ContinuedAsNew => new WorkflowContinuedAsNew(ExecutionId::fromString($executionId), 'App\\NextWorkflow', []),
+            WorkflowRunStatus::Failed => WorkflowExecutionFailed::fromStoredPayload(ExecutionId::fromString($executionId), [
                 'kind' => WorkflowExecutionFailed::KIND_WORKFLOW_HANDLER,
                 'failureClass' => \RuntimeException::class,
                 'failureMessage' => 'boom',
@@ -90,7 +90,7 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
     protected function pickUp(string $executionId): void
     {
         // What the resume handler does when a worker takes the run.
-        $this->catalog()->recordPickup($executionId);
+        $this->catalog()->recordPickup(ExecutionId::fromString($executionId));
     }
 
     protected function canTellAWait(): bool
@@ -100,7 +100,7 @@ final class IlluminateWorkflowRunCatalogConformanceTest extends WorkflowRunCatal
 
     protected function recordWait(string $executionId, ?string $waitingOn): void
     {
-        $this->catalog()->recordWait($executionId, $waitingOn);
+        $this->catalog()->recordWait(ExecutionId::fromString($executionId), $waitingOn);
     }
 
     private function journal(): ProjectingEventStore

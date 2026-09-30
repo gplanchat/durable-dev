@@ -24,7 +24,15 @@ final class TheRunPageRedactorHasAPreferenceTest extends TestCase
             $preferences[(string) $preference['for']] = (string) $preference['type'];
         }
 
-        self::assertSame(KeyPatternPayloadRedactor::class, $preferences[PayloadRedactorInterface::class] ?? null);
+        // Through a virtual type, which `setup:di:compile` accepts where it refuses a class of
+        // `gplanchat/durable` (#725): the preference must still resolve to the key pattern.
+        $virtualTypes = [];
+        foreach ($di->virtualType as $virtualType) {
+            $virtualTypes[(string) $virtualType['name']] = (string) $virtualType['type'];
+        }
+        $preferred = $preferences[PayloadRedactorInterface::class] ?? null;
+
+        self::assertSame(KeyPatternPayloadRedactor::class, $virtualTypes[$preferred] ?? $preferred);
     }
 
     public function testTheDetailBlockAsksForIt(): void

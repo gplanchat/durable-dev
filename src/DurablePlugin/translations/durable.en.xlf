@@ -6,6 +6,9 @@
             <trans-unit id="dashboard.title"><source>dashboard.title</source><target>Durable Workflow Dashboard</target></trans-unit>
             <trans-unit id="dashboard.intro"><source>dashboard.intro</source><target>Observe workflow runs, outcomes and recorded history from the Sylius back-office.</target></trans-unit>
             <trans-unit id="dashboard.backend_checked"><source>dashboard.backend_checked</source><target>%name% · checked at %time%</target></trans-unit>
+            <trans-unit id="dashboard.worker_polling"><source>dashboard.worker_polling</source><target>The %role% worker is polling.</target></trans-unit>
+            <trans-unit id="dashboard.worker_missing"><source>dashboard.worker_missing</source><target>No %role% worker has polled in %seconds% seconds: executions stop at their first %role% task. Start bin/console durable:worker --role=%role%.</target></trans-unit>
+            <trans-unit id="dashboard.worker_unknown"><source>dashboard.worker_unknown</source><target>Could not ask the backend whether a %role% worker polls: %error%</target></trans-unit>
             <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Outcomes across the %count% runs on this page</target></trans-unit>
             <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>On this page</target></trans-unit>
             <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>Waiting for a worker</target></trans-unit>
@@ -38,6 +41,16 @@
             <trans-unit id="phase.started"><source>phase.started</source><target>started</target></trans-unit>
             <trans-unit id="phase.failed"><source>phase.failed</source><target>failed</target></trans-unit>
             <trans-unit id="phase.settled"><source>phase.settled</source><target>settled</target></trans-unit>
+            <trans-unit id="nexus.title"><source>nexus.title</source><target>Nexus operations</target></trans-unit>
+            <trans-unit id="nexus.endpoint"><source>nexus.endpoint</source><target>Endpoint</target></trans-unit>
+            <trans-unit id="nexus.service"><source>nexus.service</source><target>Service</target></trans-unit>
+            <trans-unit id="nexus.operation"><source>nexus.operation</source><target>Operation</target></trans-unit>
+            <trans-unit id="nexus.state"><source>nexus.state</source><target>State</target></trans-unit>
+            <trans-unit id="nexus.state.in_flight"><source>nexus.state.in_flight</source><target>in flight</target></trans-unit>
+            <trans-unit id="nexus.state.completed"><source>nexus.state.completed</source><target>completed</target></trans-unit>
+            <trans-unit id="nexus.state.failed"><source>nexus.state.failed</source><target>failed</target></trans-unit>
+            <trans-unit id="nexus.state.timed_out"><source>nexus.state.timed_out</source><target>timed out</target></trans-unit>
+            <trans-unit id="nexus.state.cancelled"><source>nexus.state.cancelled</source><target>cancelled</target></trans-unit>
         </body>
     </file>
 </xliff>

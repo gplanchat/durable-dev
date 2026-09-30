@@ -11,6 +11,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowLifecycle;
 use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Awaitable\Deferred;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Enums\V1\CommandType;
@@ -26,7 +27,7 @@ final class TheWorkerRecordsTheWaitTest extends TestCase
         $buffer = $this->buffer();
         $lifecycle = new TemporalWorkflowLifecycle($buffer, describeWait: static fn(Awaitable $pending): string => 'timer due at 2026-09-24T10:00:00+00:00');
 
-        $lifecycle->onSuspended('exec-1', (new Deferred())->awaitable());
+        $lifecycle->onSuspended(ExecutionId::fromString('exec-1'), (new Deferred())->awaitable());
 
         self::assertSame('timer due at 2026-09-24T10:00:00+00:00', self::waitIn($buffer->peek()));
     }
@@ -44,7 +45,7 @@ final class TheWorkerRecordsTheWaitTest extends TestCase
     {
         $buffer = $this->buffer();
 
-        (new TemporalWorkflowLifecycle($buffer))->onSuspended('exec-1', (new Deferred())->awaitable());
+        (new TemporalWorkflowLifecycle($buffer))->onSuspended(ExecutionId::fromString('exec-1'), (new Deferred())->awaitable());
 
         self::assertSame([], $buffer->peek());
     }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Migrations\Migration;
+use Gplanchat\Bridge\Illuminate\Schema\DurableMigration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
  * worker took it, and a false "waiting for a worker" on each of them would be worse than no signal.
  * On a table created with the column, this migration does nothing.
  */
-return new class extends Migration {
+return new class extends DurableMigration {
     public function up(): void
     {
         if (Schema::hasColumn('durable_workflow_runs', 'picked_up_at')) {

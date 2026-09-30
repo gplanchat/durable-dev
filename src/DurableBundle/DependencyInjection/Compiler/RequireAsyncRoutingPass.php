@@ -24,7 +24,7 @@ use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
  * ponytail: a transport whose DSN is an env var is taken as asynchronous; FrameworkExtension makes
  * the same call when it decides which transports are `sync`.
  */
-final class RequireAsyncRoutingPass implements CompilerPassInterface
+final readonly class RequireAsyncRoutingPass implements CompilerPassInterface
 {
     private const MESSAGES = [ResumeWorkflowMessage::class, FireWorkflowTimersMessage::class];
 

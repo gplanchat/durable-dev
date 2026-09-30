@@ -11,6 +11,7 @@ use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ActivityTaskFailed;
 use Gplanchat\Durable\Event\ActivityTaskStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
@@ -27,11 +28,11 @@ final class ProfilerRowsSayTheirPhaseTest extends TestCase
     public function testEachJournalRowCarriesThePhaseOfItsAction(): void
     {
         $events = new InMemoryEventStore();
-        $events->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
-        $events->append(new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1));
-        $events->append(new ActivityTaskFailed('exec-1', 'act-1', 'charge', 1, \RuntimeException::class, 'boom', ActivityRetryState::InProgress));
-        $events->append(new ActivityCompleted('exec-1', 'act-1', 'ok'));
-        $events->append(new WorkflowSignalReceived('exec-1', 'orderApproved', []));
+        $events->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
+        $events->append(new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1));
+        $events->append(new ActivityTaskFailed(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1, \RuntimeException::class, 'boom', ActivityRetryState::InProgress));
+        $events->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ok'));
+        $events->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'orderApproved', []));
 
         $collector = new DurableDataCollector(new DurableExecutionTrace(), new InMemoryWorkflowMetadataStore(), $events);
         $collector->collect(new Request(['durable_execution' => 'exec-1']), new Response());

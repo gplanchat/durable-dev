@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Replay;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
@@ -119,7 +120,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
     private function contextWithChild(string $childType): ExecutionContext
     {
         $store = new InMemoryEventStore();
-        $store->append(new ChildWorkflowScheduled(self::EXECUTION, 'child-1', $childType, ['sku' => 'ABC']));
+        $store->append(new ChildWorkflowScheduled(ExecutionId::fromString(self::EXECUTION), 'child-1', $childType, ['sku' => 'ABC']));
 
         return $this->context($store);
     }

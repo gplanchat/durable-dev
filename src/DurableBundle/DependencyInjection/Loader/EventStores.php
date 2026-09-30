@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Messenger\TemporalActivityWorkerTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalJournalTransport;
 use Gplanchat\Bridge\Temporal\Messenger\TemporalNexusWorkerTransport;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
+use Gplanchat\Bridge\Temporal\Store\TemporalTaskQueueProbe;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
@@ -24,7 +25,9 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\Bundle\Command\HealthCommand;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
+use Gplanchat\Durable\Bundle\Observation\WorkerPresence;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -54,6 +57,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class EventStores
 {
+    private function __construct() {}
+
     public static function registerChildWorkflowParentLinkStore(ContainerBuilder $container): void
     {
         $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class);
@@ -65,7 +70,7 @@ final class EventStores
      *
      * @param array<string, mixed> $temporalConfig
      */
-    public static function registerTemporalEventStore(ContainerBuilder $container, array $temporalConfig, string $dsn, bool $journal): void
+    private static function registerTemporalEventStore(ContainerBuilder $container, array $temporalConfig, string $dsn, bool $journal): void
     {
         $container->register('durable.temporal.connection', TemporalConnection::class)
             ->setFactory([TemporalConnection::class, 'fromDsn'])
@@ -90,6 +95,13 @@ final class EventStores
             $psr17 = new Reference(\is_string($temporalConfig['psr17_factory'] ?? null) ? $temporalConfig['psr17_factory'] : $psr18);
             $client->setArgument(2, $client->getArguments()[2] ?? null);
             $client->setArgument(3, new Definition(Psr18Http::class, [new Reference($psr18), $psr17, $psr17]));
+        }
+        // Every payload encoded on the way out, decoded on the way in (DUR055); the codec holds its key.
+        $codec = $temporalConfig['payload_codec'] ?? null;
+        if (\is_string($codec) && '' !== $codec) {
+            $client->setArgument(2, $client->getArguments()[2] ?? null);
+            $client->setArgument(3, $client->getArguments()[3] ?? null);
+            $client->setArgument(4, new Reference($codec));
         }
 
         // The graph is the bridge's (#356): each service below is one of the assembly's
@@ -256,6 +268,25 @@ final class EventStores
         // which loop each name runs. NexusHandlerPass tags the Nexus one once a handler exists.
         $container->register('durable.temporal.nexus_receiver', TemporalNexusWorkerTransport::class)
             ->setArguments([new Reference('durable.temporal.nexus_worker')])
+        ;
+
+        // `durable:health` checks the roles that poll this cluster: workflow and activity only when
+        // it holds the journal; NexusHandlerPass adds nexus once something serves it.
+        $container->register('durable.worker_presence', WorkerPresence::class)
+            ->setArguments([
+                (new Definition(TemporalTaskQueueProbe::class))->setArguments([
+                    new Reference('durable.temporal.workflow_service_client'),
+                    new Reference('durable.temporal.connection'),
+                ]),
+                DurableExtension::isTemporalNative($config) ? ['workflow', 'activity'] : [],
+            ])
+            ->setPublic(false)
+        ;
+        $container->setAlias(WorkerPresence::class, 'durable.worker_presence')->setPublic(false);
+        $container->register('durable.command.health', HealthCommand::class)
+            ->setArguments([new Reference('durable.worker_presence')])
+            ->addTag('console.command', ['command' => 'durable:health'])
+            ->setPublic(false)
         ;
 
         // Without the journal, workflows run locally and the application's own

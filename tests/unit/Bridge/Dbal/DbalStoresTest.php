@@ -38,10 +38,10 @@ final class DbalStoresTest extends TestCase
         $store = new DbalEventStore($this->connection, $this->schema());
 
         // The table does not exist yet: the first append must create it.
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', ['amount' => 10]));
-        $store->append(new SideEffectRecorded('exec-1', 'se-1', 'roll-42'));
-        $store->append(new ActivityCompleted('exec-1', 'act-1', ['ok' => true]));
-        $store->append(new ExecutionCompleted('exec-1', 'done'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', ['amount' => 10]));
+        $store->append(new SideEffectRecorded(ExecutionId::fromString('exec-1'), 'se-1', 'roll-42'));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', ['ok' => true]));
+        $store->append(new ExecutionCompleted(ExecutionId::fromString('exec-1'), 'done'));
 
         $events = iterator_to_array($store->readStream(ExecutionId::fromString('exec-1')), false);
 
@@ -59,9 +59,9 @@ final class DbalStoresTest extends TestCase
     {
         $store = new DbalEventStore($this->connection, $this->schema());
 
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
-        $store->append(new ActivityScheduled('exec-2', 'act-2', 'refund', []));
-        $store->append(new ActivityScheduled('exec-1', 'act-3', 'ship', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-2'), 'act-2', 'refund', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-3', 'ship', []));
 
         self::assertSame(2, $store->countEventsInStream(ExecutionId::fromString('exec-1')));
         self::assertSame(1, $store->countEventsInStream(ExecutionId::fromString('exec-2')));
@@ -72,7 +72,7 @@ final class DbalStoresTest extends TestCase
     public function testRecordedAtIsReadBackAsADate(): void
     {
         $store = new DbalEventStore($this->connection, $this->schema());
-        $store->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
+        $store->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
 
         $entries = iterator_to_array($store->readStreamWithRecordedAt(ExecutionId::fromString('exec-1')), false);
 
@@ -134,12 +134,12 @@ final class DbalStoresTest extends TestCase
         $events = new DbalEventStore($this->connection, $schema);
         $metadata = new DbalWorkflowMetadataStore($this->connection, $schema);
 
-        $events->append(new ActivityScheduled('exec-1', 'act-1', 'charge', []));
+        $events->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []));
         $metadata->save(ExecutionId::fromString('exec-1'), 'App\\Checkout', []);
 
         // A second DurableSchema on the same connection must not retry the CREATE TABLE statements.
         $second = new DbalEventStore($this->connection, $this->schema());
-        $second->append(new ActivityScheduled('exec-1', 'act-2', 'ship', []));
+        $second->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-2', 'ship', []));
 
         self::assertSame(2, $events->countEventsInStream(ExecutionId::fromString('exec-1')));
     }

@@ -56,9 +56,9 @@ final class ALoserCancellationTheJournalRefusesIsNotSwallowedTest extends TestCa
                 return $this->inner->countEventsInStream($executionId);
             }
         };
-        $inner->append(new ExecutionStarted('race-1', []));
-        $inner->append(new TimerScheduled('race-1', 'timer-a', 9999999999.0));
-        $inner->append(new WorkflowSignalReceived('race-1', 'tick', ['n' => 1]));
+        $inner->append(new ExecutionStarted(ExecutionId::fromString('race-1'), []));
+        $inner->append(new TimerScheduled(ExecutionId::fromString('race-1'), 'timer-a', 9999999999.0));
+        $inner->append(new WorkflowSignalReceived(ExecutionId::fromString('race-1'), 'tick', ['n' => 1]));
 
         $engine = new ExecutionEngine($store, new ExecutionRuntime($store, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true));
 

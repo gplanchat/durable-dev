@@ -283,10 +283,10 @@ final class DurableDashboardTest extends WebTestCase
         $container->get(WorkflowMetadataStore::class)->save(ExecutionId::fromString($executionId), $workflowType, []);
 
         $journal = $container->get(EventStoreInterface::class);
-        $journal->append(new ExecutionStarted($executionId, []));
-        $journal->append(new ActivityScheduled($executionId, 'act-1', 'SendWelcomeEmail', []));
+        $journal->append(new ExecutionStarted(ExecutionId::fromString($executionId), []));
+        $journal->append(new ActivityScheduled(ExecutionId::fromString($executionId), 'act-1', 'SendWelcomeEmail', []));
         $journal->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
-            $executionId,
+            ExecutionId::fromString($executionId),
             new \RuntimeException('le fournisseur a refusé la charge'),
         ));
     }

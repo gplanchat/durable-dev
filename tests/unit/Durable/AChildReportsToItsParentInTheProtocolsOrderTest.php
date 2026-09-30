@@ -50,7 +50,7 @@ final class AChildReportsToItsParentInTheProtocolsOrderTest extends TestCase
     public function testARedeliveryAfterTheAppendResumesTheParentWithoutASecondOutcome(): void
     {
         [$journal, , $resumes, $handler] = $this->childOf('parent-1');
-        $journal->append(new ChildWorkflowCompleted('parent-1', 'child-1', 'Hello, Ada'));
+        $journal->append(new ChildWorkflowCompleted(ExecutionId::fromString('parent-1'), 'child-1', 'Hello, Ada'));
 
         $handler(new ResumeWorkflowMessage('child-1'));
 

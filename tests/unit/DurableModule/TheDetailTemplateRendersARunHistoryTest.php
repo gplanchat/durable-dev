@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\DurableModule;
 
+use Gplanchat\Durable\Observation\NexusOperationState;
+use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunTimeline;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -91,6 +93,32 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('<th>Waiting on</th><td>signal approve</td>', $page);
     }
 
+    public function testTheRunPageSaysWhereANexusOperationWaitsAndThatItIsInFlight(): void
+    {
+        // #672: a Nexus operation is the wait served by someone else; in flight is not a failure.
+        $page = $this->renderDetail(nexus: [new NexusOperationSummary('demo-shop-stock', 'stock', 'reserve', NexusOperationState::InFlight)]);
+
+        foreach (['Nexus operations', '<td><code>demo-shop-stock</code></td>', '<td>stock</td>', '<td>reserve</td>', 'durable-nexus-state in_flight">in flight<'] as $shown) {
+            self::assertStringContainsString($shown, $page);
+        }
+    }
+
+    public function testEachSettledOutcomeIsShownAsItsOwnState(): void
+    {
+        $states = ['completed' => NexusOperationState::Completed, 'failed' => NexusOperationState::Failed, 'timed out' => NexusOperationState::TimedOut, 'cancelled' => NexusOperationState::Cancelled];
+        $page = $this->renderDetail(nexus: array_map(static fn(NexusOperationState $state): NexusOperationSummary => new NexusOperationSummary('demo-business-billing', 'billing', 'charge', $state), array_values($states)));
+
+        foreach ($states as $label => $state) {
+            self::assertStringContainsString("durable-nexus-state {$state->value}\">{$label}<", $page);
+        }
+        self::assertStringNotContainsString('in flight', $page);
+    }
+
+    public function testARunWithoutNexusHasNoNexusSection(): void
+    {
+        self::assertStringNotContainsString('Nexus operations', $this->renderDetail());
+    }
+
     public function testAnUnknownRunSaysSoRatherThanRenderingAnEmptyScreen(): void
     {
         $page = $this->renderDetail(known: false);
@@ -99,11 +127,14 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('durable-frieze', $page);
     }
 
-    private function renderDetail(bool $known = true, bool $secrets = false): string
+    /**
+     * @param list<NexusOperationSummary> $nexus
+     */
+    private function renderDetail(bool $known = true, bool $secrets = false, array $nexus = []): string
     {
         require_once __DIR__ . '/Fixture/magento-template-globals.php';
 
-        $block = new DetailBlockDouble($known, $secrets);
+        $block = new DetailBlockDouble($known, $secrets, $nexus);
         $escaper = new EscaperDouble();
 
         ob_start();
@@ -131,9 +162,13 @@ final class DetailBlockDouble
 {
     private readonly RunTimeline $timeline;
 
+    /**
+     * @param list<NexusOperationSummary> $nexus
+     */
     public function __construct(
         private readonly bool $known = true,
         bool $secrets = false,
+        private readonly array $nexus = [],
     ) {
         $this->timeline = RunTimeline::of($known ? [
             new WorkflowRunEvent(
@@ -180,6 +215,12 @@ final class DetailBlockDouble
     public function getTimeline(): RunTimeline
     {
         return $this->timeline;
+    }
+
+    /** @return list<NexusOperationSummary> */
+    public function getNexusOperations(): array
+    {
+        return $this->nexus;
     }
 
     public function scale(float $seconds): string

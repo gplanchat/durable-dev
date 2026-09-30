@@ -49,7 +49,7 @@ final class AnEarlyResumeWaitsForItsOutcomeTest extends TestCase
     public function testAResumeThatFindsItsOutcomeProceeds(): void
     {
         [$store, $metadata, $handler] = $this->handler();
-        $store->append(new ActivityCompleted('exec-1', 'act-1', 'ch_1'));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'));
 
         $handler(new ResumeWorkflowMessage('exec-1', [], AwaitedFact::activity('act-1')));
 

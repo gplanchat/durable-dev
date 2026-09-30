@@ -9,6 +9,7 @@ use Doctrine\DBAL\DriverManager;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunCatalog;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowRunProjection;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -43,9 +44,9 @@ final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
     {
         $schema = new DurableSchema($this->connection);
         $projection = new DbalWorkflowRunProjection($this->connection, $schema);
-        $projection->recordStart('exec-1', 'App\\OrderWorkflow');
+        $projection->recordStart(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow');
 
-        $projection->recordPickup('exec-1');
+        $projection->recordPickup(ExecutionId::fromString('exec-1'));
 
         $page = (new DbalWorkflowRunCatalog($this->connection, $schema))->listRuns();
         self::assertFalse($page->tellsWaitingForWorker);
@@ -58,9 +59,9 @@ final class DbalWorkflowRunPickupOnAnOldTableTest extends TestCase
     {
         $schema = new DurableSchema($this->connection);
         $projection = new DbalWorkflowRunProjection($this->connection, $schema);
-        $projection->recordStart('exec-1', 'App\\OrderWorkflow');
+        $projection->recordStart(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow');
 
-        $projection->recordWait('exec-1', 'activity charge attempt 2 in flight');
+        $projection->recordWait(ExecutionId::fromString('exec-1'), 'activity charge attempt 2 in flight');
 
         $runs = (new DbalWorkflowRunCatalog($this->connection, $schema))->listRuns()->runs;
         self::assertNull($runs[0]->waitingOn, 'a table created before #324 leaves the fact absent');

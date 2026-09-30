@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\DurableModule;
 
+use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
 use Gplanchat\Bridge\Temporal\Store\TemporalReadThroughEventStore;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -154,6 +155,39 @@ final class RuntimeFactoryTest extends TestCase
         self::assertSame(1, $sent);
     }
 
+    /** DUR055: the shop's codec, handed in `di.xml`, encodes what the client sends. */
+    public function testTheHandedCodecEncodesWhatTheClientSends(): void
+    {
+        $sent = 0;
+        $psr18 = new class ($sent) implements \Psr\Http\Client\ClientInterface {
+            public function __construct(private int &$sent) {}
+
+            public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface
+            {
+                ++$this->sent;
+
+                return new \GuzzleHttp\Psr7\Response(503, [], '{"code":14,"message":"stub"}');
+            }
+        };
+        $factory = new \GuzzleHttp\Psr7\HttpFactory();
+        $codec = $this->createMock(PayloadCodecInterface::class);
+        $codec->expects(self::atLeastOnce())->method('encode')->willReturnArgument(0);
+
+        $client = (new RuntimeFactory(
+            temporalDsn: 'temporal+http://127.0.0.1:7243?namespace=default',
+            jsonGateway: new \Gplanchat\Bridge\Temporal\Http\Psr18Http($psr18, $factory, $factory),
+            codec: $codec,
+        ))->workflowClient();
+
+        try {
+            $client->signal('order-1', 'go', ['email' => 'secret']);
+        } catch (\RuntimeException) {
+            // UNAVAILABLE: the stub answers so; the payload was encoded before it left.
+        }
+
+        self::assertGreaterThanOrEqual(1, $sent, 'the request went through the handed gateway');
+    }
+
     /**
      * Magento has no PSR-20 clock: the core's system clock by default, the one `di.xml` hands
      * otherwise, for every in-process service that reads time (#617).
@@ -161,7 +195,7 @@ final class RuntimeFactoryTest extends TestCase
     public function testTheHandedClockStampsTheProcessJournal(): void
     {
         $runtime = (new RuntimeFactory(clock: new FrozenClock(1_700_000_000.0)))->create();
-        $runtime->eventStore()->append(new WorkflowSignalReceived('exec-1', 'go', []));
+        $runtime->eventStore()->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'go', []));
 
         $stamps = [];
         foreach ($runtime->eventStore()->readStreamWithRecordedAt(ExecutionId::fromString('exec-1')) as $row) {

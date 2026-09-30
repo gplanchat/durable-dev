@@ -255,11 +255,29 @@ SQL database** through Doctrine DBAL. There is no orchestration server, no sidec
 
 ### Configuration
 
+Give the journal a connection of its own. Sharing the application's is strongly discouraged
+(DUR054): Durable's transactions then nest inside business ones. A worker that starts with the
+journal on the application's default connection logs a warning saying so. Better still, point that
+connection at a database (or a schema) and a database user of Durable's own, so that business code
+cannot reach the journal's tables at all.
+
+```yaml
+# config/packages/doctrine.yaml — the journal on a connection of its own
+doctrine:
+    dbal:
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+            durable:
+                url: '%env(resolve:DURABLE_DATABASE_URL)%'
+```
+
 ```yaml
 # config/packages/durable.yaml
 durable:
     dbal:
-        connection: doctrine.dbal.default_connection
+        connection: doctrine.dbal.durable_connection
         lock_factory: lock.factory
     backend: dbal
     activity_transport:
@@ -270,6 +288,10 @@ framework:
     lock:
         default: '%env(LOCK_DSN)%'   # a DBAL URL (postgresql://…, mysql://…), redis://…; not Messenger's doctrine://; shared across workers
 ```
+
+DoctrineBundle names each connection's service `doctrine.dbal.<name>_connection`. On a database
+other than the ORM's, `doctrine:migrations:diff` does not see Durable's tables: they come from the
+first write, or from `bin/console durable:setup`.
 
 Adding a `temporal.dsn` keeps the journal in SQL and uses the cluster only to serve Nexus operations.
 `backend: temporal` would hand the cluster the journal instead: there is never a second source of
@@ -303,9 +325,9 @@ The same four stores exist on `Illuminate\Database\Connection`, as
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--the-laravel-backend)
 with the same journal and the same trade against Temporal.
 
-**The trade against Temporal is the DBAL one, word for word.** What changes is the connection, and
-why: a store on `DB::connection()` is inside `DB::transaction()` by construction, which is what
-DUR030 needs. See [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
+**The trade against Temporal is the DBAL one, word for word.** What changes is the connection:
+`Illuminate\Database\Connection` rather than Doctrine's. Give it one of its own, not the
+application's (DUR054). See [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
 
 ### What binds it is not this page's YAML
 
@@ -314,8 +336,8 @@ not read this page's YAML. The bridge is the storage half, and **what binds it i
 `gplanchat/durable-laravel`**, through its own published `config/durable.php`.
 
 That package carries the queue side too: activities and resumes as jobs, a timer as a deferred
-resume on the queue's own delay, and the per-execution exclusion the DBAL section describes. Its
-own [Packages entry](../packages/#gplanchatdurable-laravel--the-laravel-integration) has the
+timer-firing job on the queue's own delay, and the per-execution exclusion the DBAL section
+describes. Its own [Packages entry](../packages/#gplanchatdurable-laravel--the-laravel-integration) has the
 configuration, the three settings it refuses rather than tolerates, and the two behaviours that read
 like bugs and are not.
 

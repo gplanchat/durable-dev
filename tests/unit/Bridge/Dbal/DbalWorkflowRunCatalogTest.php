@@ -49,7 +49,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
     {
         $this->startRun('exec-1', 'App\\OrderWorkflow');
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             new \RuntimeException('the provider refused the charge'),
         ));
 
@@ -66,9 +66,9 @@ final class DbalWorkflowRunCatalogTest extends TestCase
         $this->startRun('exec-cancelled', 'App\\OrderWorkflow');
         $this->startRun('exec-failed', 'App\\OrderWorkflow');
 
-        $this->eventStore()->append(new WorkflowExecutionCancelled('exec-cancelled', 'cancelled by the customer'));
+        $this->eventStore()->append(new WorkflowExecutionCancelled(ExecutionId::fromString('exec-cancelled'), 'cancelled by the customer'));
         $this->eventStore()->append(WorkflowExecutionFailed::unhandledDeclaredActivityFailure(
-            'exec-failed',
+            ExecutionId::fromString('exec-failed'),
             new \RuntimeException('boom'),
         ));
 
@@ -82,7 +82,7 @@ final class DbalWorkflowRunCatalogTest extends TestCase
     public function testAContinuedAsNewRunLeavesBothRunsVisibleAndNeitherIsFailed(): void
     {
         $this->startRun('exec-first', 'App\\ReportWorkflow');
-        $this->eventStore()->append(new WorkflowContinuedAsNew('exec-first', 'App\\ReportWorkflow', ['page' => 2]));
+        $this->eventStore()->append(new WorkflowContinuedAsNew(ExecutionId::fromString('exec-first'), 'App\\ReportWorkflow', ['page' => 2]));
         // The successor is born of a `save()` under a new id: the component already treats
         // a continue-as-new as a brand-new execution.
         $this->startRun('exec-second', 'App\\ReportWorkflow');

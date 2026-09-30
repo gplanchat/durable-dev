@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\DurableLaravel;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\Queue\RunActivityJob;
 use Gplanchat\Durable\Port\ActivityAttemptClaimInterface;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -31,7 +32,7 @@ final class RunActivityJobDefersAClaimedAttemptTest extends TestCase
             new NullWorkflowResumeDispatcher(),
             $this->createStub(ActivityHeartbeatSenderInterface::class),
             attemptClaim: new class implements ActivityAttemptClaimInterface {
-                public function claim(string $executionId, string $activityId, int $attempt): ?\Closure
+                public function claim(ExecutionId $executionId, string $activityId, int $attempt): ?\Closure
                 {
                     return null;
                 }

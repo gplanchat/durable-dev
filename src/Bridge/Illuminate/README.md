@@ -1,6 +1,6 @@
 # gplanchat/durable-bridge-illuminate
 
-Durable execution on the database connection **Laravel already owns**.
+Durable execution on a Laravel database connection.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
@@ -22,16 +22,16 @@ query builder, not Eloquent. No Doctrine anywhere in the tree.
 | `ChildWorkflowParentLinkStoreInterface` | `IlluminateChildWorkflowParentLinkStore` |
 | `WorkflowRunCatalogInterface` (+ `WorkflowRunProjectionInterface`) | `IlluminateWorkflowRunCatalog` |
 
-## Why the connection matters more than the idiom
+## Give the stores a connection of their own
 
-**DUR030** sells durable execution on one database with no cluster, and that only pays if the
-journal append and the business write land in **one transaction**. Otherwise the activity writes,
-the process dies before the journal records that it did, and replay runs it a second time — the
-exact failure durable execution exists to prevent.
+**DUR030** sells durable execution on one database with no cluster. It does not need, and Durable
+does not offer, a transaction shared with business code. Pass these stores a connection of their
+own, not the application's default one (**DUR054**): on a shared connection, the transactions the
+event store opens to fence a pass (DUR053) nest inside the application's, so a business rollback
+erases journal events and a claim stays invisible to the other workers until the business code
+commits.
 
-A store on `DB::connection()` is inside `DB::transaction()` by construction. Handing Doctrine DBAL
-the PDO out of `DB::connection()->getPdo()` reaches the same guarantee and is a workaround; this is
-the plain answer.
+An activity that writes and then dies runs again on replay. The answer is to make it idempotent.
 
 ## Why the query builder and not Eloquent
 

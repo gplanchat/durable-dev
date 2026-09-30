@@ -8,6 +8,7 @@ use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -88,30 +89,30 @@ final class WorkflowFiberDriverTest extends TestCase
     public function testOnBeforeRunCanPreventTheFiberFromStarting(): void
     {
         $lifecycle = new class implements WorkflowLifecycleInterface {
-            public function onBeforeRun(string $executionId): void
+            public function onBeforeRun(ExecutionId $executionId): void
             {
                 throw new \RuntimeException('refused');
             }
 
-            public function onCompleted(string $executionId, mixed $result): void
+            public function onCompleted(ExecutionId $executionId, mixed $result): void
             {
                 throw new \LogicException('must not run');
             }
 
-            public function onSuspended(string $executionId, Awaitable $pending): void {}
+            public function onSuspended(ExecutionId $executionId, Awaitable $pending): void {}
 
-            public function isCancellationPending(string $executionId): bool
+            public function isCancellationPending(ExecutionId $executionId): bool
             {
                 return false;
             }
 
-            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void {}
+            public function onCancellationDelivered(ExecutionId $executionId, array $cancelledOperationIds): void {}
 
-            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void {}
+            public function onCancelled(ExecutionId $executionId, WorkflowCancelledFailure $failure): void {}
 
-            public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void {}
+            public function onContinuedAsNew(ExecutionId $executionId, ContinueAsNewRequested $request): void {}
 
-            public function onFailed(string $executionId, \Throwable $failure): void
+            public function onFailed(ExecutionId $executionId, \Throwable $failure): void
             {
                 throw new \LogicException('must not run');
             }
@@ -163,45 +164,45 @@ final class WorkflowFiberDriverTest extends TestCase
             public ?ContinueAsNewRequested $continuation = null;
             public ?\Throwable $failure = null;
 
-            public function onBeforeRun(string $executionId): void
+            public function onBeforeRun(ExecutionId $executionId): void
             {
                 $this->calls[] = 'onBeforeRun';
             }
 
-            public function onCompleted(string $executionId, mixed $result): void
+            public function onCompleted(ExecutionId $executionId, mixed $result): void
             {
                 $this->calls[] = 'onCompleted';
                 $this->completedResult = $result;
             }
 
-            public function onSuspended(string $executionId, Awaitable $pending): void
+            public function onSuspended(ExecutionId $executionId, Awaitable $pending): void
             {
                 $this->calls[] = 'onSuspended';
             }
 
-            public function isCancellationPending(string $executionId): bool
+            public function isCancellationPending(ExecutionId $executionId): bool
             {
                 return $this->cancellationPending;
             }
 
-            public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
+            public function onCancellationDelivered(ExecutionId $executionId, array $cancelledOperationIds): void
             {
                 $this->calls[] = 'onCancellationDelivered';
             }
 
-            public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
+            public function onCancelled(ExecutionId $executionId, WorkflowCancelledFailure $failure): void
             {
                 $this->calls[] = 'onCancelled';
                 $this->cancellation = $failure;
             }
 
-            public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void
+            public function onContinuedAsNew(ExecutionId $executionId, ContinueAsNewRequested $request): void
             {
                 $this->calls[] = 'onContinuedAsNew';
                 $this->continuation = $request;
             }
 
-            public function onFailed(string $executionId, \Throwable $failure): void
+            public function onFailed(ExecutionId $executionId, \Throwable $failure): void
             {
                 $this->calls[] = 'onFailed';
                 $this->failure = $failure;

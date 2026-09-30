@@ -35,6 +35,33 @@ $health = $block->getHealth();
     </div>
 <?php endif; ?>
 
+<?php $since = new \DateTimeImmutable('-' . $block->getWorkerSilenceSeconds() . ' seconds'); ?>
+<?php $polling = []; ?>
+<?php foreach ($block->getWorkers() as $role => $queue): ?>
+    <?php /* An absent worker fails nothing: executions stop at its first task. Say which command to
+             start — but only when the cluster answered: an unanswered probe blames nobody. */ ?>
+    <?php if ($queue->polledSince($since)): ?>
+        <?php $polling[] = __('%1 on %2 (%3)', $role, $queue->taskQueue, $queue->pollers); ?>
+    <?php elseif (null !== $queue->error): ?>
+        <div class="message message-warning">
+            <span><?= $escaper->escapeHtml(__('Could not ask the cluster who polls %1 (%2 worker): %3', $queue->taskQueue, $role, $queue->error)) ?></span>
+        </div>
+    <?php else: ?>
+        <div class="message message-error">
+            <span><?= $escaper->escapeHtml(__(
+                'No %1 worker has polled %2 in %3 seconds: executions stop at their first %1 task. Start bin/magento durable:worker --role=%1.',
+                $role,
+                $queue->taskQueue,
+                $block->getWorkerSilenceSeconds()
+            )) ?></span>
+        </div>
+    <?php endif; ?>
+<?php endforeach; ?>
+<?php if ([] !== $polling): ?>
+    <div class="message message-notice">
+        <span><?= $escaper->escapeHtml(__('Workers polling: %1', implode(', ', $polling))) ?></span>
+    </div>
+<?php endif; ?>
 <?php if ($block->isReachable()): ?>
     <?php $counters = $block->getCounters(); ?>
     <div class="admin__page-section">

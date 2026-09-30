@@ -79,6 +79,14 @@ final class Billing implements BillingServed
 }
 ```
 
+Registering the handler depends on the host. On Symfony, `#[AsNexusServiceHandler]` on a service is
+enough: the bundle autoconfigures it. Laravel finds no handler by its attribute: it serves the
+classes listed in `nexus.handlers` in `config/durable.php`, each as `handler => contract`, or as
+the handler class alone, whose `#[AsNexusServiceHandler]` then names the contract
+([the pair form below](#serving-is-host-work-and-it-is-not-symfony-work)). Magento lists each
+handler in the `nexusHandlers` argument of `RuntimeFactory` in `di.xml`, and its
+`#[AsNexusServiceHandler]` names the contract. See [who registers what, per host](../getting-started/#register-workflows-and-activities).
+
 ### Why the contract comes in two pieces
 
 An operation fulfilled by a workflow has no handler body: the plumbing starts the workflow, and the
@@ -281,8 +289,8 @@ The reason is that the two sides are not symmetrical:
 - **Calling** needs a workflow whose journal is the cluster, and nothing else.
   `WorkflowEnvironment::nexusStub()` reads the contract by reflection; no container is involved.
 - **Serving** needs the host to register handlers and to poll a Nexus task queue. That is host work,
-  written once per host: a compile pass in Symfony, a config file in Laravel, and, for now, nothing
-  in Magento.
+  written once per host: a compile pass in Symfony, a config file in Laravel, a `di.xml` argument in
+  Magento.
 
 That asymmetry has a visible consequence in the cluster: four namespaces, **three endpoints**. An
 endpoint says where a service is served, so an application that only calls has none.

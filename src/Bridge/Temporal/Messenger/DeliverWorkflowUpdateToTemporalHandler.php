@@ -13,7 +13,7 @@ use Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage;
  * same workflow task. The result is dropped, as on the journal side: a message has nobody to
  * return it to.
  */
-final class DeliverWorkflowUpdateToTemporalHandler
+final readonly class DeliverWorkflowUpdateToTemporalHandler
 {
     public function __construct(
         private readonly WorkflowClientInterface $client,

@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Exception\ExceptionInterface;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -22,7 +23,7 @@ final class TheBufferRefusesWhatTemporalCannotHonourTest extends TestCase
 {
     public function testRecordingAnInlineChildOutcomeIsRefused(): void
     {
-        $refusal = $this->refusalOf(static fn(TemporalWorkflowCommandBuffer $buffer) => $buffer->completeChildWorkflow('child-1', 'done'));
+        $refusal = $this->refusalOf(static fn(TemporalWorkflowCommandBuffer $buffer) => $buffer->completeChildWorkflow(ExecutionId::fromString('child-1'), 'done'));
 
         self::assertStringContainsString('Temporal', $refusal->getMessage());
         self::assertStringContainsString('completeChildWorkflow', $refusal->getMessage());
@@ -30,7 +31,7 @@ final class TheBufferRefusesWhatTemporalCannotHonourTest extends TestCase
 
     public function testRecordingAnInlineChildFailureIsRefused(): void
     {
-        $refusal = $this->refusalOf(static fn(TemporalWorkflowCommandBuffer $buffer) => $buffer->failChildWorkflow('child-1', new \RuntimeException('boom')));
+        $refusal = $this->refusalOf(static fn(TemporalWorkflowCommandBuffer $buffer) => $buffer->failChildWorkflow(ExecutionId::fromString('child-1'), new \RuntimeException('boom')));
 
         self::assertStringContainsString('failChildWorkflow', $refusal->getMessage());
     }
@@ -48,7 +49,7 @@ final class TheBufferRefusesWhatTemporalCannotHonourTest extends TestCase
                 return false;
             }
 
-            public function runChild(string $childExecutionId, string $workflowType, array $input, ?string $parentExecutionId = null): mixed
+            public function runChild(ExecutionId $childExecutionId, string $workflowType, array $input, ?ExecutionId $parentExecutionId = null): mixed
             {
                 return 'done';
             }

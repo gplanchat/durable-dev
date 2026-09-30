@@ -11,6 +11,7 @@ use Gplanchat\Durable\Event\NexusOperationCompleted;
 use Gplanchat\Durable\Event\NexusOperationFailed;
 use Gplanchat\Durable\Event\NexusOperationScheduled;
 use Gplanchat\Durable\Event\NexusOperationTimedOut;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\NexusOperationState;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,8 +26,8 @@ final class NexusOperationsOfARunTest extends TestCase
     public function testAnOperationWithNoOutcomeIsInFlightNotFailed(): void
     {
         $operations = NexusOperationSummary::of([
-            new ExecutionStarted('exec-1', []),
-            new NexusOperationScheduled('exec-1', 5, 'demo-shop-stock', 'stock', 'reserve'),
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'demo-shop-stock', 'stock', 'reserve'),
         ]);
 
         self::assertEquals([new NexusOperationSummary('demo-shop-stock', 'stock', 'reserve', NexusOperationState::InFlight)], $operations);
@@ -38,10 +39,10 @@ final class NexusOperationsOfARunTest extends TestCase
      */
     public static function outcomes(): iterable
     {
-        yield 'completed' => [static fn(int $id): Event => new NexusOperationCompleted('exec-1', $id), NexusOperationState::Completed, 'completed'];
-        yield 'failed' => [static fn(int $id): Event => new NexusOperationFailed('exec-1', $id), NexusOperationState::Failed, 'failed'];
-        yield 'timed out' => [static fn(int $id): Event => new NexusOperationTimedOut('exec-1', $id), NexusOperationState::TimedOut, 'timed out'];
-        yield 'cancelled' => [static fn(int $id): Event => new NexusOperationCancelled('exec-1', $id), NexusOperationState::Cancelled, 'cancelled'];
+        yield 'completed' => [static fn(int $id): Event => new NexusOperationCompleted(ExecutionId::fromString('exec-1'), $id), NexusOperationState::Completed, 'completed'];
+        yield 'failed' => [static fn(int $id): Event => new NexusOperationFailed(ExecutionId::fromString('exec-1'), $id), NexusOperationState::Failed, 'failed'];
+        yield 'timed out' => [static fn(int $id): Event => new NexusOperationTimedOut(ExecutionId::fromString('exec-1'), $id), NexusOperationState::TimedOut, 'timed out'];
+        yield 'cancelled' => [static fn(int $id): Event => new NexusOperationCancelled(ExecutionId::fromString('exec-1'), $id), NexusOperationState::Cancelled, 'cancelled'];
     }
 
     /**
@@ -51,8 +52,8 @@ final class NexusOperationsOfARunTest extends TestCase
     public function testAnOutcomeSettlesItsOwnOperationOnly(\Closure $outcome, NexusOperationState $state, string $label): void
     {
         $operations = NexusOperationSummary::of([
-            new NexusOperationScheduled('exec-1', 5, 'demo-business-billing', 'billing', 'verify'),
-            new NexusOperationScheduled('exec-1', 9, 'demo-business-billing', 'billing', 'charge'),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'demo-business-billing', 'billing', 'verify'),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 9, 'demo-business-billing', 'billing', 'charge'),
             $outcome(5),
         ]);
 
@@ -63,6 +64,6 @@ final class NexusOperationsOfARunTest extends TestCase
 
     public function testARunWithoutNexusHasNoOperations(): void
     {
-        self::assertSame([], NexusOperationSummary::of([new ExecutionStarted('exec-1', [])]));
+        self::assertSame([], NexusOperationSummary::of([new ExecutionStarted(ExecutionId::fromString('exec-1'), [])]));
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Block\Adminhtml;
 
+use Gplanchat\Bridge\Temporal\Store\TaskQueuePollers;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
@@ -35,6 +36,9 @@ class ProcessHistory extends Template
 {
     private ?BackendHealth $health = null;
 
+    /** @var array<string, TaskQueuePollers>|null */
+    private ?array $workers = null;
+
     /** @var array<string, int>|null */
     private ?array $counters = null;
 
@@ -61,6 +65,23 @@ class ProcessHistory extends Template
     public function isEphemeral(): bool
     {
         return $this->getHealth()->ephemeral;
+    }
+
+    /**
+     * Who polls each role's queue, when there is a cluster that answers: a missing worker leaves
+     * executions stopped without a single failure, so the grid alone would look healthy. At worst
+     * a cluster that answers the health check then hangs costs two 5 s probes on this render.
+     *
+     * @return array<string, TaskQueuePollers> keyed by `durable:worker --role`
+     */
+    public function getWorkers(): array
+    {
+        return $this->workers ??= $this->isReachable() && !$this->isEphemeral() ? $this->runtimeFactory->workers() : [];
+    }
+
+    public function getWorkerSilenceSeconds(): int
+    {
+        return RuntimeFactory::WORKER_SILENCE_SECONDS;
     }
 
     public function isReachable(): bool

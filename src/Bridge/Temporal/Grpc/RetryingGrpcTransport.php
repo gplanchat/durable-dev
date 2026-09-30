@@ -24,7 +24,7 @@ use Temporal\Api\Workflowservice\V1\UpdateWorkflowExecutionRequest;
  *
  * @see https://github.com/gplanchat/durable-dev/issues/353
  */
-final class RetryingGrpcTransport implements GrpcTransport
+final readonly class RetryingGrpcTransport implements GrpcTransport
 {
     private const TRANSIENT = [GrpcWire::DEADLINE_EXCEEDED, self::RESOURCE_EXHAUSTED, GrpcWire::UNAVAILABLE];
 

@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal\Store;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
+use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Event\ActivityCancelled;
 use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
@@ -30,18 +31,24 @@ use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\RetryState;
 use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\MarkerRecordedEventAttributes;
 
 /**
  * Stateful converter: accumulates cross-event mappings (scheduled-event-id → activity-id,
  * started-event-id → timer-id) while streaming a single execution's Temporal history.
  *
  * One instance per execution stream. Do not reuse across executions.
+ *
+ * Build it with {@see forHistory()} when the cancellation reasons matter: a converter built with
+ * `new` only knows the markers it has already seen, and reads a workflow-cancelled operation that
+ * was CANCELED before its marker as `race_superseded`.
  */
 final class TemporalEventConverter
 {
@@ -53,9 +60,38 @@ final class TemporalEventConverter
 
     private int $sideEffectSlot = 0;
 
-    public function __construct(
-        private readonly string $executionId,
-    ) {}
+    /** @var array<string, true> operations the delivered-cancellation marker targets */
+    private array $cancellationDeliveredTargets = [];
+
+    private readonly ExecutionId $id;
+
+    public function __construct(string $executionId)
+    {
+        $this->id = ExecutionId::fromString($executionId);
+    }
+
+    /**
+     * A converter that knows every delivered-cancellation marker of the history before it converts
+     * the first event. A server runs a workflow task's commands in turn, cancellations before the
+     * marker, so an operation that was not running is CANCELED before the marker that explains it.
+     *
+     * A list, not an iterable: the caller converts the same history afterwards, and a generator
+     * would be used up by then.
+     *
+     * @param list<HistoryEvent> $history the whole history of the execution
+     */
+    public static function forHistory(string $executionId, array $history): self
+    {
+        $converter = new self($executionId);
+        foreach ($history as $event) {
+            $attr = $event->getMarkerRecordedEventAttributes();
+            if (null !== $attr && TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED === $attr->getMarkerName()) {
+                $converter->cancellationDelivered(self::deliveredTargets($attr));
+            }
+        }
+
+        return $converter;
+    }
 
     /**
      * Convert one Temporal HistoryEvent to a Durable Event.
@@ -83,7 +119,7 @@ final class TemporalEventConverter
                     }
                 }
 
-                return new ExecutionStarted($this->executionId, $payload);
+                return new ExecutionStarted($this->id, $payload);
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_SCHEDULED:
                 $attr = $event->getNexusOperationScheduledEventAttributes();
@@ -95,7 +131,7 @@ final class TemporalEventConverter
                 // Temporal attaches the terminal states to, and therefore the only key that makes
                 // it possible to recompose a lifeline in the profiler.
                 return new NexusOperationScheduled(
-                    $this->executionId,
+                    $this->id,
                     $eventId,
                     (string) $attr->getEndpoint(),
                     (string) $attr->getService(),
@@ -105,22 +141,22 @@ final class TemporalEventConverter
             case EventType::EVENT_TYPE_NEXUS_OPERATION_COMPLETED:
                 $attr = $event->getNexusOperationCompletedEventAttributes();
 
-                return null === $attr ? null : new NexusOperationCompleted($this->executionId, $attr->getScheduledEventId());
+                return null === $attr ? null : new NexusOperationCompleted($this->id, $attr->getScheduledEventId());
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_FAILED:
                 $attr = $event->getNexusOperationFailedEventAttributes();
 
-                return null === $attr ? null : new NexusOperationFailed($this->executionId, $attr->getScheduledEventId());
+                return null === $attr ? null : new NexusOperationFailed($this->id, $attr->getScheduledEventId());
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_TIMED_OUT:
                 $attr = $event->getNexusOperationTimedOutEventAttributes();
 
-                return null === $attr ? null : new NexusOperationTimedOut($this->executionId, $attr->getScheduledEventId());
+                return null === $attr ? null : new NexusOperationTimedOut($this->id, $attr->getScheduledEventId());
 
             case EventType::EVENT_TYPE_NEXUS_OPERATION_CANCELED:
                 $attr = $event->getNexusOperationCanceledEventAttributes();
 
-                return null === $attr ? null : new NexusOperationCancelled($this->executionId, $attr->getScheduledEventId());
+                return null === $attr ? null : new NexusOperationCancelled($this->id, $attr->getScheduledEventId());
 
             case EventType::EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
                 $attr = $event->getActivityTaskScheduledEventAttributes();
@@ -149,10 +185,10 @@ final class TemporalEventConverter
                 // Durable's worker writes an envelope (TemporalActivityScheduleInput): the
                 // arguments are its `payload`, the scheduling metadata its `metadata`.
                 if (isset($input['activityId']) && \is_array($input['payload'] ?? null)) {
-                    return new ActivityScheduled($this->executionId, $activityId, $activityType, $input['payload'], \is_array($input['metadata'] ?? null) ? $input['metadata'] : []);
+                    return new ActivityScheduled($this->id, $activityId, $activityType, $input['payload'], \is_array($input['metadata'] ?? null) ? $input['metadata'] : []);
                 }
 
-                return new ActivityScheduled($this->executionId, $activityId, $activityType, $input);
+                return new ActivityScheduled($this->id, $activityId, $activityType, $input);
 
             case EventType::EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
                 $attr = $event->getActivityTaskCompletedEventAttributes();
@@ -173,7 +209,7 @@ final class TemporalEventConverter
                     }
                 }
 
-                return new ActivityCompleted($this->executionId, $activityId, $result);
+                return new ActivityCompleted($this->id, $activityId, $result);
 
             case EventType::EVENT_TYPE_ACTIVITY_TASK_FAILED:
                 $attr = $event->getActivityTaskFailedEventAttributes();
@@ -190,7 +226,7 @@ final class TemporalEventConverter
                 $type = $failure?->getApplicationFailureInfo()?->getType();
 
                 return new ActivityFailed(
-                    $this->executionId,
+                    $this->id,
                     $activityId,
                     \is_string($type) && '' !== $type ? $type : \RuntimeException::class,
                     $msg,
@@ -207,7 +243,7 @@ final class TemporalEventConverter
                     return null;
                 }
 
-                return new ActivityCancelled($this->executionId, $activityId, 'Cancelled by Temporal');
+                return new ActivityCancelled($this->id, $activityId, $this->cancellationReason($activityId));
 
             case EventType::EVENT_TYPE_TIMER_STARTED:
                 $attr = $event->getTimerStartedEventAttributes();
@@ -220,7 +256,7 @@ final class TemporalEventConverter
                 $timeout = $attr->getStartToFireTimeout();
                 $deadline = $ts + (null === $timeout ? 0.0 : (float) $timeout->getSeconds() + (float) $timeout->getNanos() / 1_000_000_000.0);
 
-                return new TimerScheduled($this->executionId, $timerId, $deadline);
+                return new TimerScheduled($this->id, $timerId, $deadline);
 
             case EventType::EVENT_TYPE_TIMER_FIRED:
                 $attr = $event->getTimerFiredEventAttributes();
@@ -232,7 +268,7 @@ final class TemporalEventConverter
                     return null;
                 }
 
-                return new TimerCompleted($this->executionId, $timerId);
+                return new TimerCompleted($this->id, $timerId);
 
             case EventType::EVENT_TYPE_MARKER_RECORDED:
                 $attr = $event->getMarkerRecordedEventAttributes();
@@ -247,9 +283,9 @@ final class TemporalEventConverter
                 // By name, as TemporalExecutionHistory reads them: only a side effect takes a slot,
                 // or the version marker shifts every side effect after it.
                 return match ($attr->getMarkerName()) {
-                    TemporalExecutionHistory::MARKER_SIDE_EFFECT => new SideEffectRecorded($this->executionId, (string) $this->sideEffectSlot++, $detail('result')),
-                    ChangePoint::MARKER_NAME => new VersionMarked($this->executionId, (string) $detail(ChangePoint::DETAIL_CHANGE_ID), (int) $detail(ChangePoint::DETAIL_VERSION)),
-                    TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED => new WorkflowCancellationDelivered($this->executionId, array_values(array_map(strval(...), (array) $detail('targets')))),
+                    TemporalExecutionHistory::MARKER_SIDE_EFFECT => new SideEffectRecorded($this->id, (string) $this->sideEffectSlot++, $detail('result')),
+                    ChangePoint::MARKER_NAME => new VersionMarked($this->id, (string) $detail(ChangePoint::DETAIL_CHANGE_ID), (int) $detail(ChangePoint::DETAIL_VERSION)),
+                    TemporalExecutionHistory::MARKER_CANCELLATION_DELIVERED => $this->cancellationDelivered(self::deliveredTargets($attr)),
                     default => null,
                 };
 
@@ -266,7 +302,7 @@ final class TemporalEventConverter
                     }
                 }
 
-                return new ExecutionCompleted($this->executionId, $result);
+                return new ExecutionCompleted($this->id, $result);
 
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
                 $attr = $event->getWorkflowExecutionFailedEventAttributes();
@@ -277,11 +313,11 @@ final class TemporalEventConverter
                 // the ApplicationFailureInfo: this is where the original `kind` is read back.
                 $stored = self::decodeApplicationFailureDetails($failure);
                 if (null !== $stored) {
-                    return WorkflowExecutionFailed::fromStoredPayload($this->executionId, $stored);
+                    return WorkflowExecutionFailed::fromStoredPayload($this->id, $stored);
                 }
 
                 return WorkflowExecutionFailed::workflowHandlerFailure(
-                    $this->executionId,
+                    $this->id,
                     new \RuntimeException($msg),
                 );
 
@@ -289,10 +325,10 @@ final class TemporalEventConverter
                 $attr = $event->getWorkflowExecutionCancelRequestedEventAttributes();
                 $reason = null !== $attr ? (string) $attr->getCause() : '';
 
-                return new WorkflowCancellationRequested($this->executionId, '' !== $reason ? $reason : 'Cancel requested by Temporal');
+                return new WorkflowCancellationRequested($this->id, '' !== $reason ? $reason : 'Cancel requested by Temporal');
 
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
-                return new WorkflowExecutionCancelled($this->executionId, 'Cancelled by Temporal');
+                return new WorkflowExecutionCancelled($this->id, 'Cancelled by Temporal');
 
             case EventType::EVENT_TYPE_TIMER_CANCELED:
                 $attr = $event->getTimerCanceledEventAttributes();
@@ -304,7 +340,7 @@ final class TemporalEventConverter
                     return null;
                 }
 
-                return new TimerCancelled($this->executionId, $timerId, 'Cancelled by Temporal');
+                return new TimerCancelled($this->id, $timerId, $this->cancellationReason($timerId));
 
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED:
                 $attr = $event->getWorkflowExecutionSignaledEventAttributes();
@@ -322,7 +358,7 @@ final class TemporalEventConverter
                     }
                 }
 
-                return new WorkflowSignalReceived($this->executionId, $signalName, $signalInput);
+                return new WorkflowSignalReceived($this->id, $signalName, $signalInput);
 
             case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
@@ -346,7 +382,7 @@ final class TemporalEventConverter
                 }
 
                 return new ChildWorkflowScheduled(
-                    $this->executionId,
+                    $this->id,
                     $childWorkflowId,
                     $childType,
                     $childInput,
@@ -373,11 +409,47 @@ final class TemporalEventConverter
                     }
                 }
 
-                return new ChildWorkflowCompleted($this->executionId, $childWorkflowId, $childResult);
+                return new ChildWorkflowCompleted($this->id, $childWorkflowId, $childResult);
 
             default:
                 return null;
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function deliveredTargets(MarkerRecordedEventAttributes $attr): array
+    {
+        $details = $attr->getDetails();
+        $targets = null !== $details && $details->offsetExists('targets')
+            ? JsonPlainPayload::decodePayloads($details->offsetGet('targets'))[0] ?? null
+            : null;
+
+        return array_values(array_map(strval(...), (array) $targets));
+    }
+
+    /**
+     * @param list<string> $targets
+     */
+    private function cancellationDelivered(array $targets): WorkflowCancellationDelivered
+    {
+        $this->cancellationDeliveredTargets += array_fill_keys($targets, true);
+
+        return new WorkflowCancellationDelivered($this->id, $targets);
+    }
+
+    /**
+     * The server records one `*_CANCELED` event whatever the workflow cancelled for. The rule is
+     * the one `TemporalExecutionHistory` replays with: an operation the delivered-cancellation
+     * marker targets went with the workflow, and the workflow cancels any other only as the loser
+     * of a race (#701).
+     */
+    private function cancellationReason(string $operationId): string
+    {
+        return isset($this->cancellationDeliveredTargets[$operationId])
+            ? ActivityCancellationReason::WORKFLOW_CANCELLED
+            : ActivityCancellationReason::RACE_SUPERSEDED;
     }
 
     /**

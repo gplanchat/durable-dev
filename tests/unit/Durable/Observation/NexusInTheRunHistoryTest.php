@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Observation;
 use Gplanchat\Bridge\Temporal\Store\TemporalRunHistoryReader;
 use Gplanchat\Durable\Event\NexusOperationCompleted;
 use Gplanchat\Durable\Event\NexusOperationScheduled;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -25,7 +26,7 @@ final class NexusInTheRunHistoryTest extends TestCase
     public function testAScheduledOperationGetsItsOwnLane(): void
     {
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'payments', 'billing', 'collect'),
         ]);
 
         self::assertSame(WorkflowRunEventKind::Nexus, $history[0]->kind);
@@ -34,7 +35,7 @@ final class NexusInTheRunHistoryTest extends TestCase
     public function testTheLabelSaysWhereTheWaitHappens(): void
     {
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'payments', 'billing', 'collect'),
         ]);
 
         self::assertStringContainsString('payments', $history[0]->label);
@@ -48,8 +49,8 @@ final class NexusInTheRunHistoryTest extends TestCase
         // activities, where the name is read off the scheduling. Without that correlation, the
         // frieze would show "NexusOperationCompleted" and the operator would not know which one.
         $history = $this->read([
-            new NexusOperationScheduled('exec-1', 5, 'payments', 'billing', 'collect'),
-            new NexusOperationCompleted('exec-1', 5),
+            new NexusOperationScheduled(ExecutionId::fromString('exec-1'), 5, 'payments', 'billing', 'collect'),
+            new NexusOperationCompleted(ExecutionId::fromString('exec-1'), 5),
         ]);
 
         self::assertCount(2, $history);

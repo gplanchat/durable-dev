@@ -27,6 +27,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class Observability
 {
+    private function __construct() {}
+
     /**
      * The profiler is not neutral plumbing: its observer is injected into
      * `ExecutionRuntime`, `ExecutionEngine` and `ActivityMessageProcessor`, so it sits on the

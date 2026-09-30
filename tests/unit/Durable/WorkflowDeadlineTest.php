@@ -127,7 +127,7 @@ final class WorkflowDeadlineTest extends TestCase
         }
 
         $timerId = $this->firstTimerId($store, 'deadline-4');
-        $store->append(new TimerCompleted('deadline-4', $timerId));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-4'), $timerId));
 
         try {
             $engine->resume('deadline-4', $handler);
@@ -148,7 +148,7 @@ final class WorkflowDeadlineTest extends TestCase
             $engine->start('deadline-5', $handler);
         } catch (WorkflowSuspendedException) {
         }
-        $store->append(new TimerCompleted('deadline-5', $this->firstTimerId($store, 'deadline-5')));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-5'), $this->firstTimerId($store, 'deadline-5')));
 
         try {
             $engine->resume('deadline-5', $handler);
@@ -163,7 +163,7 @@ final class WorkflowDeadlineTest extends TestCase
             }
         }
         self::assertNotNull($activityId);
-        $store->append(new ActivityCompleted('deadline-5', $activityId, 'late'));
+        $store->append(new ActivityCompleted(ExecutionId::fromString('deadline-5'), $activityId, 'late'));
 
         $this->expectException(DeadlineExceededException::class);
         $engine->resume('deadline-5', $handler);
@@ -179,9 +179,9 @@ final class WorkflowDeadlineTest extends TestCase
         $engine = $this->engine($store);
         $handler = $this->signalHandler();
 
-        $store->append(new ExecutionStarted('deadline-6', []));
-        $store->append(new TimerScheduled('deadline-6', 'timer-a', 0.0));
-        $store->append(new TimerCompleted('deadline-6', 'timer-a'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('deadline-6'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('deadline-6'), 'timer-a', 0.0));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-6'), 'timer-a'));
 
         self::assertSame(['timeout'], $engine->resume('deadline-6', $handler));
         self::assertCount(1, $this->eventsOf($store, 'deadline-6', TimerScheduled::class));
@@ -193,10 +193,10 @@ final class WorkflowDeadlineTest extends TestCase
         $engine = $this->engine($store);
         $handler = $this->signalHandler();
 
-        $store->append(new ExecutionStarted('deadline-7', []));
-        $store->append(new TimerScheduled('deadline-7', 'timer-a', 0.0));
-        $store->append(new TimerCompleted('deadline-7', 'timer-a'));
-        $store->append(new WorkflowSignalReceived('deadline-7', 'approve', ['by' => 'late']));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('deadline-7'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('deadline-7'), 'timer-a', 0.0));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-7'), 'timer-a'));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('deadline-7'), 'approve', ['by' => 'late']));
 
         self::assertSame(['timeout'], $engine->resume('deadline-7', $handler));
         self::assertSame(['timeout'], $engine->resume('deadline-7', $handler));
@@ -211,10 +211,10 @@ final class WorkflowDeadlineTest extends TestCase
         $engine = $this->engine($store);
         $handler = $this->signalHandler();
 
-        $store->append(new ExecutionStarted('deadline-8', []));
-        $store->append(new TimerScheduled('deadline-8', 'timer-a', 0.0));
-        $store->append(new WorkflowSignalReceived('deadline-8', 'approve', ['by' => 'alice']));
-        $store->append(new TimerCompleted('deadline-8', 'timer-a'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('deadline-8'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('deadline-8'), 'timer-a', 0.0));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('deadline-8'), 'approve', ['by' => 'alice']));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-8'), 'timer-a'));
 
         self::assertSame(['signal', ['by' => 'alice']], $engine->resume('deadline-8', $handler));
     }
@@ -245,10 +245,10 @@ final class WorkflowDeadlineTest extends TestCase
             }
         };
 
-        $store->append(new ExecutionStarted('deadline-9', []));
-        $store->append(new TimerScheduled('deadline-9', 'timer-a', 0.0));
-        $store->append(new TimerCompleted('deadline-9', 'timer-a'));
-        $store->append(new WorkflowSignalReceived('deadline-9', 'approve', ['by' => 'bob']));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('deadline-9'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('deadline-9'), 'timer-a', 0.0));
+        $store->append(new TimerCompleted(ExecutionId::fromString('deadline-9'), 'timer-a'));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('deadline-9'), 'approve', ['by' => 'bob']));
 
         self::assertSame(['second wait', ['by' => 'bob']], $engine->resume('deadline-9', $handler));
     }
@@ -258,8 +258,8 @@ final class WorkflowDeadlineTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('deadline-10', []));
-        $store->append(new WorkflowSignalReceived('deadline-10', 'approve', ['by' => 'carol']));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('deadline-10'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('deadline-10'), 'approve', ['by' => 'carol']));
 
         self::assertSame(['signal', ['by' => 'carol']], $engine->resume('deadline-10', $this->signalHandler()));
     }

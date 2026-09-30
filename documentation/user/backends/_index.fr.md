@@ -277,11 +277,30 @@ d'`ext-grpc`. Voir **DUR030**.
 
 ### Configuration
 
+Donnez au journal une connexion à lui. Partager celle de l'application est fortement déconseillé
+(DUR054) : les transactions de Durable s'imbriquent alors dans les transactions métier. Un worker
+qui démarre avec le journal sur la connexion par défaut de l'application le signale par un
+avertissement dans les logs. Mieux encore : faites pointer cette connexion vers une base (ou un
+schéma) et un utilisateur SQL propres à Durable, pour que le code métier ne puisse pas du tout
+atteindre les tables du journal.
+
+```yaml
+# config/packages/doctrine.yaml — le journal sur une connexion à lui
+doctrine:
+    dbal:
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+            durable:
+                url: '%env(resolve:DURABLE_DATABASE_URL)%'
+```
+
 ```yaml
 # config/packages/durable.yaml
 durable:
     dbal:
-        connection: doctrine.dbal.default_connection
+        connection: doctrine.dbal.durable_connection
         lock_factory: lock.factory
     backend: dbal
     activity_transport:
@@ -292,6 +311,10 @@ framework:
     lock:
         default: '%env(LOCK_DSN)%'   # une URL DBAL (postgresql://…, mysql://…), redis://… ; pas le doctrine:// de Messenger ; partagé entre les workers
 ```
+
+DoctrineBundle nomme le service de chaque connexion `doctrine.dbal.<nom>_connection`. Sur une base
+autre que celle de l'ORM, `doctrine:migrations:diff` ne voit pas les tables de Durable : elles
+viennent de la première écriture, ou de `bin/console durable:setup`.
 
 Ajouter un `temporal.dsn` garde le journal en SQL et ne sert du cluster que pour servir des
 opérations Nexus. `backend: temporal` lui confierait le journal à la place : il n'y a jamais de
@@ -326,9 +349,9 @@ Les mêmes quatre stockages existent sur `Illuminate\Database\Connection`, sous 
 [`gplanchat/durable-bridge-illuminate`](../packages/#gplanchatdurable-bridge-illuminate--le-backend-laravel)
 avec le même journal et le même échange face à Temporal.
 
-**L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion,
-et pourquoi : un stockage sur `DB::connection()` est dans `DB::transaction()` par construction, ce
-qu'exige DUR030. Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
+**L'échange face à Temporal est celui du pont DBAL, mot pour mot.** Ce qui change est la connexion :
+`Illuminate\Database\Connection` plutôt que celle de Doctrine. Donnez-lui une connexion à elle, pas
+celle de l'application (DUR054). Voir [DUR047](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR047-laravel-the-host-that-measured-before-it-wired.md).
 
 ### Ce qui le lie n'est pas le YAML de cette page
 
@@ -336,8 +359,9 @@ Ce n'est **pas une quatrième valeur de `backend`**, et ça ne le sera jamais : 
 application Laravel ne lit pas le YAML de cette page. Le pont est la moitié stockage, et **ce qui le
 lie, c'est `gplanchat/durable-laravel`**, par son propre `config/durable.php` publié.
 
-Ce paquet porte aussi le côté file : activités et reprises en jobs, un minuteur comme reprise
-différée sur le délai natif de la file, et l'exclusion par exécution que décrit la section DBAL. Son
+Ce paquet porte aussi le côté file : activités et reprises en jobs, un minuteur comme job de
+déclenchement différé sur le délai natif de la file, et l'exclusion par exécution que décrit la
+section DBAL. Son
 [entrée dans la page Paquets](../packages/#gplanchatdurable-laravel--lintégration-laravel)
 donne la configuration, les trois réglages qu'il refuse plutôt que de les tolérer, et les deux
 comportements qui ressemblent à des bugs sans en être.

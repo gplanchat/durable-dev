@@ -47,7 +47,7 @@ final class TimerFromAnInstantTest extends TestCase
 
         // The timer fires — necessarily once the instant is behind us.
         usleep(60_000);
-        $store->append(new TimerCompleted('instant-1', $this->firstTimerId($store, 'instant-1')));
+        $store->append(new TimerCompleted(ExecutionId::fromString('instant-1'), $this->firstTimerId($store, 'instant-1')));
 
         self::assertSame('woke up', $engine->resume('instant-1', $handler));
     }
@@ -74,7 +74,7 @@ final class TimerFromAnInstantTest extends TestCase
         }
 
         usleep(60_000);
-        $store->append(new TimerCompleted('instant-2', $this->firstTimerId($store, 'instant-2')));
+        $store->append(new TimerCompleted(ExecutionId::fromString('instant-2'), $this->firstTimerId($store, 'instant-2')));
 
         self::assertSame('expired', $engine->resume('instant-2', $handler));
     }

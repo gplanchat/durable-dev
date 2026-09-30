@@ -7,13 +7,14 @@ namespace unit\Gplanchat\Bridge\Temporal\Codec;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 
 final class TemporalActivityScheduleInputTest extends TestCase
 {
     public function testEncodeFromScheduledCarriesTheActivityIdentity(): void
     {
-        $scheduled = new ActivityScheduled('e1', 'a1', 'T', ['x' => 2], ['k' => 'v']);
+        $scheduled = new ActivityScheduled(ExecutionId::fromString('e1'), 'a1', 'T', ['x' => 2], ['k' => 'v']);
 
         $row = TemporalActivityScheduleInput::encodeFromScheduled($scheduled);
 
@@ -25,7 +26,7 @@ final class TemporalActivityScheduleInputTest extends TestCase
 
     public function testEncodedRowSurvivesTheRoundTripThroughPayloads(): void
     {
-        $scheduled = new ActivityScheduled('e1', 'a1', 'T', ['x' => 2], ['k' => 'v']);
+        $scheduled = new ActivityScheduled(ExecutionId::fromString('e1'), 'a1', 'T', ['x' => 2], ['k' => 'v']);
         $row = TemporalActivityScheduleInput::encodeFromScheduled($scheduled);
 
         $payloads = JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($row));

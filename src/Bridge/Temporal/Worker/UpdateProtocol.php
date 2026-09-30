@@ -30,6 +30,8 @@ use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
  *
  * That is why nothing here looks like signal delivery: a signal *is* an event, an update only
  * becomes one once accepted.
+ *
+ * @internal
  */
 final class UpdateProtocol
 {

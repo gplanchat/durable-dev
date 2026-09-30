@@ -11,6 +11,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="durable_worker" xsi:type="object">Gplanchat\DurableModule\Console\Command\RunWorkerCommand</item>
+                <item name="durable_health" xsi:type="object">Gplanchat\DurableModule\Console\Command\HealthCommand</item>
             </argument>
         </arguments>
     </type>
@@ -49,7 +50,25 @@
             <argument name="heartbeat" xsi:type="object">Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface</argument>
             <!-- Optional too: without it the Temporal client built by the factory logs nothing. -->
             <argument name="logger" xsi:type="object">Psr\Log\LoggerInterface</argument>
+            <!--
+                The payload codec (DUR055), none by default. Optional, so not autowired: a shop that
+                encrypts its payloads names its codec in its own module's di.xml, whose module.xml
+                declares <sequence><module name="Gplanchat_DurableModule"/></sequence>. The codec
+                reads its key from env.php; Durable reads none:
+
+                    <argument name="codec" xsi:type="object">Acme\Shop\Temporal\PayloadCodec</argument>
+
+                Deliberately not declared here, not even as null: whenever this module loaded after
+                the shop's, its declaration would replace the shop's codec, and payloads would leave
+                in clear.
+            -->
             <argument name="activityHandlers" xsi:type="array">
+            </argument>
+            <!-- Nexus handlers (#668): one object per handler, its contract named by
+                 #[AsNexusServiceHandler] on the class; the operations it has no method for come
+                 from a workflowClasses entry carrying #[FulfilsNexusOperation]. Served by
+                 the nexus role of bin/magento durable:worker. -->
+            <argument name="nexusHandlers" xsi:type="array">
             </argument>
         </arguments>
     </type>
@@ -57,9 +76,14 @@
     <!--
         What the run page masks in each event's details (#507): #488's key pattern. An application
         that masks more declares its own preference for the interface.
+
+        Through a virtual type: `setup:di:compile` compiles modules and registered libraries only,
+        and refuses a preference aimed straight at a class of `gplanchat/durable` (#725).
     -->
+    <virtualType name="Gplanchat\DurableModule\Observation\PayloadRedactor"
+                 type="Gplanchat\Durable\Observation\KeyPatternPayloadRedactor"/>
     <preference for="Gplanchat\Durable\Observation\PayloadRedactorInterface"
-                type="Gplanchat\Durable\Observation\KeyPatternPayloadRedactor"/>
+                type="Gplanchat\DurableModule\Observation\PayloadRedactor"/>
 
     <!--
         An activity may inject the heartbeat sender (the activities page shows how). This one is a

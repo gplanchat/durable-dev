@@ -8,6 +8,7 @@ use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowLifecycleInterface;
 
 /**
@@ -34,7 +35,7 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
         private ?\Closure $describeWait = null,
     ) {}
 
-    public function onBeforeRun(string $executionId): void
+    public function onBeforeRun(ExecutionId $executionId): void
     {
         // Nothing to pre-empt: the cancellation is delivered in the fiber, at the wait point.
     }
@@ -49,27 +50,27 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
      * therefore goes through a marker, which {@see TemporalExecutionHistory} reads back to reject
      * the same operations with the same exception on replay.
      */
-    public function isCancellationPending(string $executionId): bool
+    public function isCancellationPending(ExecutionId $executionId): bool
     {
         return null !== $this->cancellationRequestedCause && !$this->cancellationAlreadyDelivered;
     }
 
-    public function onCancellationDelivered(string $executionId, array $cancelledOperationIds): void
+    public function onCancellationDelivered(ExecutionId $executionId, array $cancelledOperationIds): void
     {
         $this->commandBuffer->recordCancellationDelivered($cancelledOperationIds);
     }
 
-    public function onCancelled(string $executionId, WorkflowCancelledFailure $failure): void
+    public function onCancelled(ExecutionId $executionId, WorkflowCancelledFailure $failure): void
     {
         $this->commandBuffer->cancelWorkflow($this->cancellationRequestedCause ?? $failure->reason);
     }
 
-    public function onCompleted(string $executionId, mixed $result): void
+    public function onCompleted(ExecutionId $executionId, mixed $result): void
     {
         $this->commandBuffer->completeWorkflow($result);
     }
 
-    public function onSuspended(string $executionId, Awaitable $pending): void
+    public function onSuspended(ExecutionId $executionId, Awaitable $pending): void
     {
         // The command is already in the buffer; the task ends by handing it back, with what the
         // run now waits on for the run list (#514).
@@ -78,12 +79,12 @@ final readonly class TemporalWorkflowLifecycle implements WorkflowLifecycleInter
         }
     }
 
-    public function onContinuedAsNew(string $executionId, ContinueAsNewRequested $request): void
+    public function onContinuedAsNew(ExecutionId $executionId, ContinueAsNewRequested $request): void
     {
         $this->commandBuffer->continueAsNew($request->workflowType, $request->payload, $request->options);
     }
 
-    public function onFailed(string $executionId, \Throwable $failure): void
+    public function onFailed(ExecutionId $executionId, \Throwable $failure): void
     {
         // A replay divergence is not a workflow failure: it is this attempt that cannot succeed.
         // Raising it propagates it up to the processor, which will answer

@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Event\ActivityCompleted;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -122,7 +123,7 @@ final class TemporalActivityWorkerTest extends TestCase
 
     private function arrangeTerminalActivity(string $executionId, string $activityId): void
     {
-        $this->eventStore->append(new ActivityCompleted($executionId, $activityId, 'result'));
+        $this->eventStore->append(new ActivityCompleted(ExecutionId::fromString($executionId), $activityId, 'result'));
     }
 
     private function pollFor(string $executionId, string $activityId): PollActivityTaskQueueResponse

@@ -31,7 +31,7 @@ final class DiagnosticPayloadsAreRedactedTest extends TestCase
     public function testTheProfilerPanelMasksAPassword(): void
     {
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('exec-1', 'Signup', ['password' => self::SECRET], false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('exec-1'), 'Signup', ['password' => self::SECRET], false, 'async');
         [$metadata, $events] = $this->storesWithASecret();
 
         $collector = new DurableDataCollector($trace, $metadata, $events);
@@ -47,7 +47,7 @@ final class DiagnosticPayloadsAreRedactedTest extends TestCase
         // Only payloads are masked, not the maps keyed by execution id: masking those collapsed
         // the run's entry to a string and the panel's template failed on it.
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('password-reset-42', 'PasswordReset', ['password' => self::SECRET], false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('password-reset-42'), 'PasswordReset', ['password' => self::SECRET], false, 'async');
         $metadata = new InMemoryWorkflowMetadataStore();
         $metadata->save(ExecutionId::fromString('password-reset-42'), 'PasswordReset', ['email' => 'ada@example.com', 'password' => self::SECRET]);
 
@@ -66,7 +66,7 @@ final class DiagnosticPayloadsAreRedactedTest extends TestCase
         $metadata = new InMemoryWorkflowMetadataStore();
         $metadata->save(ExecutionId::fromString('exec-1'), 'Signup', ['user' => new SignupCredentials('ada', self::SECRET)]);
         $trace = new DurableExecutionTrace();
-        $trace->onWorkflowDispatchRequested('exec-1', 'Signup', [], false, 'async');
+        $trace->onWorkflowDispatchRequested(ExecutionId::fromString('exec-1'), 'Signup', [], false, 'async');
 
         $collector = new DurableDataCollector($trace, $metadata, new InMemoryEventStore());
         $collector->collect(new Request(), new Response());
@@ -127,7 +127,7 @@ final class DiagnosticPayloadsAreRedactedTest extends TestCase
         $metadata = new InMemoryWorkflowMetadataStore();
         $metadata->save(ExecutionId::fromString('exec-1'), 'Signup', ['email' => 'ada@example.com', 'password' => self::SECRET]);
         $events = new InMemoryEventStore();
-        $events->append(new ActivityScheduled('exec-1', 'act-1', 'createAccount', ['email' => 'ada@example.com', 'password' => self::SECRET]));
+        $events->append(new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'createAccount', ['email' => 'ada@example.com', 'password' => self::SECRET]));
 
         return [$metadata, $events];
     }

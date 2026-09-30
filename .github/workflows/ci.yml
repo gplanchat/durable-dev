@@ -367,6 +367,16 @@ jobs:
                   DATABASE_URL: 'mysql://root@127.0.0.1/sylius_nexus?serverVersion=8&charset=utf8mb4'
               run: vendor/bin/phpunit --group nexus-bench --fail-on-skipped tests/Integration
 
+            # #671: the admin page of a real run whose Nexus operation is in flight on this server.
+            # The functional step above skips it, having no server yet; here it cannot skip.
+            - name: PHPUnit — the run page shows a Nexus operation in flight
+              working-directory: sylius
+              timeout-minutes: 5
+              env:
+                  APP_ENV: test
+                  DURABLE_TEMPORAL_DSN: 'temporal://127.0.0.1:7233?namespace=durable-test&tls=0'
+              run: vendor/bin/phpunit --fail-on-skipped tests/Functional/TheRunPageShowsANexusOperationInFlightTest.php
+
     magento-matrix:
         # The counterpart of the Symfony matrix, for the other foreign-container host. Same
         # principle: every entry is an **edge that has a reason**, not a cartesian product. What
@@ -448,18 +458,154 @@ jobs:
               working-directory: /tmp/resolve
               run: composer update --dry-run --no-interaction --no-audit --no-progress
 
+    magento-without-temporal:
+        # The module only *suggests* the Temporal bridge, so it has to install without it (#725).
+        # The matrix only resolves, and the bench carries the bridge: this is the one job where a
+        # bridge type reachable from a reflected constructor, or a preference the DI compiler
+        # cannot see, fails the build. Services and install flags are magento-boot's.
+        name: Magento · installs without the Temporal bridge (Mage-OS 2.2.0 / PHP 8.2)
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: magento
+                    MYSQL_DATABASE: magento
+                    MYSQL_USER: magento
+                    MYSQL_PASSWORD: magento
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1"
+                    --health-interval=5s --health-timeout=5s --health-retries=20
+            opensearch:
+                image: opensearchproject/opensearch:2.12.0
+                env:
+                    discovery.type: single-node
+                    DISABLE_SECURITY_PLUGIN: 'true'
+                    OPENSEARCH_JAVA_OPTS: '-Xms512m -Xmx512m'
+                ports:
+                    - 9200:9200
+                options: >-
+                    --health-cmd="curl -sf http://localhost:9200/_cluster/health || exit 1"
+                    --health-interval=10s --health-timeout=5s --health-retries=30
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
+                  ini-values: memory_limit=-1
+                  coverage: none
+
+            - name: Cache Composer
+              uses: actions/cache@v6
+              with:
+                  path: ~/.composer/cache
+                  key: magento-no-temporal-${{ hashFiles('magento/composer.lock') }}
+                  restore-keys: magento-no-temporal-
+
+            - name: MySQL accepts triggers
+              run: mysql -h 127.0.0.1 -uroot -pmagento -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+
+            # A throwaway project on the bench's pin, with no path repository for
+            # src/Bridge/Temporal: the bridge cannot be pulled in.
+            - name: Project without the bridge
+              run: |
+                mkdir -p /tmp/no-temporal
+                cat > /tmp/no-temporal/composer.json <<JSON
+                {
+                    "minimum-stability": "dev",
+                    "prefer-stable": true,
+                    "repositories": [
+                        { "type": "composer", "url": "https://repo.mage-os.org/" },
+                        { "type": "path", "url": "${{ github.workspace }}/src/DurableModule", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/Durable", "options": { "symlink": false } }
+                    ],
+                    "require": {
+                        "mage-os/product-community-edition": "2.2.0",
+                        "gplanchat/durable-magento": "@dev"
+                    },
+                    "autoload": {
+                        "psr-4": { "Magento\\\\Setup\\\\": "setup/src/Magento/Setup/" },
+                        "files": [ "app/etc/NonComposerComponentRegistration.php" ]
+                    },
+                    "config": {
+                        "allow-plugins": {
+                            "mage-os/composer-dependency-version-audit-plugin": false,
+                            "mage-os/magento-composer-installer": true,
+                            "mage-os/inventory-composer-installer": true,
+                            "laminas/laminas-dependency-plugin": true
+                        }
+                    }
+                }
+                JSON
+
+            # `--no-autoloader`: the autoload `files` entry comes with the skeleton, deployed below.
+            - name: Composer install
+              working-directory: /tmp/no-temporal
+              run: composer install --no-interaction --prefer-dist --no-progress --no-autoloader
+
+            # Same reason as magento-boot: the skeleton comes from mage-os/magento2-base.
+            - name: Deploy the Magento skeleton
+              working-directory: /tmp/no-temporal
+              run: |
+                cp -Rn vendor/mage-os/magento2-base/. . || true
+                composer dump-autoload --no-interaction
+                test -f bin/magento
+                chmod +x bin/magento
+
+            # `if`, not `! cmd`: bash's errexit ignores a negated command.
+            - name: The bridge is absent
+              working-directory: /tmp/no-temporal
+              run: |
+                if composer show gplanchat/durable-bridge-temporal >/dev/null 2>&1; then exit 1; fi
+                test ! -e vendor/gplanchat/durable-bridge-temporal
+                php -r 'require "vendor/autoload.php"; exit(class_exists("Gplanchat\\Bridge\\Temporal\\Http\\Psr18Http") ? 1 : 0);'
+
+            - name: Magento install
+              working-directory: /tmp/no-temporal
+              run: |
+                bin/magento setup:install \
+                  --base-url=http://127.0.0.1:8080/ \
+                  --db-host=127.0.0.1 --db-name=magento --db-user=magento --db-password=magento \
+                  --admin-firstname=Durable --admin-lastname=Ops --admin-email=durable@example.com \
+                  --admin-user=durable --admin-password='Durable123!' \
+                  --language=en_US --currency=USD --timezone=UTC --use-rewrites=1 \
+                  --search-engine=opensearch --opensearch-host=127.0.0.1 --opensearch-port=9200 \
+                  --backend-frontname=admin --no-interaction
+                bin/magento module:status Gplanchat_DurableModule | tee /tmp/status.txt
+                grep -q 'Module is enabled' /tmp/status.txt
+
+            - name: setup:di:compile
+              working-directory: /tmp/no-temporal
+              run: bin/magento setup:di:compile
+
+            # No DSN, no bridge: the module runs in memory and says so.
+            - name: The module answers in memory
+              working-directory: /tmp/no-temporal
+              run: bin/magento durable:health
+
     magento-boot:
-        # The counterpart of "Sylius shop" for the other host: a single, unmatrixed job that
+        # The counterpart of "Sylius shop" for the other host: the job that
         # really **boots** Magento. It exists because until now every claim about this module
         # rested on a transcript produced by hand on a workstation's bench — and the Mage-OS × PHP
         # matrix, for its part, only proves the resolution.
         #
         # It is expensive: the distribution weighs ~1 GB and the install takes minutes. That is
-        # precisely why it is not matrixed — one edge, the bench's, pinned by the tracked lock of
-        # `magento/`.
-        name: Magento · bench + dashboard (Mage-OS 2.2.0 / PHP 8.2)
+        # why it is matrixed on PHP alone, over the one Mage-OS line pinned by the tracked lock of
+        # `magento/`: the floor the bench was measured on, and 8.4, which a merchant on Magento
+        # 2.4.8 runs and the lock accepts (Mage-OS 2.2.0 requires ~8.2.0||~8.3.0||~8.4.0).
+        name: Magento · bench + dashboard (Mage-OS 2.2.0 / PHP ${{ matrix.php-version }})
         runs-on: ubuntu-latest
         timeout-minutes: 60
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['8.2', '8.4']
         services:
             mysql:
                 image: mysql:8.4
@@ -494,8 +640,7 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  # The bench's floor, and the one on which all its measurements were made.
-                  php-version: '8.2'
+                  php-version: ${{ matrix.php-version }}
                   extensions: bcmath, ctype, curl, dom, gd, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, soap, sodium, xsl, zip
                   ini-values: memory_limit=-1
                   coverage: none
@@ -661,6 +806,7 @@ jobs:
               run: |
                   php tests/integration/Temporal/nexus-demo-harness.php 127.0.0.1:7233 default --transport=grpc-curl > /tmp/harness.log 2>&1 &
                   harness=$!
+                  echo "$harness" > /tmp/harness.pid
                   # Fails at once if the harness dies before it is ready, rather than after the minute.
                   timeout 60 bash -c "until grep -qx ready /tmp/harness.log; do kill -0 $harness 2>/dev/null || exit 1; sleep 1; done" || { cat /tmp/harness.log; exit 1; }
 
@@ -680,6 +826,52 @@ jobs:
                   echo "calls: $calls"
                   test "$calls" = 'billing/verify delivery/schedule stock/reserve billing/charge delivery/ship' \
                     || { tail -n 50 /tmp/magento-worker.log; tail -n 50 /tmp/harness.log; exit 1; }
+                  echo "$order" > /tmp/nexus-order
+
+            # #672: the admin shows a run's Nexus operations. The harness stops (SIGTERM deletes its
+            # endpoints), billing's endpoint comes back toward a queue nobody polls, and a new order's
+            # verify stays in flight while the admin opens its page, then the shipped order's.
+            - name: The admin shows a Nexus operation in flight, then settled ones
+              working-directory: magento
+              timeout-minutes: 3
+              run: |
+                  kill -TERM "$(cat /tmp/harness.pid)" || { echo "The #667 harness is already gone." >&2; cat /tmp/harness.log; exit 1; }
+                  timeout 30 bash -c 'while temporal operator nexus endpoint get --name demo-business-billing >/dev/null 2>&1; do sleep 1; done'
+                  temporal operator nexus endpoint create --name demo-business-billing --target-namespace default --target-task-queue nobody-polls
+                  held="MAG-INFLIGHT-${GITHUB_RUN_ID}"
+                  timeout 20 bin/magento durable:demo:nexus "$held" 1200 MUG_BLUE=1 --timeout=5 || true
+                  jar=/tmp/admin.cookies
+                  curl -s --max-time 60 -c $jar -b $jar -o /tmp/held.html "http://127.0.0.1:8080/admin/durable/process/view/?run_id=${held}"
+                  for shown in '<code>demo-business-billing</code>' '<td>billing</td>' '<td>verify</td>' 'in_flight">in flight<'; do
+                    grep -qF "$shown" /tmp/held.html || { echo "The run page lacks: $shown" >&2; cat /tmp/held.html; tail -n 50 /tmp/magento-worker.log; exit 1; }
+                  done
+                  curl -s --max-time 60 -c $jar -b $jar -o /tmp/shipped.html "http://127.0.0.1:8080/admin/durable/process/view/?run_id=$(cat /tmp/nexus-order)"
+                  test "$(grep -oF 'completed">completed<' /tmp/shipped.html | wc -l)" -eq 5 \
+                    || { echo 'The shipped order does not show its five operations completed.' >&2; cat /tmp/shipped.html; exit 1; }
+
+            # #669: now Magento serves. The probe module lists a billing handler in its di.xml and a
+            # workflow fulfilling charge; a second, prefixed harness routes billing to the bench's
+            # Nexus queue (the DSN names none, so durable-workflows) and calls it. The journal
+            # worker of the step above runs the fulfilling workflow.
+            - name: Magento serves billing to the demo harness
+              working-directory: magento
+              timeout-minutes: 5
+              run: |
+                  harness="php ../tests/integration/Temporal/nexus-demo-harness.php 127.0.0.1:7233 default --prefix=mg- --transport=grpc-curl"
+                  $harness --bench=billing@durable-workflows > /tmp/harness-mg.log 2>&1 &
+                  pid=$!
+                  timeout 60 bash -c "until grep -qx ready /tmp/harness-mg.log; do kill -0 $pid 2>/dev/null || exit 1; sleep 1; done" || { cat /tmp/harness-mg.log; exit 1; }
+                  bin/magento durable:worker --role=nexus > /tmp/magento-nexus.log 2>&1 &
+                  logs() { tail -n 50 /tmp/magento-nexus.log; tail -n 50 /tmp/magento-worker.log; tail -n 50 /tmp/harness-mg.log; }
+                  # Answers only the probe's handler and workflow give, not the harness's own.
+                  verify=$(timeout 120 $harness --call=billing/verify --input='{"order":"MAG-SV-1","amount":1200,"currency":"USD"}') || { logs; exit 1; }
+                  verify=$(tail -n 1 <<< "$verify")
+                  echo "verify: $verify"
+                  test "$(jq -c . <<< "$verify")" = '{"accepted":false,"reason":"the Magento bench bills in EUR, not USD"}' || { logs; exit 1; }
+                  charge=$(timeout 120 $harness --call=billing/charge --input='{"order":"MAG-SV-2","amount":1200,"currency":"EUR"}') || { logs; exit 1; }
+                  charge=$(tail -n 1 <<< "$charge")
+                  echo "charge: $charge"
+                  test "$(jq -c . <<< "$charge")" = '{"receipt":"MAGENTO-BENCH-EUR-MAG-SV-2","charged":1200}' || { logs; exit 1; }
 
     static-analysis:
         # Was the required status check on `main` until 2026-09-16; `ci-ok` below is now. Its steps
@@ -1242,7 +1434,7 @@ jobs:
         # job names can move without touching the protection. A skipped job is not a failure.
         name: ci-ok
         if: always()
-        needs: [qa, symfony-matrix, laravel, laravel-bench, sylius-shop, magento-matrix, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-integration, temporal-oldest-server, temporal-transport, manifests]
+        needs: [qa, symfony-matrix, laravel, laravel-bench, sylius-shop, magento-matrix, magento-without-temporal, magento-boot, static-analysis, symfony-sample, conformance-sql, guide-follows, temporal-integration, temporal-oldest-server, temporal-transport, manifests]
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:

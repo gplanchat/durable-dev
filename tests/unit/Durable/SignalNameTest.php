@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -34,9 +35,9 @@ final class SignalNameTest extends TestCase
             new ExecutionRuntime($store, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true),
         );
 
-        $store->append(new ExecutionStarted('signal-enum-1', []));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('signal-enum-1'), []));
         // Journalled under the backed value, as any external sender would do.
-        $store->append(new WorkflowSignalReceived('signal-enum-1', 'approve', ['by' => 'alice']));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('signal-enum-1'), 'approve', ['by' => 'alice']));
 
         $result = $engine->resume(
             'signal-enum-1',

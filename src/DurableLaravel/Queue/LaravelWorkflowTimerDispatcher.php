@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Queue;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
-use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
+use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 
 /**
  * A timer, on the delay the queue already carries.
  *
- * Waking an execution "in n milliseconds" is a deferred resume, and nothing else: the port does not
- * ask for a separate mechanism. The Symfony counterpart gets the same thing from a `DelayStamp`;
- * here it is `later()`, rounded **up** because waiting less than asked is the only error that
- * counts — a workflow woken too early resumes before its deadline.
+ * Waking an execution "in n milliseconds" is a deferred timer firing, not a plain resume: a resume
+ * replays the run without completing the timer, and would suspend on it forever (#726). The Symfony
+ * counterpart gets the delay from a `DelayStamp`; here it is `later()`, rounded **up** because
+ * waiting less than asked is the only error that counts — a workflow woken too early resumes
+ * before its deadline.
  */
-final class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
+final readonly class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {
     public function __construct(
         private readonly QueueFactory $queue,
@@ -24,9 +26,9 @@ final class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
         private readonly ?string $queueName = null,
     ) {}
 
-    public function dispatchTimerFire(string $executionId, int $delayMs = 0): void
+    public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void
     {
-        $job = new ResumeWorkflowJob(new ResumeWorkflowMessage($executionId));
+        $job = new FireWorkflowTimersJob(new FireWorkflowTimersMessage($executionId->toString()));
         $connection = $this->queue->connection($this->connection);
 
         if ($delayMs > 0) {

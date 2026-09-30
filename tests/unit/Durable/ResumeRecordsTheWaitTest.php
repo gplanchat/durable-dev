@@ -85,7 +85,7 @@ final class ResumeRecordsTheWaitTest extends TestCase
         $registry->registerClass($workflowClass);
         $metadata->save(ExecutionId::fromString('exec'), $workflowClass, []);
         if (null !== $previousWait) {
-            $catalog->recordWait('exec', $previousWait);
+            $catalog->recordWait(ExecutionId::fromString('exec'), $previousWait);
         }
 
         (new ResumeWorkflowHandler(
@@ -96,7 +96,7 @@ final class ResumeRecordsTheWaitTest extends TestCase
             $store,
             new InMemoryChildWorkflowParentLinkStore(),
             new class implements WorkflowTimerDispatcher {
-                public function dispatchTimerFire(string $executionId, int $delayMs = 0): void {}
+                public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void {}
             },
             new WorkflowDefinitionLoader(),
             $catalog,

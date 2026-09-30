@@ -14,7 +14,7 @@ use Temporal\Api\Update\V1\Request as UpdateRequest;
  * answers — that is what the server then writes into `WORKFLOW_EXECUTION_UPDATE_ACCEPTED`, and
  * that is what makes the request readable again on replay.
  */
-final class InboundUpdate
+final readonly class InboundUpdate
 {
     public function __construct(
         public readonly PendingUpdate $pending,

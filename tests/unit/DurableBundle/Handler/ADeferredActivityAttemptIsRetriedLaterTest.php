@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Bundle\Handler;
 
 use Gplanchat\Durable\Bundle\Handler\ActivityRunHandler;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityAttemptClaimInterface;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NullWorkflowResumeDispatcher;
@@ -31,7 +32,7 @@ final class ADeferredActivityAttemptIsRetriedLaterTest extends TestCase
             new NullWorkflowResumeDispatcher(),
             $this->createStub(ActivityHeartbeatSenderInterface::class),
             attemptClaim: new class implements ActivityAttemptClaimInterface {
-                public function claim(string $executionId, string $activityId, int $attempt): ?\Closure
+                public function claim(ExecutionId $executionId, string $activityId, int $attempt): ?\Closure
                 {
                     return null;
                 }

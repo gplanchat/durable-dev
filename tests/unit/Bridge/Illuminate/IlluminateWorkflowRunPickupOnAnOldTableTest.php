@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Bridge\Illuminate;
 
 use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
+use Gplanchat\Durable\ExecutionId;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
 use PHPUnit\Framework\TestCase;
@@ -29,9 +30,9 @@ final class IlluminateWorkflowRunPickupOnAnOldTableTest extends TestCase
     public function testAPickupOnATableWithoutTheColumnIsNotAnError(): void
     {
         $catalog = new IlluminateWorkflowRunCatalog($this->connection, new DurableSchema($this->connection));
-        $catalog->recordStart('exec-1', 'App\\OrderWorkflow');
+        $catalog->recordStart(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow');
 
-        $catalog->recordPickup('exec-1');
+        $catalog->recordPickup(ExecutionId::fromString('exec-1'));
 
         $page = $catalog->listRuns();
         self::assertFalse($page->tellsWaitingForWorker);
@@ -43,9 +44,9 @@ final class IlluminateWorkflowRunPickupOnAnOldTableTest extends TestCase
     public function testAWaitOnATableWithoutTheColumnIsNotAnError(): void
     {
         $catalog = new IlluminateWorkflowRunCatalog($this->connection, new DurableSchema($this->connection));
-        $catalog->recordStart('exec-1', 'App\\OrderWorkflow');
+        $catalog->recordStart(ExecutionId::fromString('exec-1'), 'App\\OrderWorkflow');
 
-        $catalog->recordWait('exec-1', 'activity charge attempt 2 in flight');
+        $catalog->recordWait(ExecutionId::fromString('exec-1'), 'activity charge attempt 2 in flight');
 
         self::assertNull($catalog->listRuns()->runs[0]->waitingOn, 'a table created before #324 leaves the fact absent');
     }

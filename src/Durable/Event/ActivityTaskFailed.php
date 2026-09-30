@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
 
 /**
@@ -18,7 +19,7 @@ use Gplanchat\Durable\Failure\ActivityRetryState;
 final readonly class ActivityTaskFailed implements Event
 {
     public function __construct(
-        private string $executionId,
+        private ExecutionId $executionId,
         private string $activityId,
         private string $activityName,
         private int $attempt,
@@ -29,7 +30,7 @@ final readonly class ActivityTaskFailed implements Event
     ) {}
 
     public static function forThrowable(
-        string $executionId,
+        ExecutionId $executionId,
         string $activityId,
         string $activityName,
         int $attempt,
@@ -44,7 +45,7 @@ final readonly class ActivityTaskFailed implements Event
         return new self($executionId, $activityId, $activityName, $attempt, $e::class, $message, $retryState);
     }
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }

@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowHistorySourceInterface;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -82,12 +83,12 @@ final class HandlerDispatchParityTest extends TestCase
     private function inMemoryHistory(): EventStoreHistorySource
     {
         $store = new InMemoryEventStore();
-        $store->append(new ExecutionStarted('parity-1', []));
-        $store->append(new WorkflowSignalReceived('parity-1', 'tick', ['n' => 1]));
-        $store->append(new WorkflowUpdateHandled('parity-1', 'approve', ['by' => 'alice'], null));
-        $store->append(new \Gplanchat\Durable\Event\TimerScheduled('parity-1', 'timer-a', 0.0));
-        $store->append(new \Gplanchat\Durable\Event\TimerCompleted('parity-1', 'timer-a'));
-        $store->append(new WorkflowSignalReceived('parity-1', 'tick', ['n' => 2]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('parity-1'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('parity-1'), 'tick', ['n' => 1]));
+        $store->append(new WorkflowUpdateHandled(ExecutionId::fromString('parity-1'), 'approve', ['by' => 'alice'], null));
+        $store->append(new \Gplanchat\Durable\Event\TimerScheduled(ExecutionId::fromString('parity-1'), 'timer-a', 0.0));
+        $store->append(new \Gplanchat\Durable\Event\TimerCompleted(ExecutionId::fromString('parity-1'), 'timer-a'));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('parity-1'), 'tick', ['n' => 2]));
 
         return new EventStoreHistorySource($store, 'parity-1');
     }

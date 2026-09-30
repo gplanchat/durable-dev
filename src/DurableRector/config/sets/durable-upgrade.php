@@ -7,6 +7,7 @@ use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Rector\Rector\ExecutionIdArgumentRector;
+use Gplanchat\Durable\Rector\Rector\ExecutionIdEventArgumentRector;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector;
 use Rector\Config\RectorConfig;
@@ -84,4 +85,4 @@ return RectorConfig::configure()
     // Unreleased — the ports take an `ExecutionId` rather than a string (#638). This rule wraps the
     // string arguments it can prove; a class that implements a port, and code that reads an id a
     // port now returns, are migrated by hand (UPGRADE.md).
-    ->withRules([AddParamBasedOnParentClassMethodRector::class, ExecutionIdArgumentRector::class]);
+    ->withRules([AddParamBasedOnParentClassMethodRector::class, ExecutionIdArgumentRector::class, ExecutionIdEventArgumentRector::class]);

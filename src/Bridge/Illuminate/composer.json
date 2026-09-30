@@ -1,6 +1,6 @@
 {
     "name": "gplanchat/durable-bridge-illuminate",
-    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
+    "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on one SQL database through Laravel's database layer",
     "keywords": [
         "laravel",
         "illuminate",

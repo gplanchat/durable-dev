@@ -18,6 +18,7 @@ use Gplanchat\Durable\Duration as DurableDuration;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Failure\WorkflowFailureClassifier;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
@@ -75,7 +76,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {
         $taskQueueName = ((null !== $options ? $options->taskQueue : null) ?? $this->connection->activityTaskQueue)->name();
-        $this->waitJournal[] = new ActivityScheduled($this->executionId, $activityId, $activityName, []);
+        $this->waitJournal[] = new ActivityScheduled(ExecutionId::fromString($this->executionId), $activityId, $activityName, []);
 
         $attrs = new ScheduleActivityTaskCommandAttributes();
         $attrs->setActivityId($activityId);
@@ -85,7 +86,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // The worker will read these options back from the activity input: this is the wire, it
         // keeps its flat shape. The server timestamps the queueing itself.
         $scheduled = new ActivityScheduled(
-            $this->executionId,
+            ExecutionId::fromString($this->executionId),
             $activityId,
             $activityName,
             $payload,
@@ -144,7 +145,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // From this task's start, the clock later tasks read the deadline back from; the worker's own
         // only without a history. No summary: the command does not carry it, so a later task could
         // not word the same wait alike.
-        $this->waitJournal[] = new TimerScheduled($this->executionId, $timerId, ($this->history?->taskStartedAt() ?? microtime(true)) + $delay->toSeconds());
+        $this->waitJournal[] = new TimerScheduled(ExecutionId::fromString($this->executionId), $timerId, ($this->history?->taskStartedAt() ?? microtime(true)) + $delay->toSeconds());
 
         $attrs = new StartTimerCommandAttributes();
         $attrs->setTimerId($timerId);
@@ -175,13 +176,13 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     }
 
     public function scheduleChildWorkflow(
-        string $childExecutionId,
+        ExecutionId $childExecutionId,
         string $childWorkflowType,
         array $input,
         ChildWorkflowOptions $options,
     ): void {
         $attrs = new \Temporal\Api\Command\V1\StartChildWorkflowExecutionCommandAttributes();
-        $attrs->setWorkflowId($childExecutionId);
+        $attrs->setWorkflowId($childExecutionId->toString());
         $attrs->setWorkflowType(new \Temporal\Api\Common\V1\WorkflowType(['name' => $childWorkflowType]));
         $attrs->setTaskQueue(new TaskQueue([
             'name' => ($options->taskQueue ?? $this->connection->workflowTaskQueue)->name(),
@@ -195,7 +196,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             $attrs->setCronSchedule($options->cronSchedule->toExpression());
         }
         TemporalPolicyMapper::applyWorkflowTimeouts($options->timeouts, $attrs);
-        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $childExecutionId, $childWorkflowType, $options->searchAttributes), $attrs);
+        TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $childExecutionId->toString(), $childWorkflowType, $options->searchAttributes), $attrs);
 
         // Without these two policies the server applies its defaults: the ParentClosePolicy
         // chosen by the caller was silently lost on the Temporal side.
@@ -289,7 +290,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // and the domain event became unreconstructable when reading the history back. It now
         // travels in the ApplicationFailureInfo `details`; `type` stays the exception FQCN, the
         // only field the server matches against nonRetryableErrorTypes.
-        $classified = WorkflowFailureClassifier::classify($this->executionId, $reason);
+        $classified = WorkflowFailureClassifier::classify(ExecutionId::fromString($this->executionId), $reason);
 
         $info = new ApplicationFailureInfo();
         $info->setType($classified->failureClass());
@@ -386,7 +387,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * {@see TemporalChildWorkflowRunner} always defers the start, so no path of the component
      * reaches this; a wiring mistake that did would drop the child's outcome.
      */
-    public function completeChildWorkflow(string $childExecutionId, mixed $result): void
+    public function completeChildWorkflow(ExecutionId $childExecutionId, mixed $result): void
     {
         throw UnsupportedByBackendException::forMethod('Temporal', __FUNCTION__, 'the server records a child\'s outcome in the parent\'s history; start the child with scheduleChildWorkflow() and let TemporalChildWorkflowRunner defer it.');
     }
@@ -395,7 +396,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * Refused (DUR051), as {@see completeChildWorkflow()}: CHILD_WORKFLOW_EXECUTION_FAILED is
      * written by the server.
      */
-    public function failChildWorkflow(string $childExecutionId, \Throwable $reason): void
+    public function failChildWorkflow(ExecutionId $childExecutionId, \Throwable $reason): void
     {
         throw UnsupportedByBackendException::forMethod('Temporal', __FUNCTION__, 'the server records a child\'s failure in the parent\'s history; start the child with scheduleChildWorkflow() and let TemporalChildWorkflowRunner defer it.');
     }

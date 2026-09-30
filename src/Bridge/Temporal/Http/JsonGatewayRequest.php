@@ -8,6 +8,8 @@ namespace Gplanchat\Bridge\Temporal\Http;
  * How a protobuf request, in its JSON form, becomes a gateway URL: path placeholders are
  * proto field paths in snake_case (`{execution.workflow_id}`), the JSON fields are camelCase,
  * and a GET route carries the remaining fields as dotted query parameters.
+ *
+ * @internal
  */
 final class JsonGatewayRequest
 {

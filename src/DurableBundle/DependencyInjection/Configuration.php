@@ -8,7 +8,7 @@ use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 
-final class Configuration implements ConfigurationInterface
+final readonly class Configuration implements ConfigurationInterface
 {
     public function __construct(
         private readonly bool $debug = true,
@@ -79,6 +79,10 @@ final class Configuration implements ConfigurationInterface
             ->scalarNode('psr17_factory')
             ->defaultNull()
             ->info('A service id implementing both PSR-17 RequestFactoryInterface and StreamFactoryInterface (Guzzle\'s HttpFactory, nyholm\'s Psr17Factory). Defaults to psr18_client, which Symfony\'s Psr18Client satisfies on its own.')
+            ->end()
+            ->scalarNode('payload_codec')
+            ->defaultNull()
+            ->info('A service id: the application\'s PayloadCodecInterface, which encodes every payload sent to Temporal and decodes every payload read (DUR055). The codec holds its own key, from the application\'s secrets or environment; Durable reads none. null sends payloads as they are.')
             ->end()
             ->booleanNode('journal')
             ->defaultNull()

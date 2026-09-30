@@ -134,7 +134,7 @@ final class WireFormatPinTest extends TestCase
     public function testScheduledActivityJournalRecord(): void
     {
         $event = new ActivityScheduled(
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             'act-1',
             'charge',
             ['orderId' => 'ORD-1'],
@@ -218,7 +218,7 @@ final class WireFormatPinTest extends TestCase
      */
     public function testScheduledTimerJournalRecord(): void
     {
-        $record = EventDataMapper::fromDomainEvent(new TimerScheduled('exec-1', 'timer-1', 1_700_000_000.5, 'wait'));
+        $record = EventDataMapper::fromDomainEvent(new TimerScheduled(ExecutionId::fromString('exec-1'), 'timer-1', 1_700_000_000.5, 'wait'));
 
         self::assertSame([
             'execution_id' => 'exec-1',

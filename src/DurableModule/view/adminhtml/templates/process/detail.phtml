@@ -38,6 +38,42 @@ $timeline = $block->getTimeline();
         </table>
     </div>
 
+    <?php $nexusOperations = $block->getNexusOperations(); ?>
+    <?php if ($nexusOperations !== []): /* The waits served by someone else (#672): where, and whether they are over. */ ?>
+        <div class="admin__page-section">
+            <div class="admin__page-section-title">
+                <span class="title"><?= $escaper->escapeHtml(__('Nexus operations')) ?></span>
+            </div>
+            <style>
+                .durable-nexus-state { padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+                .durable-nexus-state.in_flight { background: #dbeafe; color: #1e40af; }
+                .durable-nexus-state.completed { background: #dcfce7; color: #166534; }
+                .durable-nexus-state.failed, .durable-nexus-state.timed_out { background: #fee2e2; color: #991b1b; }
+                .durable-nexus-state.cancelled { background: #f3f4f6; color: #374151; }
+            </style>
+            <table class="admin__table-secondary">
+                <thead>
+                    <tr>
+                        <th scope="col"><?= $escaper->escapeHtml(__('Endpoint')) ?></th>
+                        <th scope="col"><?= $escaper->escapeHtml(__('Service')) ?></th>
+                        <th scope="col"><?= $escaper->escapeHtml(__('Operation')) ?></th>
+                        <th scope="col"><?= $escaper->escapeHtml(__('State')) ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($nexusOperations as $operation): ?>
+                        <tr>
+                            <td><code><?= $escaper->escapeHtml($operation->endpoint) ?></code></td>
+                            <td><?= $escaper->escapeHtml($operation->service) ?></td>
+                            <td><?= $escaper->escapeHtml($operation->operation) ?></td>
+                            <td><span class="durable-nexus-state <?= $escaper->escapeHtmlAttr($operation->state->value) ?>"><?= $escaper->escapeHtml(__($operation->state->label())) ?></span></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+
     <?php if ($timeline->actions !== []): ?>
         <div class="admin__page-section">
             <div class="admin__page-section-title">

@@ -149,8 +149,8 @@ final class DurableSampleWorkflowRunnerRoutingTest extends TestCase
         // Pre-populate the event store so that DurableMessengerDrain detects completion
         // immediately (avoids a 120-second timeout in the drain loop).
         $executionId = 'routing-test-exec-001';
-        $eventStore->append(new ExecutionStarted($executionId, []));
-        $eventStore->append(new ExecutionCompleted($executionId, 'in-memory-result'));
+        $eventStore->append(new ExecutionStarted(ExecutionId::fromString($executionId), []));
+        $eventStore->append(new ExecutionCompleted(ExecutionId::fromString($executionId), 'in-memory-result'));
         $metadataStore->markCompleted(ExecutionId::fromString($executionId));
 
         $result = $runner->waitForWorkflowCompletion($executionId);

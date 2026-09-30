@@ -29,6 +29,8 @@ use Symfony\Component\Messenger\Event\WorkerStartedEvent;
  */
 final class Commands
 {
+    private function __construct() {}
+
     /**
      * @param array<string, mixed> $config
      */

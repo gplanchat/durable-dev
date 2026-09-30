@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -68,7 +69,7 @@ final class NexusTypedFailureTest extends TestCase
         ]);
         $failure = $history->findNexusOperationSlotResult(0)->failed;
 
-        $classified = \Gplanchat\Durable\Failure\WorkflowFailureClassifier::classify('exec-1', $failure);
+        $classified = \Gplanchat\Durable\Failure\WorkflowFailureClassifier::classify(ExecutionId::fromString('exec-1'), $failure);
 
         self::assertSame(
             \Gplanchat\Durable\Event\WorkflowExecutionFailed::KIND_UNHANDLED_NEXUS_OPERATION,

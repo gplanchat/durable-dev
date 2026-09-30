@@ -54,9 +54,9 @@ final class SqliteTestQueues implements ActivityTransportInterface, WorkflowResu
     }
 
     /** The bench fires timers by hand: the delay is not honoured, the `timer` step comes later. */
-    public function dispatchTimerFire(string $executionId, int $delayMs = 0): void
+    public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void
     {
-        $this->push('timers', new FireWorkflowTimersMessage($executionId));
+        $this->push('timers', new FireWorkflowTimersMessage($executionId->toString()));
     }
 
     /**
@@ -99,7 +99,7 @@ final class SqliteTestQueues implements ActivityTransportInterface, WorkflowResu
         return null;
     }
 
-    public function removePendingFor(string $executionId, string $activityId): bool
+    public function removePendingFor(ExecutionId $executionId, string $activityId): bool
     {
         return false;
     }

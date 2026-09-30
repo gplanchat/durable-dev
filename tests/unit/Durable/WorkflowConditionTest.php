@@ -62,8 +62,8 @@ final class WorkflowConditionTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('cond-2', []));
-        $store->append(new WorkflowSignalReceived('cond-2', 'tick', ['n' => 1]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('cond-2'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-2'), 'tick', ['n' => 1]));
 
         self::assertSame([['n' => 1]], $engine->resume('cond-2', $this->tickHandler(1)));
     }
@@ -74,8 +74,8 @@ final class WorkflowConditionTest extends TestCase
         $engine = $this->engine($store);
         $handler = $this->tickHandler(1);
 
-        $store->append(new ExecutionStarted('cond-3', []));
-        $store->append(new WorkflowSignalReceived('cond-3', 'tick', ['n' => 1]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('cond-3'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-3'), 'tick', ['n' => 1]));
 
         $first = $engine->resume('cond-3', $handler);
         $second = $engine->resume('cond-3', $handler);
@@ -97,10 +97,10 @@ final class WorkflowConditionTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('cond-4', []));
-        $store->append(new TimerScheduled('cond-4', 'timer-a', 0.0));
-        $store->append(new TimerCompleted('cond-4', 'timer-a'));
-        $store->append(new WorkflowSignalReceived('cond-4', 'tick', ['n' => 1]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('cond-4'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('cond-4'), 'timer-a', 0.0));
+        $store->append(new TimerCompleted(ExecutionId::fromString('cond-4'), 'timer-a'));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-4'), 'tick', ['n' => 1]));
 
         self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()));
         self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable on replay');
@@ -113,10 +113,10 @@ final class WorkflowConditionTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('cond-5', []));
-        $store->append(new TimerScheduled('cond-5', 'timer-a', 0.0));
-        $store->append(new WorkflowSignalReceived('cond-5', 'tick', ['n' => 1]));
-        $store->append(new TimerCompleted('cond-5', 'timer-a'));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('cond-5'), []));
+        $store->append(new TimerScheduled(ExecutionId::fromString('cond-5'), 'timer-a', 0.0));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-5'), 'tick', ['n' => 1]));
+        $store->append(new TimerCompleted(ExecutionId::fromString('cond-5'), 'timer-a'));
 
         self::assertSame(['satisfied', ['n' => 1]], $engine->resume('cond-5', $this->boundedTickHandler()));
     }
@@ -133,9 +133,9 @@ final class WorkflowConditionTest extends TestCase
         $store = new InMemoryEventStore();
         $engine = $this->engine($store);
 
-        $store->append(new ExecutionStarted('cond-6', []));
-        $store->append(new WorkflowSignalReceived('cond-6', 'tick', ['n' => 1]));
-        $store->append(new WorkflowSignalReceived('cond-6', 'tick', ['n' => 2]));
+        $store->append(new ExecutionStarted(ExecutionId::fromString('cond-6'), []));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-6'), 'tick', ['n' => 1]));
+        $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-6'), 'tick', ['n' => 2]));
 
         $seen = $engine->resume('cond-6', static function (WorkflowEnvironment $wf): array {
             $ticks = [];

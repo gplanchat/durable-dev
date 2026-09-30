@@ -12,6 +12,7 @@ use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunEventPhase;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -27,15 +28,15 @@ final class EachEventSaysWhatHappenedToItsActionTest extends TestCase
     {
         $store = new InMemoryEventStore();
         foreach ([
-            new ExecutionStarted('exec-1', []),
-            new ActivityScheduled('exec-1', 'act-1', 'charge', []),
-            new ActivityTaskStarted('exec-1', 'act-1', 'charge', 1),
-            new ActivityTaskFailed('exec-1', 'act-1', 'charge', 1, \RuntimeException::class, 'declined'),
-            new ActivityTaskStarted('exec-1', 'act-1', 'charge', 2),
-            new ActivityCompleted('exec-1', 'act-1', 'ch_1'),
-            new TimerScheduled('exec-1', 'tim-1', 1790244000.0),
-            new TimerCompleted('exec-1', 'tim-1'),
-            new WorkflowSignalReceived('exec-1', 'approve', []),
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            new ActivityScheduled(ExecutionId::fromString('exec-1'), 'act-1', 'charge', []),
+            new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1),
+            new ActivityTaskFailed(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 1, \RuntimeException::class, 'declined'),
+            new ActivityTaskStarted(ExecutionId::fromString('exec-1'), 'act-1', 'charge', 2),
+            new ActivityCompleted(ExecutionId::fromString('exec-1'), 'act-1', 'ch_1'),
+            new TimerScheduled(ExecutionId::fromString('exec-1'), 'tim-1', 1790244000.0),
+            new TimerCompleted(ExecutionId::fromString('exec-1'), 'tim-1'),
+            new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'approve', []),
         ] as $event) {
             $store->append($event);
         }

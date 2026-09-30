@@ -117,7 +117,7 @@ final class ContinueAsNewKeepsTheChainTest extends TestCase
             $store,
             new InMemoryChildWorkflowParentLinkStore(),
             new class implements WorkflowTimerDispatcher {
-                public function dispatchTimerFire(string $executionId, int $delayMs = 0): void {}
+                public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void {}
             },
             new WorkflowDefinitionLoader(),
             $catalog,

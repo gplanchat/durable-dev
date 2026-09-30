@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema as IlluminateSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use PHPUnit\Framework\TestCase;
@@ -27,7 +28,7 @@ final class TheCatalogReadsTheConfiguredJournalTest extends TestCase
     {
         $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
         $schema = new DbalSchema($connection, eventsTable: 'my_events');
-        (new DbalEventStore($connection, $schema, 'my_events'))->append(new ExecutionStarted('exec-1', []));
+        (new DbalEventStore($connection, $schema, 'my_events'))->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
 
         $history = (new DbalWorkflowRunCatalog($connection, $schema))->readHistory(self::describedRun());
 
@@ -38,7 +39,7 @@ final class TheCatalogReadsTheConfiguredJournalTest extends TestCase
     {
         $connection = SqlTestDatabase::illuminate();
         $schema = new IlluminateSchema($connection, eventsTable: 'my_events');
-        (new IlluminateEventStore($connection, $schema, 'my_events'))->append(new ExecutionStarted('exec-1', []));
+        (new IlluminateEventStore($connection, $schema, 'my_events'))->append(new ExecutionStarted(ExecutionId::fromString('exec-1'), []));
 
         $history = (new IlluminateWorkflowRunCatalog($connection, $schema))->readHistory(self::describedRun());
 

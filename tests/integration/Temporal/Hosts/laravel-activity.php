@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 /*
  * The Temporal activity worker as a Laravel application gets it: `DurableServiceProvider` on a bare
- * container with `backend: temporal`, the activities resolved from that container, so the sender
- * they inject is the provider's (#510, #518). The loop is `durable:temporal-worker --role=activity`
+ * container with `backend: temporal` and the handler declared in `activity_handlers` (#713), resolved
+ * from that container when a task runs, so the sender it injects is the provider's (#510, #518). The loop is `durable:temporal-worker --role=activity`
  * with `--max-time`: illuminate/console is not a root dependency, so the command itself cannot run.
  *
  * DURABLE_HEARTBEAT=noop hands the activities the no-op sender instead, to show the heartbeat test
@@ -16,12 +16,9 @@ declare(strict_types=1);
 
 use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
-use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
-use Gplanchat\Durable\RegistryActivityExecutor;
 use Illuminate\Container\Container;
-use integration\Temporal\Fixtures\HeartbeatActivities;
 use integration\Temporal\Fixtures\HeartbeatingActivities;
 
 $arguments = $_SERVER['argv'] ?? null;
@@ -42,17 +39,11 @@ $dsn = \sprintf(
 );
 
 $app = new Container();
-$app->instance('config', new ArrayObject(['durable' => ['backend' => 'temporal', 'temporal' => ['dsn' => $dsn]]], ArrayObject::ARRAY_AS_PROPS));
+$app->instance('config', new ArrayObject(['durable' => ['backend' => 'temporal', 'temporal' => ['dsn' => $dsn], 'activity_handlers' => [HeartbeatingActivities::class]]], ArrayObject::ARRAY_AS_PROPS));
 (new DurableServiceProvider($app))->register();
 
 if ('noop' === getenv('DURABLE_HEARTBEAT')) {
     $app->instance(ActivityHeartbeatSenderInterface::class, new NullActivityHeartbeatSender());
-}
-$activities = $app->make(HeartbeatingActivities::class);
-$executor = $app->make(RegistryActivityExecutor::class);
-foreach ((new ReflectionClass(HeartbeatActivities::class))->getMethods() as $method) {
-    $name = $method->getAttributes(Gplanchat\Durable\Attribute\AsActivityMethod::class)[0]->newInstance()->name;
-    $executor->register($name, new PayloadToContractMethodInvoker($activities, HeartbeatActivities::class, $method->getName()));
 }
 
 $worker = $app->make(TemporalActivityWorker::class);

@@ -86,7 +86,7 @@ final class AFailedRunKeepsWhatItWasStartedWithTest extends TestCase
 
 final class SilentTimerDispatcher implements WorkflowTimerDispatcher
 {
-    public function dispatchTimerFire(string $executionId, int $delayMs = 0): void {}
+    public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void {}
 }
 
 #[AsWorkflow(name: 'test.throwing')]

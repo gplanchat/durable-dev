@@ -29,9 +29,13 @@ use Gplanchat\Durable\Event\WorkflowUpdateHandled;
  * Reading labels for the web profiler (title + subtitle + display category).
  *
  * The PHP class names stay in the payload; these are the words a human reads above them.
+ *
+ * @internal
  */
 final class DurableProfilerEventPresentation
 {
+    private function __construct() {}
+
     /**
      * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
      *

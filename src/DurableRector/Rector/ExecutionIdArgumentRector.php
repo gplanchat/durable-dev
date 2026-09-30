@@ -20,7 +20,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 /**
  * Wraps a string execution id in `ExecutionId::fromString()` where a port now takes the value
- * object (#638).
+ * object (#638, #682).
  *
  * It only touches an argument it can prove is a string, on a receiver it can prove is one of the
  * ports. A named argument, an unpacked one, or one whose type is unknown is left as it is: the type
@@ -54,6 +54,25 @@ final class ExecutionIdArgumentRector extends AbstractRector
         'Gplanchat\Bridge\Temporal\WorkflowClientInterface' => [
             'startAsync' => [2], 'startSync' => [2], 'workflowId' => [0],
         ],
+        // #682
+        'Gplanchat\Durable\Observation\WorkflowRunProjectionInterface' => ['recordStart' => [0], 'recordOutcome' => [0]],
+        'Gplanchat\Durable\Observation\WorkflowRunWaitProjectionInterface' => ['recordWait' => [0]],
+        'Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface' => ['recordPickup' => [0]],
+        'Gplanchat\Durable\Debug\WorkflowDispatchObserverInterface' => ['onWorkflowDispatchRequested' => [0]],
+        'Gplanchat\Durable\Debug\WorkflowExecutionObserverInterface' => ['onWorkflowRun' => [0], 'onActivityExecuted' => [0]],
+        'Gplanchat\Durable\Transport\ActivityTransportInterface' => ['removePendingFor' => [0]],
+        'Gplanchat\Durable\Port\ParentChildWorkflowCoordinatorInterface' => ['onParentClosed' => [0]],
+        'Gplanchat\Durable\Port\WorkflowLifecycleInterface' => [
+            'onBeforeRun' => [0], 'isCancellationPending' => [0], 'onCancellationDelivered' => [0], 'onCancelled' => [0],
+            'onCompleted' => [0], 'onSuspended' => [0], 'onContinuedAsNew' => [0], 'onFailed' => [0],
+        ],
+        'Gplanchat\Durable\Port\WorkflowTimerDispatcher' => ['dispatchTimerFire' => [0]],
+        'Gplanchat\Durable\Port\WorkflowCommandBufferInterface' => [
+            'scheduleChildWorkflow' => [0], 'completeChildWorkflow' => [0], 'failChildWorkflow' => [0],
+        ],
+        'Gplanchat\Durable\Port\ChildWorkflowRunnerInterface' => ['runChild' => [0, 3]],
+        'Gplanchat\Durable\Port\ActivityAttemptClaimInterface' => ['claim' => [0]],
+        'Gplanchat\Durable\Store\FencedEventStoreInterface' => ['claimPass' => [0]],
     ];
 
     public function getRuleDefinition(): RuleDefinition

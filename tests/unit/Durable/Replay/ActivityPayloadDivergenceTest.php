@@ -8,6 +8,7 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -118,7 +119,7 @@ final class ActivityPayloadDivergenceTest extends TestCase
         // flattening changed — that is, the day the false positive came back.
         $throughTheDatabase = json_decode(
             json_encode(
-                (new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', $freshPayload))->payload(),
+                (new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'charge', $freshPayload))->payload(),
                 \JSON_THROW_ON_ERROR,
             ),
             true,
@@ -129,8 +130,8 @@ final class ActivityPayloadDivergenceTest extends TestCase
         self::assertNotSame($freshPayload, $throughTheDatabase, 'without flattening, this test proves nothing');
 
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'charge', $throughTheDatabase));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', 'ok'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'charge', $throughTheDatabase));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 'ok'));
 
         $context = $this->context($store);
 
@@ -172,8 +173,8 @@ final class ActivityPayloadDivergenceTest extends TestCase
     private function journalWith(array $payload): InMemoryEventStore
     {
         $store = new InMemoryEventStore();
-        $store->append(new ActivityScheduled(self::EXECUTION, 'act-1', 'weather', $payload));
-        $store->append(new ActivityCompleted(self::EXECUTION, 'act-1', '22°C'));
+        $store->append(new ActivityScheduled(ExecutionId::fromString(self::EXECUTION), 'act-1', 'weather', $payload));
+        $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', '22°C'));
 
         return $store;
     }

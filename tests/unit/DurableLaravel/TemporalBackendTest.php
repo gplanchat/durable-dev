@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Laravel;
 
+use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
+use Gplanchat\Bridge\Temporal\Codec\PayloadCodecWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -231,6 +233,24 @@ final class TemporalBackendTest extends TestCase
         $app->make('durable.temporal.client');
 
         self::assertEqualsCanonicalizing(['client', 'factory'], $resolved);
+    }
+
+    public function testTheBoundPayloadCodecWrapsTheClient(): void
+    {
+        // DUR055: the application binds its codec, which reads its own key; Durable reads none.
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN, 'payload_codec' => 'app.codec']]);
+        $app->instance('app.codec', $this->createStub(PayloadCodecInterface::class));
+        (new DurableServiceProvider($app))->register();
+
+        self::assertInstanceOf(PayloadCodecWorkflowServiceClient::class, $app->make('durable.temporal.client'));
+    }
+
+    public function testWithoutACodecTheClientIsNotWrapped(): void
+    {
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN, 'payload_codec' => null]]);
+        (new DurableServiceProvider($app))->register();
+
+        self::assertNotInstanceOf(PayloadCodecWorkflowServiceClient::class, $app->make('durable.temporal.client'));
     }
 
     /** @param array<string, mixed> $durable */

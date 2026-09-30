@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Event;
 
+use Gplanchat\Durable\ExecutionId;
+
 /**
  * Failure of a child workflow (journal of the **parent**).
  */
@@ -13,7 +15,7 @@ final readonly class ChildWorkflowFailed implements Event
      * @param array<string, mixed> $workflowFailureContext
      */
     public function __construct(
-        private string $parentExecutionId,
+        private ExecutionId $parentExecutionId,
         private string $childExecutionId,
         private string $failureMessage,
         private int $failureCode = 0,
@@ -22,7 +24,7 @@ final readonly class ChildWorkflowFailed implements Event
         private array $workflowFailureContext = [],
     ) {}
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->parentExecutionId;
     }

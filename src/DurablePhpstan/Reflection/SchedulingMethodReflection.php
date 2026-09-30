@@ -28,7 +28,7 @@ use PHPStan\Type\Type;
  * the contract declared. The parameters stay the contract's own, which is exactly the point — that
  * is where the checking happens.
  */
-final class SchedulingMethodReflection implements ExtendedMethodReflection
+final readonly class SchedulingMethodReflection implements ExtendedMethodReflection
 {
     public function __construct(
         private readonly ExtendedMethodReflection $contractMethod,

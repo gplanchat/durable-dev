@@ -6,16 +6,21 @@ namespace Gplanchat\Durable\Failure;
 
 use Gplanchat\Durable\Event\ActivityCatastrophicFailure;
 use Gplanchat\Durable\Event\ActivityFailed;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\DeclaredActivityFailureInterface;
 
 /**
  * Builds a persistable activity failure event, or a catastrophic event when the failure cannot
  * be safely serialized for the journal.
+ *
+ * @internal
  */
 final class ActivityFailureEventFactory
 {
+    private function __construct() {}
+
     public static function fromActivityThrowable(
-        string $executionId,
+        ExecutionId $executionId,
         string $activityId,
         string $activityName,
         int $attempt,

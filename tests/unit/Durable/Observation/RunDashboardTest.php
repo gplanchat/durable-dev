@@ -6,6 +6,8 @@ namespace unit\Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\NexusOperationState;
+use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -13,6 +15,7 @@ use Gplanchat\Durable\Observation\WorkflowRunEventKind;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
 use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Gplanchat\Durable\Port\NexusOperationCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\FrozenClock;
@@ -291,6 +294,22 @@ final class RunDashboardTest extends TestCase
         self::assertSame(['payments/billing/collect'], self::labels($view, 1));
     }
 
+    public function testTheRunSaysWhereEachNexusOperationIsServedAndWhetherItIsSettled(): void
+    {
+        // #671: the frieze names the operation; the page must also say whether the wait is over.
+        $operations = [new NexusOperationSummary('demo-shop-stock', 'stock', 'reserve', NexusOperationState::InFlight)];
+        $catalog = new NexusAwareRunCatalog(new FakeRunCatalog([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)]), $operations);
+
+        self::assertSame($operations, (new RunDashboard($catalog))->run('run-1')['run']['nexusOperations'] ?? null);
+    }
+
+    public function testACatalogThatCannotHoldNexusHasNoOperationsToShow(): void
+    {
+        $view = $this->viewOver([$this->describedRun('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running)])->run('run-1');
+
+        self::assertSame([], $view['run']['nexusOperations'] ?? null);
+    }
+
     public function testAnEventCarriesWhatTheBackendRecordedWithIt(): void
     {
         // The frieze answers "what". "With what" is the next question, every time: an activity's
@@ -500,5 +519,49 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
         ++$this->historyReads;
 
         return $this->history;
+    }
+}
+
+/**
+ * A catalog whose backend holds Nexus: the fake's runs, plus the operations it is handed.
+ */
+final class NexusAwareRunCatalog implements WorkflowRunCatalogInterface, NexusOperationCatalogInterface
+{
+    /**
+     * @param list<NexusOperationSummary> $operations
+     */
+    public function __construct(
+        private readonly FakeRunCatalog $runs,
+        private readonly array $operations,
+    ) {}
+
+    public function checkHealth(): BackendHealth
+    {
+        return $this->runs->checkHealth();
+    }
+
+    public function canFilterRuns(?WorkflowRunFilter $filter = null): bool
+    {
+        return $this->runs->canFilterRuns($filter);
+    }
+
+    public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
+    {
+        return $this->runs->listRuns($status, $cursor, $limit, $filter);
+    }
+
+    public function findRun(ExecutionId $executionId): ?WorkflowRunDescription
+    {
+        return $this->runs->findRun($executionId);
+    }
+
+    public function readHistory(WorkflowRunDescription $run): array
+    {
+        return $this->runs->readHistory($run);
+    }
+
+    public function readNexusOperations(WorkflowRunDescription $run): array
+    {
+        return $this->operations;
     }
 }

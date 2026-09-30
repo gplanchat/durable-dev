@@ -18,7 +18,7 @@ use Gplanchat\Durable\Uuid\UuidGeneratorInterface;
 use Gplanchat\Durable\Worker\WorkflowFiberDriver;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 
-final class ExecutionEngine
+final readonly class ExecutionEngine
 {
     public function __construct(
         private readonly EventStoreInterface $eventStore,
@@ -37,7 +37,7 @@ final class ExecutionEngine
      */
     public function start(string $executionId, callable $handler, ?string $workflowType = null, array $executionStartedPayloadExtras = [], array $pendingUpdates = []): mixed
     {
-        $this->workflowExecutionObserver?->onWorkflowRun($executionId, $workflowType ?? '(unknown)', false);
+        $this->workflowExecutionObserver?->onWorkflowRun(ExecutionId::fromString($executionId), $workflowType ?? '(unknown)', false);
 
         // Claimed before the history is read: a pass started after this one supersedes it (DUR053).
         $journal = PassEventStore::open($this->eventStore, $executionId);
@@ -65,7 +65,7 @@ final class ExecutionEngine
             if ($executionStartedPayloadExtras !== []) {
                 $startedPayload = array_merge($startedPayload, $executionStartedPayloadExtras);
             }
-            $journal->append(new ExecutionStarted($executionId, $startedPayload));
+            $journal->append(new ExecutionStarted(ExecutionId::fromString($executionId), $startedPayload));
         }
 
         return $this->runHandler($context, $this->createEnvironment($context), $handler, $journal);
@@ -79,7 +79,7 @@ final class ExecutionEngine
      */
     public function resume(string $executionId, callable $handler, ?string $workflowType = null, array $pendingUpdates = []): mixed
     {
-        $this->workflowExecutionObserver?->onWorkflowRun($executionId, $workflowType ?? '(unknown)', true);
+        $this->workflowExecutionObserver?->onWorkflowRun(ExecutionId::fromString($executionId), $workflowType ?? '(unknown)', true);
 
         // Claimed before the history is read: a pass started after this one supersedes it (DUR053).
         $journal = PassEventStore::open($this->eventStore, $executionId);

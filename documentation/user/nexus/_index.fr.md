@@ -80,6 +80,15 @@ final class Billing implements BillingServed
 }
 ```
 
+L'enregistrement du gestionnaire dépend de l'hôte. Sous Symfony, `#[AsNexusServiceHandler]` sur un
+service suffit : le bundle l'autoconfigure. Laravel ne trouve aucun gestionnaire par son
+attribut : il sert les classes listées dans `nexus.handlers` de `config/durable.php`, chacune sous
+la forme `gestionnaire => contrat`, ou la classe du gestionnaire seule, dont le
+`#[AsNexusServiceHandler]` nomme alors le contrat ([la forme en paire plus bas](#servir-est-du-travail-dhôte-et-ce-nest-pas-du-travail-symfony)).
+Magento liste chaque
+gestionnaire dans l'argument `nexusHandlers` de `RuntimeFactory` dans `di.xml`, et son
+`#[AsNexusServiceHandler]` nomme le contrat. Voir [qui enregistre quoi, par hôte](../getting-started/#déclarer-workflows-et-activités).
+
 ### Pourquoi le contrat vient en deux morceaux
 
 Une opération remplie par un workflow n'a pas de corps de gestionnaire : la plomberie démarre le
@@ -286,7 +295,7 @@ La raison est que les deux côtés ne sont pas symétriques :
   `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion ; aucun conteneur n'intervient.
 - **Servir** demande à l'hôte d'enregistrer des gestionnaires et de poller une file de tâches Nexus.
   C'est du travail d'hôte, écrit une fois par hôte : une passe de compilation en Symfony, un fichier
-  de configuration en Laravel, et, pour l'instant, rien en Magento.
+  de configuration en Laravel, un argument de `di.xml` en Magento.
 
 Cette asymétrie se voit dans la grappe : quatre namespaces, **trois endpoints**. Un endpoint dit où
 un service est servi, donc une application qui ne fait qu'appeler n'en a pas.
