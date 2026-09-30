@@ -156,7 +156,8 @@ No backend fails a second start today.
 - **Temporal**: `WorkflowClient::doStartWorkflow()` catches the `StartWorkflowExecution` error,
   and when `isWorkflowAlreadyStartedGrpcError()` matches (gRPC code 6, or a message containing
   "already running") it returns as if the start had succeeded (`src/Bridge/Temporal/WorkflowClient.php`,
-  lines 373 to 381 on `main` at c908668a). `startAsync()` then returns the execution id.
+  lines 373 to 381 on `main` at c908668a). `startAsync()` then returns the execution id, and
+  `startSync()`, which calls `doStartWorkflow()` too, waits for the running execution.
 - **Journal backends**: every dispatcher's `dispatchNewWorkflowRun()` calls
   `WorkflowMetadataStore::save()`, an upsert on DBAL and Illuminate and an array write in memory.
   A second start overwrites the first one's workflow type and input, resets `completed`, and
@@ -166,8 +167,9 @@ The client port fails the second start with the "already started" exception, nam
 leaves the first execution as it was. The change is scoped to the port. The engine's own path,
 `WorkflowResumeDispatcher::dispatchNewWorkflowRun()`, keeps its current behaviour, because a
 Messenger or queue redelivery of a start must stay harmless; on Temporal that path goes through
-`TemporalWorkflowResumeDispatcher` to `startAsync()`, so the swallowing moves out of
-`doStartWorkflow()` into `startAsync()`, and the port calls a variant that does not swallow.
+`TemporalWorkflowResumeDispatcher` to `startAsync()`. The swallowing moves out of
+`doStartWorkflow()` into its two public callers, `startAsync()` and `startSync()`, which keep their
+behaviour, and the port calls `doStartWorkflow()` through a variant that does not swallow.
 
 Code 6 is `ALREADY_EXISTS`. It is assumed, not probed, that the server also answers a start the id
 reuse policy refuses with code 6. If it does, Temporal ignores reuse refusals today, which breaks
@@ -192,13 +194,15 @@ starts and the second insert fails on the duplicate key, which the port reports 
 started execution. No lock store is involved, so the Laravel `durable.lock.store` setting has no
 bearing on it. A start that the id reuse policy allows after an ended execution is a conditional
 `UPDATE ... WHERE execution_id = ? AND completed = true`: one affected row wins, zero means another
-start came first. `completed` changes from true to false in that update, so MySQL's count of
+start came first. Every ending path of `ResumeWorkflowHandler` marks the row completed today
+(success, failure, cancellation, continue-as-new); the new `terminated` kind must as well.
+`completed` changes from true to false in that update, so MySQL's count of
 changed rows and SQLite's count of matched rows agree. The continue-as-new path keeps calling the
 upsert.
 
 In memory, an execution lives in one process, so two processes cannot start the same id; the port
-checks the map before writing. Magento runs the in-memory and Temporal backends on `main`; a SQL
-backend for Magento, when it lands, uses the same insert.
+checks the map before writing. Magento runs the in-memory and Temporal backends on `main`, and its
+README states that no SQL journal runs on `ResourceConnection`.
 
 ### Correlating an update with its result
 
@@ -230,10 +234,13 @@ for a field added to a journal event (`WorkflowSignalReceived::requestId`,
 
 ### An execution that continued as new
 
-The backends name the next run differently. On the journal backends, `ResumeWorkflowHandler`
-marks the old execution completed and starts the next run under a new execution id
-(`ContinueAsNewRequested::nextExecutionId`, or a generated one), recorded as
-`WorkflowContinuedAsNew::newExecutionId`. On Temporal, the next run keeps the workflow id and gets a
+The backends name the next run differently. On the journal backends,
+`EventStoreWorkflowLifecycle::onContinuedAsNew()` generates a new execution id and journals it as
+`WorkflowContinuedAsNew::newExecutionId`; on Symfony and Laravel, `ResumeWorkflowHandler` then
+marks the old execution completed and starts the next run under that id. Magento's in-memory
+backend runs `InMemoryWorkflowRunner`, which does not catch `ContinueAsNewRequested`: the event is
+journaled, the exception reaches the caller, and no next run starts. That is a host gap of its own,
+read on `main` and not run. On Temporal, the next run keeps the workflow id and gets a
 new run id; the command buffer writes the `durableExecutionId` memo onto it (#560). This is a parity
 gap between backends: `backend-data-parity` lists linking the runs of a chain on the SQL backends as
 tracked separately (proposal, "Not in scope"). This change does not close it.
@@ -245,6 +252,8 @@ The stub follows the chain, so the application sees the same outcome on every ba
   under the workflow id is already the last one.
 - `cancel()` and `terminate()` act on the current run of the chain, found the same way. They throw
   "already ended" only when the last run has ended.
+- On Magento's in-memory backend, where the next run named by `newExecutionId` never started, the
+  three calls fail with an exception that names both ids.
 - A journal written before #322 has `WorkflowContinuedAsNew` without `newExecutionId`. There, the
   three calls fail with an exception that names the execution and says the continuation cannot be
   followed. They do not wait for the bound.
@@ -255,8 +264,8 @@ The stub follows the chain, so the application sees the same outcome on every ba
 Both are on `main` (c908668a) on all four backends, so `get()` does not wait for the open change
 `openspec/changes/backend-data-parity`. On Temporal, `findRun()` matches on the `durableExecutionId`
 memo, and the command buffer writes it onto a continued run, so `get()` finds the current run of a
-chain without parity probe 0.4. The parts of that change still open (the cursor, the refusal of
-execution ids the Temporal derivation would alter) do not change what `get()` returns.
+chain without parity probe 0.4. The tasks of that change not yet checked off (the cursor, the
+refusal of execution ids the Temporal derivation would alter) do not change what `get()` returns.
 
 ### Start options on the journal backends
 

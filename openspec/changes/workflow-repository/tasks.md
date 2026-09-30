@@ -62,7 +62,8 @@ once per backend by hand.
       test case against a real server.
 - [ ] 3.2 Cancel and terminate.
 - [ ] 3.3 An already started workflow fails the port's start. The swallowing moves from
-      `doStartWorkflow()` to `startAsync()`, which the engine's dispatcher keeps calling.
+      `doStartWorkflow()` to `startAsync()` and `startSync()`, which keep their behaviour; the
+      engine's dispatcher keeps calling `startAsync()`.
 - [ ] 3.4 `TemporalExecutionHistory` pairs `WORKFLOW_EXECUTION_UPDATE_COMPLETED` with its
       accepted update by id instead of taking the last one.
 
@@ -75,7 +76,9 @@ once per backend by hand.
       queue, `whenHasAttribute(RepositoryFor::class)`.
 - [ ] 4.3 Magento: a dispatcher and the port, from `RuntimeFactory` on both of its backends;
       declared repositories only.
-- [ ] 4.4 Each bench drives one workflow through a repository: start, signal, query, result.
+- [ ] 4.4 Magento's in-memory backend: the stub's continue-as-new calls fail naming both ids
+      while `InMemoryWorkflowRunner` does not start the next run; an issue is opened for the gap.
+- [ ] 4.5 Each bench drives one workflow through a repository: start, signal, query, result.
 
 ## 5. PHPStan
 
@@ -97,7 +100,8 @@ once per backend by hand.
       (journal backends). That change has no Rector rule, since no call site changes.
 - [ ] 6.5 A Rector rule for the re-keying, in `src/DurableRector`, added to the `durable-upgrade`
       set: it unwraps `$client->signal($client->workflowId($id), ...)`, and the same for
-      `query()`, `update()` and `WorkflowClient::workflowIdOf()`, into the `ExecutionId`. It
+      `query()`, `update()`, into the `ExecutionId`; `WorkflowClient::workflowIdOf($string)`, which
+      takes a string, becomes `ExecutionId::fromString($string)`. It
       does not wrap a bare string: a string that already holds a workflow id would be prefixed a
       second time. Bare strings are listed in UPGRADE.md for a hand migration.
 - [ ] 6.6 A second model reviews the pages (CLAUDE.md, dispatch rule 3).
