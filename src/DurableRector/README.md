@@ -57,21 +57,43 @@ the `@param ActivityStub<Contract>` docblock that `gplanchat/durable-phpstan` re
 that stub in when it runs the workflow, and the reader sees the contract and its options in the
 signature.
 
-It rewrites a local variable assigned once, at the top of the workflow method, and a private
-property assigned once in the constructor and read only by that method. The contract must be a
-`Contract::class` constant. The options must be absent, `ActivityOptions::default()`, or
-`ActivityOptions::of()` with literal arguments only, because an attribute argument is a constant.
-`#[Activities]` checks its options when the workflow is registered, so a retry policy Temporal would
-refuse, such as a backoff coefficient under 1, now stops the registration instead of the first
-scheduling.
+It rewrites a `final` class only, and in it two shapes: a local variable assigned once, by a
+statement directly in the body of the workflow method (not nested in an `if` or a loop), and a
+private property assigned once in the constructor and read only by that method. The contract must be
+a `Contract::class` constant. The options must be absent, or `ActivityOptions::of()` with literal
+arguments only, because an attribute argument is a constant.
 
-It keeps the constructor form, which stays supported, wherever the attribute cannot carry the stub:
+Two things change for a rewritten class, and the [UPGRADE](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
+entry says what to do about them:
 
-- **options computed at run time**, such as a task queue named after a tenant, and `of()` arguments
-  given as value objects (`RetryLimit::once()`, `Duration::seconds()`), as an exception class
-  written as a string, or as an `activityId`, which the attribute has no field for;
+- **The workflow method gains a required parameter.** Durable supplies it, but a test that calls
+  the method directly must now pass a stub.
+- **The options are checked at registration**, not when the activity is scheduled. The workflow no
+  longer registers when `backoffCoefficient` is under 1, when `maximumInterval` is shorter than
+  `initialInterval` (1 second when not given), when a `nonRetryable` class is not a `\Throwable`, or
+  when the contract does not exist or declares no `#[AsActivityMethod]`.
+
+The rule writes the new parameter's type and attribute fully qualified, and leaves imports it made
+useless, such as `ActivityOptions`, in place. `->withImportNames(removeUnusedImports: true)` in your
+`rector.php` shortens the first and removes the second.
+
+It keeps the constructor form, which stays supported, wherever the attribute cannot carry the stub,
+or where the rewrite could change what runs:
+
+- **options the attribute cannot say the same way**: options computed at run time, such as a task
+  queue named after a tenant; `of()` arguments given as value objects (`RetryLimit::once()`,
+  `Duration::seconds()`), as an exception class written as a string, as an empty task queue, or as
+  an `activityId`, which the attribute has no field for; and `ActivityOptions::default()` or an
+  `of()` with no argument, because a bare `#[Activities]` builds the stub with no options at all,
+  and the Durable worker then retries a failed activity without backoff;
 - **a stub read outside the workflow method**: Durable calls a signal or update method with the
-  message payload only, and a helper method would need the stub passed in;
+  message payload only, and a helper method would need the stub passed in. A read inside a
+  `function () {}` closure or an anonymous class counts too, and so does a dynamic `$this->{$name}`
+  anywhere in the class;
+- **a variable with the stub's name** in the workflow method, such as an arrow function parameter,
+  a caught exception or a destructuring: it would take the stub's place;
+- **a class that is not `final`, or that calls its own workflow method**: a subclass may override
+  the method, and a call from inside the class would miss the new parameter;
 - **a workflow method declared by an interface or a parent class**: PHP forbids the implementation
   from adding a required parameter. A workflow migrated with `temporal-sdk.php` usually still
   implements its SDK contract, so it keeps the stub that `TemporalFacadeToEnvironmentRector` wrote

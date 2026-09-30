@@ -58,7 +58,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 /**
  * Moves an activity stub built with `$environment->activityStub()` to an `ActivityStub` parameter
  * of the workflow method, marked `#[Activities]`: the form the documentation shows first (#778).
- * Two shapes qualify: a local variable assigned once at the top of the workflow method, and a
+ * Two shapes qualify: a local variable assigned once, directly in the workflow method's body, and a
  * private property assigned once in the constructor and read only by that method.
  *
  * The constructor form stays supported, and is kept wherever the attribute cannot carry the stub:
