@@ -31,6 +31,14 @@ final class TheBackendBridgeIsSuggestedTest extends TestCase
         self::assertArrayHasKey('gplanchat/durable-bridge-temporal', $suggest);
     }
 
+    public function testTheFilamentDashboardIsSuggestedAndNeverRequired(): void
+    {
+        $composer = $this->composer();
+
+        self::assertArrayHasKey('gplanchat/durable-filament', $composer['suggest']);
+        self::assertArrayNotHasKey('gplanchat/durable-filament', $composer['require']);
+    }
+
     public function testTheLocksLiveInThePackageThatUsesThemOnEveryBackend(): void
     {
         self::assertTrue(class_exists(ResumeLock::class));

@@ -465,6 +465,29 @@ or is not a `Throwable`.
 **What to do:** pass `SomeException::class` rather than a string literal, and fix any name the
 analyser reports.
 
+### Laravel: `durable-laravel` no longer requires the Illuminate bridge (#845)
+
+`gplanchat/durable-laravel` required `gplanchat/durable-bridge-illuminate`, so a project on Temporal
+or in memory installed the SQL stores and their migrations. It now suggests the bridge, as it
+already suggested the Temporal bridge: you install the bridge of the backend you select. Two changes
+follow.
+
+- `ResumeLock` and `ActivityAttemptLock` move from `Gplanchat\Bridge\Illuminate\Queue` to
+  `Gplanchat\Durable\Laravel\Queue`. `durable-laravel` uses them on every backend, and they take a
+  cache lock, not SQL. Only code that type-hints or builds them is affected.
+- With `backend` set to `illuminate` (the default) and the bridge missing, the provider fails at
+  registration with `composer require gplanchat/durable-bridge-illuminate`.
+
+**What to do:**
+
+1. Run the Rector set, which renames the two classes (`vendor/bin/rector process src`), then clear
+   the application cache.
+2. On the `illuminate` backend, require the bridge yourself, since `composer update` no longer
+   brings it: `composer require gplanchat/durable-bridge-illuminate`. Its migrations and stores are
+   unchanged.
+3. On Temporal or in memory, you can remove the bridge if nothing else requires it:
+   `composer remove gplanchat/durable-bridge-illuminate`.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

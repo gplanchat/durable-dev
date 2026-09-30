@@ -177,8 +177,8 @@ choice in this package that silently forks a journal when it is wrong.** Use `da
 ## Not in this package
 
 - **A Filament dashboard.** `gplanchat/durable-filament` requires this package, and this package
-  never requires, suggests or detects Filament. A Laravel application without Filament hears
-  nothing about it — the same one-directional shape as `durable-plugin` against `durable-bundle`.
+  only suggests it in `composer.json`, and never requires or detects it. The dependency keeps one
+  direction, the same shape as `durable-plugin` against `durable-bundle`.
 The `temporal` backend used to be on this list, and it no longer is: `backend => 'temporal'` binds
 the journal and the catalogue to a cluster, `durable:temporal-worker` drains the workflow tasks,
 `durable:temporal-worker --role=activity` the activity tasks, and `durable:nexus-worker` serves the Nexus operations
