@@ -7,9 +7,13 @@ namespace Gplanchat\Durable\Bundle\Profiler;
 /**
  * Builds the time bounds of the profiler bars from real timestamps
  * ({@see \DateTimeImmutable} on the event store side, {@see microtime} on the process trace side).
+ *
+ * @internal
  */
 final class DurableProfilerTimeframe
 {
+    private function __construct() {}
+
     public const MIN_SEGMENT_SEC = 1e-6;
 
     /**

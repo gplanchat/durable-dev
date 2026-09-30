@@ -10,7 +10,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 /**
  * Receive-only: one {@see get()} long-polls a Temporal activity task and executes it via {@see TemporalActivityWorker}.
  */
-final class TemporalActivityWorkerTransport implements TransportInterface
+final readonly class TemporalActivityWorkerTransport implements TransportInterface
 {
     use ReceiveOnlyTransport;
 

@@ -25,7 +25,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
  *
  * @see WorkflowClientInterface::startAsync()
  */
-final class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
+final readonly class TemporalWorkflowResumeDispatcher implements WorkflowResumeDispatcher
 {
     public function __construct(
         private readonly WorkflowClientInterface $workflowClient,

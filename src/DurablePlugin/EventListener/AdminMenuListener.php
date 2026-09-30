@@ -11,7 +11,7 @@ namespace Gplanchat\Durable\Plugin\EventListener;
  * plugin require Sylius, and Sylius 2 does not run on Symfony 8, which the monorepo's root suite
  * tests (owner decision on #381, 2026-09-24). An unexpected payload is a no-op.
  */
-final class AdminMenuListener
+final readonly class AdminMenuListener
 {
     public function addDashboardItem(object $event): void
     {

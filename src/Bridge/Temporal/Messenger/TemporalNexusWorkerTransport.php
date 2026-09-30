@@ -14,7 +14,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  * already knows how to hold a loop, restart it, bound it in time and supervise it. A dedicated
  * console command would redo all of that less well.
  */
-final class TemporalNexusWorkerTransport implements TransportInterface
+final readonly class TemporalNexusWorkerTransport implements TransportInterface
 {
     use ReceiveOnlyTransport;
 

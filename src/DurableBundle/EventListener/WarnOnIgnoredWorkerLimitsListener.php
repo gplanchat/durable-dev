@@ -21,7 +21,7 @@ use Symfony\Component\Messenger\EventListener\StopWorkerOnMessageLimitListener;
  * Registered on the Temporal backend only: elsewhere these names are real transports, where the
  * limits work. Hooked on WorkerStartedEvent, which messenger:consume and durable:worker both reach.
  */
-final class WarnOnIgnoredWorkerLimitsListener
+final readonly class WarnOnIgnoredWorkerLimitsListener
 {
     public function __construct(
         private readonly DurableWorkerInspection $inspection,

@@ -21,7 +21,7 @@ use Illuminate\Database\Connection;
  * @see DUR021
  * @see DUR041
  */
-final class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
+final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly Connection $connection,

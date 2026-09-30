@@ -77,19 +77,15 @@ interface GreetingActivities
 #[AsWorkflow(name: 'greeting')]
 final class GreetingWorkflow
 {
-    /** @var ActivityStub<GreetingActivities> */
-    private readonly ActivityStub $greetings;
-
-    public function __construct(
-        private readonly WorkflowEnvironment $environment,
-    ) {
-        $this->greetings = $environment->activityStub(GreetingActivities::class);
-    }
-
+    /** @param ActivityStub<GreetingActivities> $greetings */
     #[AsWorkflowMethod]
-    public function run(string $name): string
-    {
-        return $this->environment->await($this->greetings->greet($name));
+    public function run(
+        string $name,
+        #[Activities(GreetingActivities::class)]
+        ActivityStub $greetings,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greetings->greet($name));
     }
 }
 ```
@@ -97,9 +93,9 @@ final class GreetingWorkflow
 > [!NOTE]
 > `run()` accepte aussi une fermeture qui reçoit l'environnement, et quelques tests plus bas s'en
 > servent pour un workflow de trois lignes qui ne vaut pas une classe. Cette forme est celle du
-> **harnais**, pas celle d'un workflow : depuis que l'environnement est passé au constructeur,
-> aucun vrai workflow n'a cette signature. Préférez `runWorkflowClass()`, ce que vous testez est
-> alors ce que vous livrez.
+> **harnais**, pas celle d'un workflow : une classe de workflow reçoit l'environnement et ses
+> stubs en paramètres de sa méthode de workflow, ou l'environnement par son constructeur. Préférez
+> `runWorkflowClass()`, ce que vous testez est alors ce que vous livrez.
 
 ### Les assertions de `DurableTestCase`
 

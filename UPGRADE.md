@@ -414,6 +414,36 @@ that reads `executionId()`.
 4. In a test, compare ids with `->toString()` or `->equals()`, not `assertSame()` on the objects:
    two value objects with the same id are equal, not identical.
 
+### Static helper classes can no longer be instantiated
+
+Classes that hold no state and only offer static methods now have a private constructor.
+`new ReadableDuration()` and the like used to succeed and gave an object with nothing to call on
+it. It now fails with `Error: Call to private ... ::__construct()`. Nothing in this repository
+instantiated them.
+
+- **Core:** `ActivityEventJournal`, `ActivityFailureEventFactory`,
+  `AsyncChildWorkflowFailureProjector`, `EventDataMapper`, `JournalAssertions`,
+  `NexusFulfilmentParameterNames`, `PendingTimers`, `ReadableDuration`, `RecordedDetails`,
+  `StoredTimestamp`, `TimerWakeDelayCalculator`, `WaitReason`, `WorkflowQueryEvaluator`.
+- **Temporal bridge:** `DurableSearchAttributes`, `GrpcUnary`, `JournalExecutionIdResolver`,
+  `JsonPlainPayload`, `TemporalActivityScheduleInput`.
+- **Symfony bundle:** the six `DependencyInjection\Loader` classes, `DurableProfilerEventPresentation`
+  and `DurableProfilerTimeframe`. `DbalStores::registerDbalRunCatalog()` and
+  `EventStores::registerTemporalEventStore()` are now private; only their own class called them.
+- **Filament:** `StatusColor`.
+
+Some of these classes are also tagged `@internal`: they are plumbing, not API, and may change in a
+minor release. Psalm reports a use from outside the `Gplanchat\` namespace. The tagged
+ones are `ActivityFailureEventFactory`, `AsyncChildWorkflowFailureProjector`,
+`AwaitableCancellation`, `AwaitableInspector`, `PendingTimers`, `StubArguments`,
+`WorkflowFailureClassifier`, the Temporal bridge's `GrpcWire`, `JsonGatewayRequest`,
+`TemporalActivityScheduleInput`, `TemporalPolicyMapper` and `UpdateProtocol`, the profiler's two
+classes, and `StatusColor`.
+
+**What to do:** call the static methods on the class, for example `ReadableDuration::of($seconds)`.
+If you used a class that is now `@internal`, open an issue describing the use: it tells us which
+part of it should become API.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

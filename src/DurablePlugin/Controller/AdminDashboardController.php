@@ -19,7 +19,7 @@ use Twig\Environment;
  * The page now does nothing but carry: the filter and the cursor to the catalogue, the view model
  * to the template. Everything that knew how to speak gRPC has moved to the Temporal bridge.
  */
-final class AdminDashboardController
+final readonly class AdminDashboardController
 {
     public function __construct(
         private readonly Environment $twig,

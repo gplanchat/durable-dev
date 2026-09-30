@@ -26,7 +26,7 @@ use Temporal\Api\History\V1\HistoryEvent;
  * @see TemporalEventConverter
  * @see DUR028
  */
-final class TemporalReadThroughEventStore implements EventStoreInterface
+final readonly class TemporalReadThroughEventStore implements EventStoreInterface
 {
     public function __construct(
         private readonly EventStoreInterface $localStore,

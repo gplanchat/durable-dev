@@ -29,7 +29,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * wrap everything that follows, including a `doctrine_transaction` — releasing it before the
  * commit would reopen the window it closes.
  */
-final class RegisterDurableMiddlewarePass implements CompilerPassInterface
+final readonly class RegisterDurableMiddlewarePass implements CompilerPassInterface
 {
     public const TAG = 'durable.messenger.middleware';
     public const BUSES_PARAMETER = 'durable.messenger.buses';

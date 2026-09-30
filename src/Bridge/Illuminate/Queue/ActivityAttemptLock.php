@@ -22,7 +22,7 @@ use Illuminate\Contracts\Cache\LockProvider;
  *
  * @see \Gplanchat\Bridge\Dbal\Messenger\LockActivityAttemptClaim the Symfony counterpart
  */
-final class ActivityAttemptLock implements ActivityAttemptClaimInterface
+final readonly class ActivityAttemptLock implements ActivityAttemptClaimInterface
 {
     public function __construct(
         private readonly LockProvider $locks,

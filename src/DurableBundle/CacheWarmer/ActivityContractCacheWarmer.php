@@ -10,7 +10,7 @@ use Symfony\Component\HttpKernel\CacheWarmer\CacheWarmerInterface;
 /**
  * Pre-loads the activity contract metadata into the cache during warmup.
  */
-final class ActivityContractCacheWarmer implements CacheWarmerInterface
+final readonly class ActivityContractCacheWarmer implements CacheWarmerInterface
 {
     /**
      * @param list<class-string> $contractClasses

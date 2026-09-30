@@ -13,7 +13,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
  * in the body and the status read from the trailers. Same port (7233), same protobuf messages,
  * so every RPC the bridge uses works here, task polling included.
  */
-final class CurlGrpcTransport implements GrpcTransport
+final readonly class CurlGrpcTransport implements GrpcTransport
 {
     public function __construct(private readonly TemporalConnection $connection) {}
 

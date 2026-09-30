@@ -24,7 +24,7 @@ use Illuminate\Contracts\Container\Container;
  * is the **type** of the workflow and not its class — that is the name the server knows and the
  * journal records.
  */
-final class DeclaredNexusOperations
+final readonly class DeclaredNexusOperations
 {
     /**
      * @param array<array-key, class-string> $handlers  handler => the contract it serves, or a

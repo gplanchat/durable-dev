@@ -19,7 +19,7 @@ use Temporal\Api\Workflowservice\V1\DescribeTaskQueueRequest;
  * connection cannot tell: its Nexus queue follows the workflow queue whether anyone serves Nexus
  * or not.
  */
-final class TemporalTaskQueueProbe
+final readonly class TemporalTaskQueueProbe
 {
     /** Short: a host page waits on it once per kind, and an unreachable server must not hang it. */
     private const TIMEOUT_US = 5_000_000;

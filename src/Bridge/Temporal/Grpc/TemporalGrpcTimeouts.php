@@ -8,7 +8,7 @@ namespace Gplanchat\Bridge\Temporal\Grpc;
  * Default gRPC call deadlines (microseconds) for Temporal {@see \Temporal\Api\Workflowservice\V1\WorkflowServiceClientInterface}.
  * Long polls require an explicit deadline; unary calls use a shorter default.
  */
-final class TemporalGrpcTimeouts
+final readonly class TemporalGrpcTimeouts
 {
     public const LONG_POLL_US = 120_000_000;
 

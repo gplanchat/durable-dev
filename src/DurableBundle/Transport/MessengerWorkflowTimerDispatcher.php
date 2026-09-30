@@ -20,7 +20,7 @@ use Symfony\Component\Messenger\Stamp\DispatchAfterCurrentBusStamp;
  * without it the wake-up is delivered in the middle of the pass under way, which then re-reads a
  * half-written journal.
  */
-final class MessengerWorkflowTimerDispatcher implements WorkflowTimerDispatcher
+final readonly class MessengerWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {
     public function __construct(
         private readonly MessageBusInterface $messageBus,

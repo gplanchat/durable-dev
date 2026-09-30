@@ -19,7 +19,7 @@ use Gplanchat\Durable\Port\ChildWorkflowRunnerInterface;
  * command built by {@see TemporalWorkflowCommandBuffer::scheduleChildWorkflow()} was reached by
  * no caller.
  */
-final class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
+final readonly class TemporalChildWorkflowRunner implements ChildWorkflowRunnerInterface
 {
     public function defersChildStart(): bool
     {

@@ -12,6 +12,8 @@ use Grpc\UnaryCall;
  */
 final class GrpcUnary
 {
+    private function __construct() {}
+
     /** @param UnaryCall<\Google\Protobuf\Internal\Message> $call */
     public static function wait(UnaryCall $call): object
     {

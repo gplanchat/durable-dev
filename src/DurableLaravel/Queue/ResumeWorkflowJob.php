@@ -30,7 +30,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * The price, and it is real: nothing bounds the deferral on the queue side any more. It is
  * `$deferrals` that bounds it here, and going over is noisy.
  */
-final class ResumeWorkflowJob implements ShouldQueue
+final readonly class ResumeWorkflowJob implements ShouldQueue
 {
     public function __construct(
         public readonly ResumeWorkflowMessage $message,

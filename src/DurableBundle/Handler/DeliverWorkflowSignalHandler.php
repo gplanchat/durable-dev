@@ -18,7 +18,7 @@ use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
  * journal: it appends nothing more, and still resumes, since the crash that caused the redelivery
  * may have come before the resume.
  */
-final class DeliverWorkflowSignalHandler
+final readonly class DeliverWorkflowSignalHandler
 {
     public function __construct(
         private readonly EventStoreInterface $eventStore,

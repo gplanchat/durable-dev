@@ -15,7 +15,7 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 /**
  * Records in the profiler every dispatch of ResumeWorkflowMessage (including to an asynchronous transport).
  */
-final class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
+final readonly class WorkflowRunDispatchProfilerMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly DurableExecutionTrace $trace,

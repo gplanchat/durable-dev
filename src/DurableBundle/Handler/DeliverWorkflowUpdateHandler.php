@@ -19,7 +19,7 @@ use Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage;
  * The pass is the one of {@see ResumeWorkflowHandler}: nothing of the lifecycle of an execution —
  * suspension, continue-as-new, closure, bubbling up to the parent — is rewritten here.
  */
-final class DeliverWorkflowUpdateHandler
+final readonly class DeliverWorkflowUpdateHandler
 {
     public function __construct(
         private readonly WorkflowResumeDispatcher $resumeDispatcher,

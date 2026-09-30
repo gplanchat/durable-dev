@@ -35,7 +35,7 @@ use Symfony\Component\DependencyInjection\Reference;
  * fails **earlier** and names the services at fault, which a registry has no means of doing; the
  * registry catches all the hosts the pass does not see.
  */
-final class NexusHandlerPass implements CompilerPassInterface
+final readonly class NexusHandlerPass implements CompilerPassInterface
 {
     public const TAG = 'durable.nexus_handler';
 

@@ -53,49 +53,78 @@ Déclarez **`OrderActivitiesHandler`** auprès de votre worker d'activités ou d
 
 ## Exemple : appeler une activité depuis un workflow
 
-Depuis le workflow, vous n'employez jamais **`OrderActivitiesHandler`** directement. Vous obtenez un stub de **`WorkflowEnvironment`** et vous **`await`** l'appel (le stub renvoie un **`Awaitable`**).
+Depuis le workflow, vous n'employez jamais **`OrderActivitiesHandler`** directement. Déclarez un
+stub du contrat en paramètre de la méthode de workflow, et faites **`await`** sur chaque appel. Un
+appel sur le stub renvoie un **`Awaitable`**. Durable construit le stub et le passe à la méthode ;
+le code qui démarre le workflow ne le passe jamais.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
 
-// À l'intérieur d'une #[AsWorkflowMethod] de votre classe de workflow :
-$activities = $this->environment->activityStub(OrderActivities::class);
-
-$receipt = $this->environment->await($activities->charge($orderId));
+/** @param ActivityStub<OrderActivities> $activities */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    #[Activities(OrderActivities::class)]
+    ActivityStub $activities,
+    WorkflowEnvironment $env,
+): string {
+    return $env->await($activities->charge($orderId));
+}
 ```
+
+Certains workflows construisent le stub eux-mêmes avec `$env->activityStub(OrderActivities::class)` :
+voyez [Quand construire le stub soi-même](../workflows/#when-to-build-the-stub-yourself).
 
 Le type **`ActivityStub`** (voir [Écrire un workflow](../workflows/) pour la note de nommage sur **ActivityInvoker**) résout les noms de méthode par réflexion sur **`OrderActivities`** et construit les charges utiles **`#[AsActivityMethod]`**.
 
 ## `ActivityOptions` : délais, réessais, file de tâches {#activityoptions-timeouts-retries-task-queue}
 
-Passez des **`ActivityOptions`** en **second argument** d'**`activityStub()`**. Tous les **`Awaitable`** que ce stub renvoie emploieront ces réglages au moment de planifier l'activité.
-
-Limites de réessai et durées sont des **objets valeur**, pas des nombres ; voir [Options et objets valeur](../options/).
+Donnez les options à **`#[Activities]`**. Tous les **`Awaitable`** que ce stub renvoie les
+emploient au moment de planifier l'activité. Un argument d'attribut ne peut pas appeler de
+constructeur : les durées s'écrivent donc en secondes.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-use Gplanchat\Durable\Activity\ActivityOptions;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\WorkflowEnvironment;
 
-// 5 tentatives, 120 s chacune, 2 s avant le premier réessai.
-$options = ActivityOptions::of(
-    5,
-    120,
-    2,
-    [PaymentRefusedException::class],
-    summary: 'Charge order payment',
-);
-
-$activities = $this->environment->activityStub(OrderActivities::class, $options);
-
-$result = $this->environment->await($activities->charge($orderId));
+/** @param ActivityStub<OrderActivities> $activities */
+#[AsWorkflowMethod]
+public function run(
+    string $orderId,
+    // 5 tentatives, 120 s chacune, 2 s avant le premier réessai.
+    #[Activities(
+        OrderActivities::class,
+        attempts: 5,
+        startToClose: 120.0,
+        initialInterval: 2.0,
+        nonRetryable: [PaymentRefusedException::class],
+        summary: 'Charge order payment',
+    )]
+    ActivityStub $activities,
+    WorkflowEnvironment $env,
+): string {
+    return $env->await($activities->charge($orderId));
+}
 ```
+
+Quand les options dépendent de l'entrée du workflow, construisez-les sous forme d'objet valeur
+**`ActivityOptions`** et passez-le en second argument de `$env->activityStub()`. Limites de réessai
+et durées sont alors des **objets valeur**, pas des nombres ; voyez
+[Options et objets valeur](../options/).
 
 > [!WARNING]
 > Sans `RetryLimit`, les tentatives sont **illimitées**, c'est le défaut de Temporal. Une activité
@@ -111,38 +140,37 @@ $result = $this->environment->await($activities->charge($orderId));
 > composé. Prenez `ActivityTimeouts` pour borner une tentative, et une échéance pour borner tout le
 > reste. Voir [Borner une attente dans le temps](../workflows/#bounding-a-wait-in-time).
 
-Créez des **stubs distincts** quand deux appels ont besoin de politiques différentes : l'un avec
+Déclarez des **stubs distincts** quand deux appels ont besoin de politiques différentes : l'un avec
 des réessais agressifs pour un appel HTTP capricieux, l'autre avec des délais plus stricts pour un
 chemin rapide :
 
 ```php
-/** @var ActivityStub<SearchActivities> */
-private readonly ActivityStub $flaky;
-
-/** @var ActivityStub<PricingActivities> */
-private readonly ActivityStub $strict;
-
-// … dans le constructeur :
-$this->flaky  = $env->activityStub(SearchActivities::class, ActivityOptions::of(
-    10,
-    initialInterval: Duration::milliseconds(200),
-));
-
-$this->strict = $env->activityStub(PricingActivities::class, ActivityOptions::of(
-    RetryLimit::once(),
-    timeouts: 2,
-));
+/**
+ * @param ActivityStub<SearchActivities>  $flaky
+ * @param ActivityStub<PricingActivities> $strict
+ */
+#[AsWorkflowMethod]
+public function run(
+    string $query,
+    #[Activities(SearchActivities::class, attempts: 10, initialInterval: 0.2)]
+    ActivityStub $flaky,
+    #[Activities(PricingActivities::class, attempts: 1, startToClose: 2.0)]
+    ActivityStub $strict,
+    WorkflowEnvironment $env,
+): array {
+    // ...
+}
 ```
 
 > [!NOTE]
-> Déclarer la propriété **`readonly`** est ce qui permet à
+> Le docblock **`@param ActivityStub<Contrat>`** est ce qui permet à
 > [`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) de vérifier les
-> appels que vous passez par le stub : PHPStan déduit le contrat depuis `activityStub()` et sait le
-> suivre jusqu'au site d'appel. Une propriété mutable le lui fait perdre, et il faut alors un
-> `/** @var ActivityStub<Contrat> */` explicite. Dans tous les cas, un contrat qu'il ne peut pas
-> résoudre laisse l'appel inconnu de l'analyseur, jamais silencieusement accepté. Un
-> [argument `#[Activities]`](../workflows/#arguments-durable-supplies) a besoin de son docblock
-> `@param ActivityStub<Contrat>` pour la même raison.
+> appels que vous passez par le stub. PHP n'a pas de génériques à l'exécution : l'attribut nomme le
+> contrat pour Durable, le docblock le nomme pour PHPStan, et l'extension signale un docblock qui
+> nomme un autre contrat que l'attribut. Un stub que vous construisez vous-même dans une propriété
+> **`readonly`** n'a pas besoin de docblock : PHPStan déduit le contrat depuis `activityStub()`.
+> Dans tous les cas, un contrat qu'il ne peut pas résoudre laisse l'appel inconnu de l'analyseur,
+> jamais silencieusement accepté.
 
 
 ## Idempotence

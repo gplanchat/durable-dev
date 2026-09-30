@@ -22,7 +22,7 @@ use Gplanchat\Durable\Observation\WorkflowRunWaitProjectionInterface;
  * @see openspec/changes/backend-neutral-workflow-dashboard/design.md
  * @see DUR030
  */
-final class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
+final readonly class DbalWorkflowRunProjection implements WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
 {
     public function __construct(
         private readonly Connection $connection,

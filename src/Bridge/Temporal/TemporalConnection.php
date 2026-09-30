@@ -11,7 +11,7 @@ use Gplanchat\Durable\WorkflowNamespace;
  * Single Temporal connection (target, namespace, TLS, identity) + settings for the various
  * accesses (journal worker, application queues, transitional Messenger delegation).
  */
-final class TemporalConnection
+final readonly class TemporalConnection
 {
     public const DEFAULT_JOURNAL_TASK_QUEUE = 'durable-journal';
 

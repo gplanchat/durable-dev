@@ -21,7 +21,7 @@ use Symfony\Component\DependencyInjection\Reference;
  * connections, HTTP clients and other dependencies, in order to call one. On a worker that handles
  * one activity per message, that is paid on every message.
  */
-final class ActivityHandlerPass implements CompilerPassInterface
+final readonly class ActivityHandlerPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {

@@ -16,15 +16,16 @@ use Illuminate\Contracts\Container\Container;
  * `#[AsActivityHandler]` names, else the handler's activity interfaces. The table is built by
  * reflection when the provider registers; a handler is built only when one of its activities runs.
  */
-final class DeclaredActivityHandlers
+final readonly class DeclaredActivityHandlers
 {
     /** @var array<string, array{class-string, class-string, string}> activity => handler, contract, method */
-    private array $table = [];
+    private array $table;
 
     /** @param list<string> $handlers */
     public function __construct(array $handlers)
     {
         $resolver = new ActivityContractResolver();
+        $table = [];
 
         foreach ($handlers as $handler) {
             if (!class_exists($handler)) {
@@ -37,7 +38,7 @@ final class DeclaredActivityHandlers
                     if (!method_exists($handler, $method)) {
                         throw new \InvalidArgumentException(\sprintf('Durable: %s must implement %s::%s(), the contract its #[AsActivityHandler] names.', $handler, $contract, $method));
                     }
-                    $this->table[$activity] = [$handler, $contract, $method];
+                    $table[$activity] = [$handler, $contract, $method];
                     ++$served;
                 }
             }
@@ -51,6 +52,8 @@ final class DeclaredActivityHandlers
                 ));
             }
         }
+
+        $this->table = $table;
     }
 
     public function registerInto(RegistryActivityExecutor $executor, Container $container): RegistryActivityExecutor

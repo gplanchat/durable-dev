@@ -288,10 +288,31 @@ public function run(
   `backoffCoefficient` inférieur à 1, un `maximumInterval` plus court que le premier délai de
   réessai, une entrée non rejouable qui n'est pas une exception. Le message nomme le paramètre et l'option.
 
-La forme par constructeur reste valable. C'est celle qu'il faut quand la classe implémente une
-interface de contrat (facultative, mais utile pour les tests et le typage) : PHP n'autorise pas
-l'implémentation à ajouter des paramètres obligatoires à `run()`, donc l'environnement passe par le
-constructeur et le stub se construit à partir de lui :
+### Quand construire le stub soi-même {#when-to-build-the-stub-yourself}
+
+Injectez les stubs en arguments par défaut. Construisez-en un avec `$env->activityStub()` dans les
+cas suivants, où l'attribut ne peut pas exprimer ce dont vous avez besoin :
+
+- **La classe implémente une interface de contrat de workflow.** PHP n'autorise pas
+  l'implémentation à ajouter des paramètres obligatoires à `run()` : l'environnement passe par le
+  constructeur et le stub se construit à partir de lui. Voyez l'exemple ci-dessous.
+- **Les options dépendent de l'entrée du workflow**, par exemple une file de tâches au nom d'un
+  client. Un argument d'attribut est une constante : construisez un objet valeur `ActivityOptions`
+  et passez-le en second argument d'`activityStub()`. Voyez
+  [`ActivityOptions` sur le stub](#activityoptions-sur-le-stub).
+- **Une méthode de signal ou d'update a besoin du stub.** Durable appelle ces méthodes avec la
+  seule charge utile du message : le stub vient d'une propriété construite dans le constructeur.
+- **Une méthode privée d'aide appelle l'activité.** Passez-lui le stub injecté en argument, ou
+  gardez le stub dans une propriété construite dans le constructeur.
+- **Le workflow est une fermeture** exécutée par le harnais de test
+  (`WorkflowTestEnvironment::run()`) : elle ne reçoit que l'environnement. Voyez
+  [Tester des workflows](../testing/).
+- **Le stub est un stub Nexus ou un stub de workflow enfant.** Durable n'injecte que
+  `WorkflowEnvironment` et `ActivityStub` ; construisez ceux-là avec `$env->nexusStub()` et
+  `$env->childWorkflowStub()`.
+
+La forme par constructeur avec une interface de contrat (facultative, mais utile pour les tests et
+le typage) :
 
 ```php
 /** Contrat métier. Aucun attribut requis sur l'interface. */
@@ -320,13 +341,17 @@ final class OrderWorkflow implements OrderWorkflowContract
 
 ### `ActivityOptions` sur le stub
 
-Pour appliquer **réessais**, **délais**, **file de tâches** et métadonnées de planification voisines à tous les appels passant par un stub donné, passez des **`ActivityOptions`** en second argument d'**`activityStub()`** :
+Pour appliquer **réessais**, **délais**, **file de tâches** et métadonnées de planification
+voisines à tous les appels passant par un stub donné, donnez-les à **`#[Activities]`** sous forme de
+scalaires, comme dans [Les arguments que fournit Durable](#arguments-durable-supplies). Quand ils
+dépendent de l'entrée du workflow, passez un objet valeur **`ActivityOptions`** en second argument
+d'**`activityStub()`** :
 
 ```php
 use Gplanchat\Durable\Activity\ActivityOptions;
 
-$options = ActivityOptions::of(5, 120);   // 5 tentatives, 120 s chacune
-$activities = $this->environment->activityStub(OrderActivities::class, $options);
+$options = ActivityOptions::of(5, 120, taskQueue: "payments-{$tenant}");   // 5 tentatives, 120 s chacune
+$activities = $env->activityStub(OrderActivities::class, $options);
 ```
 
 D'autres cas de figure dans [Écrire des activités : ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue),

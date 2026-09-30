@@ -21,7 +21,7 @@ use Symfony\Component\Lock\LockFactory;
  * ponytail: the claim is not refreshed while the activity runs, so an attempt longer than the TTL
  * can be started again by a copy; refresh from the activity heartbeat if that ever matters.
  */
-final class LockActivityAttemptClaim implements ActivityAttemptClaimInterface
+final readonly class LockActivityAttemptClaim implements ActivityAttemptClaimInterface
 {
     public function __construct(
         private readonly LockFactory $lockFactory,

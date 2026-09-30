@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\EventListener\ResetServicesListener;
  * run waits on `ActivityScheduled` for good. No use of that combination is correct, so it stops
  * here, before the first message, with both ways out.
  */
-final class RefuseResetOnInMemoryTransportListener
+final readonly class RefuseResetOnInMemoryTransportListener
 {
     public function __construct(
         private readonly DurableWorkerInspection $inspection,

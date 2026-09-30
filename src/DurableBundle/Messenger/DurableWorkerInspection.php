@@ -22,7 +22,7 @@ use Symfony\Component\Messenger\Transport\Sync\SyncTransport;
  * services-reset listener unless `--no-reset`, a message-limit listener for `--limit`, a
  * failure-limit listener for `--failure-limit`. {@see hasRunListener()} reads them back.
  */
-final class DurableWorkerInspection
+final readonly class DurableWorkerInspection
 {
     private const TEMPORAL_RECEIVERS = ['durable_workflows', 'durable_activities', 'durable_nexus'];
 

@@ -49,7 +49,7 @@ use PHPStan\Reflection\MethodsClassReflectionExtension;
  * the intended behaviour: the stub already refuses it at runtime, and the analysis now says so
  * beforehand.
  */
-final class StubMethodsExtension implements MethodsClassReflectionExtension
+final readonly class StubMethodsExtension implements MethodsClassReflectionExtension
 {
     /**
      * The stub, and the attribute that makes a contract method callable through it.

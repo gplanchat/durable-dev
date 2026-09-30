@@ -16,7 +16,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  * property through the static `Duration::zero()`, a new Duration on every call, and recurses
  * without end (#643).
  */
-final class DurationNormalizer implements NormalizerInterface, DenormalizerInterface
+final readonly class DurationNormalizer implements NormalizerInterface, DenormalizerInterface
 {
     private const INFINITY = 'infinity';
 

@@ -31,7 +31,7 @@ use Gplanchat\Durable\Store\StoredTimestamp;
  *
  * @see DUR030
  */
-final class DbalEventStore implements FencedEventStoreInterface
+final readonly class DbalEventStore implements FencedEventStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,

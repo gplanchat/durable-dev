@@ -80,6 +80,12 @@ url = 'https://github.com/gplanchat/durable-dev/tree/main/documentation/adr'
 weight = 20
 
 [markup]
+[markup.highlight]
+# Classes, not colours: `.chroma` in assets/_custom.scss colours code from the design's tokens,
+# which follow the light and dark themes. Hugo's default writes Monokai inline, and an inline style
+# wins over the stylesheet, so every code block stayed dark on a light page.
+noClasses = false
+
 [markup.goldmark.renderer]
 unsafe = true
 

@@ -75,19 +75,15 @@ interface GreetingActivities
 #[AsWorkflow(name: 'greeting')]
 final class GreetingWorkflow
 {
-    /** @var ActivityStub<GreetingActivities> */
-    private readonly ActivityStub $greetings;
-
-    public function __construct(
-        private readonly WorkflowEnvironment $environment,
-    ) {
-        $this->greetings = $environment->activityStub(GreetingActivities::class);
-    }
-
+    /** @param ActivityStub<GreetingActivities> $greetings */
     #[AsWorkflowMethod]
-    public function run(string $name): string
-    {
-        return $this->environment->await($this->greetings->greet($name));
+    public function run(
+        string $name,
+        #[Activities(GreetingActivities::class)]
+        ActivityStub $greetings,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greetings->greet($name));
     }
 }
 ```
@@ -95,8 +91,9 @@ final class GreetingWorkflow
 > [!NOTE]
 > `run()` also accepts a closure receiving the environment, and a few tests below use it for a
 > three-line workflow that is not worth a class. That form is the **harness's** shape, not a
-> workflow's: since the environment moved to the constructor, no real workflow has that
-> signature. Prefer `runWorkflowClass()`, so that what you test is what you ship.
+> workflow's: a workflow class receives the environment and its stubs as parameters of its
+> workflow method, or the environment through its constructor. Prefer `runWorkflowClass()`, so
+> that what you test is what you ship.
 
 ### Available assertions in `DurableTestCase`
 

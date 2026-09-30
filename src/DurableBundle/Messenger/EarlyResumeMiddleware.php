@@ -30,7 +30,7 @@ use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
  *
  * ponytail: reads the first handler's failure only; a resume has one handler.
  */
-final class EarlyResumeMiddleware implements MiddlewareInterface
+final readonly class EarlyResumeMiddleware implements MiddlewareInterface
 {
     public const MAX_RETRIES = 10;
 

@@ -36,7 +36,7 @@ use Illuminate\Database\QueryException;
  * @see DUR030
  * @see DUR041
  */
-final class IlluminateEventStore implements FencedEventStoreInterface
+final readonly class IlluminateEventStore implements FencedEventStoreInterface
 {
     public function __construct(
         private readonly Connection $connection,

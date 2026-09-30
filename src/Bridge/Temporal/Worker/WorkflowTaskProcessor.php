@@ -25,7 +25,7 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
  * back via RespondWorkflowTaskCompleted, along with the protocol messages that accompany them
  * ({@see UpdateProtocol}).
  */
-final class WorkflowTaskProcessor
+final readonly class WorkflowTaskProcessor
 {
     public function __construct(
         private readonly WorkflowServiceClientInterface $client,

@@ -13,7 +13,7 @@ use Symfony\Component\Messenger\Event\WorkerStartedEvent;
  * only when it is, and heard when a worker starts: that is where the journal is written, and where
  * the operator reads the logs. A warning, not a refusal: the worker runs as it would have.
  */
-final class WarnOnSharedJournalConnectionListener
+final readonly class WarnOnSharedJournalConnectionListener
 {
     public function __construct(
         private readonly LoggerInterface $logger,

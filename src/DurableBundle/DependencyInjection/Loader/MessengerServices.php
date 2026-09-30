@@ -42,6 +42,8 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  */
 final class MessengerServices
 {
+    private function __construct() {}
+
     /**
      * @param array<string, mixed> $config
      */

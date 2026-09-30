@@ -23,7 +23,7 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * boot: on `sync`, `push()` runs the job on the spot, and a resume that dispatches another one
  * would recurse in the same process until the stack ends.
  */
-final class LaravelWorkflowResumeDispatcher implements WorkflowResumeDispatcher
+final readonly class LaravelWorkflowResumeDispatcher implements WorkflowResumeDispatcher
 {
     public function __construct(
         private readonly QueueFactory $queue,

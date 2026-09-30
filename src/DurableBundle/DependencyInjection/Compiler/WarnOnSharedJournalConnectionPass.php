@@ -18,7 +18,7 @@ use Symfony\Component\Messenger\Event\WorkerStartedEvent;
  * DoctrineBundle sets, and the journal may name the same connection by its own id
  * (`doctrine.dbal.app_connection`). Only the merged container can tell the two apart.
  */
-final class WarnOnSharedJournalConnectionPass implements CompilerPassInterface
+final readonly class WarnOnSharedJournalConnectionPass implements CompilerPassInterface
 {
     private const DEFAULT_CONNECTION = 'doctrine.dbal.default_connection';
 

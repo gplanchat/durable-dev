@@ -15,7 +15,7 @@ use Gplanchat\Bridge\Temporal\Store\TemporalTaskQueueProbe;
  * The bundle names the roles that poll the cluster: workflow and activity when Temporal holds the
  * journal, nexus once a handler is declared. A role's values are {@see TaskQueueKind}'s.
  */
-final class WorkerPresence
+final readonly class WorkerPresence
 {
     /** A live worker polls about once a minute, and the server keeps a stopped one listed for minutes. */
     public const SILENCE_SECONDS = 120;

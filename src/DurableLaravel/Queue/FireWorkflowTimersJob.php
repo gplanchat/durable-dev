@@ -26,7 +26,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * `max_deferrals` cap — the lock's TTL bounds a dead holder. Count deferrals here if a hot timer
  * ever needs that cap.
  */
-final class FireWorkflowTimersJob implements ShouldQueue
+final readonly class FireWorkflowTimersJob implements ShouldQueue
 {
     public function __construct(
         public readonly FireWorkflowTimersMessage $message,

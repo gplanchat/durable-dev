@@ -57,6 +57,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class EventStores
 {
+    private function __construct() {}
+
     public static function registerChildWorkflowParentLinkStore(ContainerBuilder $container): void
     {
         $container->register('durable.child_workflow_parent_link_store', InMemoryChildWorkflowParentLinkStore::class);
@@ -68,7 +70,7 @@ final class EventStores
      *
      * @param array<string, mixed> $temporalConfig
      */
-    public static function registerTemporalEventStore(ContainerBuilder $container, array $temporalConfig, string $dsn, bool $journal): void
+    private static function registerTemporalEventStore(ContainerBuilder $container, array $temporalConfig, string $dsn, bool $journal): void
     {
         $container->register('durable.temporal.connection', TemporalConnection::class)
             ->setFactory([TemporalConnection::class, 'fromDsn'])

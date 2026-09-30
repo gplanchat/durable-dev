@@ -21,6 +21,8 @@ use Gplanchat\Durable\SearchAttributes;
  */
 final class DurableSearchAttributes
 {
+    private function __construct() {}
+
     public const WORKFLOW_NAME = 'DurableWorkflowName';
     public const EXECUTION_ID = 'DurableExecutionId';
 

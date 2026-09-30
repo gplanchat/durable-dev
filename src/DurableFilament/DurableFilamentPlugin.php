@@ -14,7 +14,7 @@ use Gplanchat\Durable\Filament\Pages\Runs;
  *
  * It observes and never runs a workflow. `Plugin` has the same three methods on Filament 3 and 4.
  */
-final class DurableFilamentPlugin implements Plugin
+final readonly class DurableFilamentPlugin implements Plugin
 {
     public static function make(): self
     {

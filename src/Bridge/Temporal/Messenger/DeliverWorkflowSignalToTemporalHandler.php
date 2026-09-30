@@ -13,7 +13,7 @@ use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
  * workflow task that delivers it. The journal-side handler would append to a local store nobody
  * replays and ask for a resume nothing performs.
  */
-final class DeliverWorkflowSignalToTemporalHandler
+final readonly class DeliverWorkflowSignalToTemporalHandler
 {
     public function __construct(
         private readonly WorkflowClientInterface $client,

@@ -20,7 +20,7 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * making progress; an exception names the execution and the number of attempts, which shows up in
  * `failed_jobs`.
  */
-final class ResumeDeferral
+final readonly class ResumeDeferral
 {
     public function __construct(
         private readonly int $backoffSeconds = 1,

@@ -33,7 +33,7 @@ use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
  * To be used with tasks scheduled by {@see \Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor}
  * and a {@see \Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput} input.
  */
-final class TemporalActivityWorker
+final readonly class TemporalActivityWorker
 {
     /** gRPC NOT_FOUND: the task token is stale (activity timed out / workflow already closed). */
     private const GRPC_NOT_FOUND = 5;

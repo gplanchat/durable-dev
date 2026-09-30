@@ -18,7 +18,7 @@ use Illuminate\Contracts\Queue\Factory as QueueFactory;
  * waiting less than asked is the only error that counts — a workflow woken too early resumes
  * before its deadline.
  */
-final class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
+final readonly class LaravelWorkflowTimerDispatcher implements WorkflowTimerDispatcher
 {
     public function __construct(
         private readonly QueueFactory $queue,

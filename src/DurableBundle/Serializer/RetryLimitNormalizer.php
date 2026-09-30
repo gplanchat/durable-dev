@@ -16,7 +16,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  * reads that property through the static `RetryLimit::unlimited()`, a new RetryLimit on every
  * call, and recurses without end (#643).
  */
-final class RetryLimitNormalizer implements NormalizerInterface, DenormalizerInterface
+final readonly class RetryLimitNormalizer implements NormalizerInterface, DenormalizerInterface
 {
     /**
      * @param array<string, mixed> $context

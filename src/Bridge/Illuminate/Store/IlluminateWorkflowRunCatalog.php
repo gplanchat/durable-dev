@@ -39,7 +39,7 @@ use Illuminate\Database\Query\Builder;
  * @see DUR037 observing a run is a projection
  * @see DUR041
  */
-final class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
+final readonly class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogInterface, WorkflowRunProjectionInterface, WorkflowRunPickupProjectionInterface, WorkflowRunWaitProjectionInterface
 {
     private const BACKEND = 'Laravel database';
 

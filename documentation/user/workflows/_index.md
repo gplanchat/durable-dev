@@ -279,10 +279,27 @@ public function run(
   negative duration, a heartbeat longer than `startToClose`, a `backoffCoefficient` below 1, a
   `maximumInterval` shorter than the first retry delay, a non-retryable entry that is no exception. The message names the parameter and the option.
 
-The constructor form keeps working. It is the one to use when the class implements a contract
-interface (optional, but useful for tests and typing): PHP does not let the implementation add
-required parameters to `run()`, so the environment comes through the constructor and the stub is
-built from it:
+### When to build the stub yourself
+
+Inject stubs as arguments by default. Build one with `$env->activityStub()` in these cases, where
+the attribute cannot express what you need:
+
+- **The class implements a workflow contract interface.** PHP does not let the implementation add
+  required parameters to `run()`, so the environment comes through the constructor and the stub is
+  built from it. See the example below.
+- **The options depend on the workflow's input**, such as a task queue named after a tenant. An
+  attribute argument is a constant, so build an `ActivityOptions` value object and pass it as the
+  second argument of `activityStub()`. See [ActivityOptions on the stub](#activityoptions-on-the-stub).
+- **A signal or update method needs the stub.** Durable calls those methods with the message's
+  payload only, so the stub comes from a property built in the constructor.
+- **A private helper method calls the activity.** Pass it the injected stub as an argument, or keep
+  the stub in a property built in the constructor.
+- **The workflow is a closure** run by the test harness (`WorkflowTestEnvironment::run()`): it
+  receives the environment only. See [Testing workflows](../testing/).
+- **The stub is a Nexus stub or a child workflow stub.** Durable injects `WorkflowEnvironment` and
+  `ActivityStub` only; build these with `$env->nexusStub()` and `$env->childWorkflowStub()`.
+
+The constructor form with a contract interface (optional, but useful for tests and typing):
 
 ```php
 /** Domain contract. No attributes required on the interface. */
@@ -311,13 +328,16 @@ final class OrderWorkflow implements OrderWorkflowContract
 
 ### ActivityOptions on the stub
 
-To apply **retries**, **timeouts**, **task queue**, and related scheduling metadata to every call made through a given stub, pass **`ActivityOptions`** as the second argument to **`activityStub()`**:
+To apply **retries**, **timeouts**, **task queue**, and related scheduling metadata to every call
+made through a given stub, give them to **`#[Activities]`** as scalars, as shown in
+[Arguments Durable supplies](#arguments-durable-supplies). When they depend on the workflow's
+input, pass an **`ActivityOptions`** value object as the second argument to **`activityStub()`**:
 
 ```php
 use Gplanchat\Durable\Activity\ActivityOptions;
 
-$options = ActivityOptions::of(5, 120);   // 5 attempts, 120s each
-$activities = $this->environment->activityStub(OrderActivities::class, $options);
+$options = ActivityOptions::of(5, 120, taskQueue: "payments-{$tenant}");   // 5 attempts, 120s each
+$activities = $env->activityStub(OrderActivities::class, $options);
 ```
 
 More patterns are in [Creating activities: ActivityOptions](../activities/#activityoptions-timeouts-retries-task-queue),

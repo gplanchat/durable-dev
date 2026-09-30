@@ -37,7 +37,7 @@ use Symfony\Component\Lock\Store\StoreFactory;
  *
  * ponytail: a `CombinedStore` (several stores for one resource) is not inspected.
  */
-final class RequireLockFactoryPass implements CompilerPassInterface
+final readonly class RequireLockFactoryPass implements CompilerPassInterface
 {
     private const LOCK_SERVICE = 'durable.dbal.single_resume_lock';
 

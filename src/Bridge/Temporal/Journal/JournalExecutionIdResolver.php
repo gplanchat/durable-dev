@@ -12,6 +12,8 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
  */
 final class JournalExecutionIdResolver
 {
+    private function __construct() {}
+
     public const MEMO_KEY_DURABLE_EXECUTION_ID = 'durableExecutionId';
 
     /** What a suspended run last waited on, in the core's words (#514), upserted at each suspension. */
