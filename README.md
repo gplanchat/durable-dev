@@ -68,7 +68,7 @@ composer config prefer-stable true
 | Symfony, one SQL database | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-dbal` |
 | Symfony, Temporal cluster | `composer require gplanchat/durable-bundle gplanchat/durable-bridge-temporal` |
 | Sylius | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
-| Laravel, one SQL database | `composer require gplanchat/durable-laravel`, then `php artisan migrate` and `php artisan vendor:publish --tag=durable-config` |
+| Laravel, one SQL database | `composer require gplanchat/durable-laravel gplanchat/durable-bridge-illuminate`, then `php artisan migrate` and `php artisan vendor:publish --tag=durable-config` |
 | Laravel, Temporal cluster | `composer require gplanchat/durable-laravel gplanchat/durable-bridge-temporal`, publish the config, then set `backend` to `temporal` and fill the `temporal` DSN in `config/durable.php` |
 | Magento 2.4 or Mage-OS, Temporal cluster | `composer require gplanchat/durable-magento gplanchat/durable-bridge-temporal` |
 | No framework, or unit tests only | `composer require gplanchat/durable` |
@@ -76,8 +76,8 @@ composer config prefer-stable true
 On Symfony and Sylius, add `composer config extra.symfony.allow-contrib true` before the `require`,
 so Flex registers the bundle. The Symfony SQL database line also needs DoctrineBundle (with
 `doctrine/orm`) and the Doctrine Messenger transport, which
-[Getting started](documentation/user/getting-started/_index.md) lists. On Laravel, the Illuminate
-bridge (the SQL stores) installs with `durable-laravel` whichever backend you select.
+[Getting started](documentation/user/getting-started/_index.md) lists. On Laravel, `durable-laravel`
+requires neither bridge: you install the one of the backend you select.
 
 The [Packages](documentation/user/packages/_index.md) page has the full table of combinations and
 what each package adds. PHP 8.2 or later is required. On Temporal, the bridge uses `ext-grpc` when it
