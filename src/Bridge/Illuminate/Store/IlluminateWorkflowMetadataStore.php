@@ -40,7 +40,7 @@ final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadata
             ['execution_id' => $executionId->toString()],
             [
                 'workflow_type' => $workflowType,
-                'payload' => json_encode($payload, \JSON_THROW_ON_ERROR),
+                'payload' => json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION),
                 'completed' => false,
             ],
         );

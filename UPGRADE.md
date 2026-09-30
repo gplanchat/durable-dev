@@ -444,17 +444,53 @@ classes, and `StatusColor`.
 If you used a class that is now `@internal`, open an issue describing the use: it tells us which
 part of it should become API.
 
+### DBAL and Illuminate stores: a whole-valued float reads back as a float (#759)
+
+The DBAL and Illuminate event stores and workflow metadata stores now encode payloads with
+`JSON_PRESERVE_ZERO_FRACTION`. A `30.0` written in an event payload, an activity result or a
+side effect used to read back as the int `30`. It now reads back as `30.0`, as the in-memory store
+returns it.
+
+**What to do:** nothing. Rows written before this change still read back as ints, and replaying
+them does not diverge: the replay guard compares `30` and `30.0` as equal. Code that received an
+int from those rows and branched on `is_int()` sees a float from new rows.
+
+### `JournalAssertions::assertWorkflowFailed()` takes a `class-string<\Throwable>` (#800)
+
+Its third parameter is now typed `class-string<\Throwable>|''`, as it already was on
+`DurableTestCase::assertWorkflowFailed()` and `DurableBundleTestTrait::assertWorkflowFailed()`.
+Nothing changes at runtime. PHPStan and Psalm now report a call with a class that does not exist
+or is not a `Throwable`.
+
+**What to do:** pass `SomeException::class` rather than a string literal, and fix any name the
+analyser reports.
+
 ### New: Rector moves activity stubs to `#[Activities]` parameters (#778)
 
-**Who is affected**: nobody has to change anything. Building a stub with
-`$environment->activityStub()` stays supported. The `durable-upgrade` set gains
-`ActivitiesParameterRector`, which rewrites a stub to the form the documentation shows first: an
-`ActivityStub` parameter of the workflow method, marked `#[Activities(Contract::class, ...)]`, with
-the `@param ActivityStub<Contract>` docblock PHPStan reads. It keeps the constructor form wherever
-the attribute cannot carry the stub: options computed at run time, a stub read from a signal,
-update, query or helper method, and a workflow method an interface or parent class declares. The
-[durable-rector README](src/DurableRector/README.md#upgrading-inside-durable) lists the cases. To
-skip the rule, add `->withSkip([ActivitiesParameterRector::class])` to your `rector.php`.
+The `durable-upgrade` set gains `ActivitiesParameterRector`. It rewrites a stub built with
+`$environment->activityStub()` to the form the documentation shows first: an `ActivityStub`
+parameter of the workflow method, marked `#[Activities(Contract::class, ...)]`, with the
+`@param ActivityStub<Contract>` docblock PHPStan reads. Building the stub yourself stays supported,
+and the rule keeps that form wherever the attribute cannot carry the stub. The
+[durable-rector README](src/DurableRector/README.md#upgrading-inside-durable) lists those cases.
+
+**Who is affected**: projects that run the `durable-upgrade` set. Two things can change once a class
+is rewritten:
+
+- **The workflow method gains a required parameter.** Durable supplies it; code that calls the
+  method directly, such as a unit test calling `$workflow->run($orderId)`, must now pass a stub.
+  The rule leaves a class alone when the class calls the method itself.
+- **The options are checked at registration**, not when the activity is scheduled or when the method
+  runs. The workflow no longer registers when:
+  - `backoffCoefficient` is under 1;
+  - `maximumInterval` is shorter than `initialInterval`, which is 1 second when not given, so
+    `maximumInterval: 0.5` alone fails;
+  - a `nonRetryable` class is not a `\Throwable`;
+  - the contract does not exist or declares no `#[AsActivityMethod]`.
+
+**What to do:** run the set, then run your tests. Pass a stub where a test calls the workflow method
+directly, and fix any option the registration refuses. To leave the constructor form as it is, add
+`->withSkip([ActivitiesParameterRector::class])` to your `rector.php`.
 
 ## 0.1.0-beta1
 

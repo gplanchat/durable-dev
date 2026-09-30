@@ -157,7 +157,7 @@ final readonly class IlluminateEventStore implements FencedEventStoreInterface
         return [
             'execution_id' => $record['execution_id'],
             'event_type' => $record['event_type'],
-            'payload' => json_encode($record['payload'], \JSON_THROW_ON_ERROR),
+            'payload' => json_encode($record['payload'], \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION),
             'recorded_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s'),
         ];
     }

@@ -37,11 +37,6 @@ final class DurableProfilerEventPresentation
     private function __construct() {}
 
     /**
-     * @param array<string, mixed> $entry one {@see DurableExecutionTrace} entry
-     *
-     * @return array{title: string, subtitle: string, category: string}
-     */
-    /**
      * The label for the "chronological order" table and for the dispatch details.
      *
      * A {@see \Gplanchat\Durable\Transport\ResumeWorkflowMessage} carries the execution id only, no
@@ -227,7 +222,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ChildWorkflowScheduled) {
             return [
                 'title' => 'Child workflow scheduled',
-                'subtitle' => $event->childWorkflowType() . ' · enfant ' . $event->childExecutionId(),
+                'subtitle' => $event->childWorkflowType() . ' · child ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
             ];
@@ -236,7 +231,7 @@ final class DurableProfilerEventPresentation
         if ($event instanceof ChildWorkflowCompleted) {
             return [
                 'title' => 'Child workflow finished',
-                'subtitle' => 'enfant ' . $event->childExecutionId(),
+                'subtitle' => 'child ' . $event->childExecutionId(),
                 'category' => 'child',
                 'technical' => $technical,
             ];
@@ -278,7 +273,7 @@ final class DurableProfilerEventPresentation
             return [
                 'title' => 'Timer cancelled',
                 'subtitle' => $event->reason(),
-                'category' => 'activity',
+                'category' => 'timer',
                 'technical' => $technical,
             ];
         }

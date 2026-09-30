@@ -78,6 +78,18 @@ final class ActivityPayloadDivergenceTest extends TestCase
         self::assertTrue($awaitable->isSettled());
     }
 
+    public function testAnIntegralFloatJournaledAsAnIntIsNotADivergence(): void
+    {
+        // Rows written before #759 hold 30.0 as 30. The code still passes 30.0, and replaying
+        // those executions must not stop them.
+        $store = $this->journalWith(['delay' => 30]);
+        $context = $this->context($store);
+
+        $awaitable = $context->activity('weather', ['delay' => 30.0]);
+
+        self::assertTrue($awaitable->isSettled());
+    }
+
     public function testAListThatChangedOrderIsADivergence(): void
     {
         // In a list, the order *is* the information.

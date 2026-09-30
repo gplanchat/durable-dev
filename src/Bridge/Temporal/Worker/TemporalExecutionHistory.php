@@ -169,17 +169,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
                 $attr = $event->getWorkflowExecutionStartedEventAttributes();
                 if (null !== $attr) {
-                    $memo = $attr->getMemo();
-                    if (null !== $memo) {
-                        $fields = $memo->getFields();
-                        if ($fields->offsetExists(JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID)) {
-                            $p = $fields->offsetGet(JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID);
-                            $decoded = JsonPlainPayload::decode($p);
-                            if (\is_string($decoded) && '' !== $decoded) {
-                                $this->durableExecutionId = $decoded;
-                            }
-                        }
-                    }
+                    $this->durableExecutionId = JournalExecutionIdResolver::fromStartedAttributes($attr);
                     $inputPayloads = $attr->getInput();
                     if (null !== $inputPayloads) {
                         $payloads = $inputPayloads->getPayloads();

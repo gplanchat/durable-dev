@@ -68,6 +68,52 @@ final class TheProfilerSpeaksEnglishTest extends TestCase
         self::assertNotFrench($presented['title'] . ' ' . $presented['subtitle']);
     }
 
+    public function testAChildWorkflowEventNamesTheChildInEnglish(): void
+    {
+        self::assertSame(
+            'Child · child c-1',
+            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), 'c-1', 'Child', []))['subtitle'],
+        );
+        self::assertSame(
+            'child c-1',
+            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), 'c-1', null))['subtitle'],
+        );
+    }
+
+    /**
+     * @return iterable<string, array{Event, string}>
+     */
+    public static function storeEventCategories(): iterable
+    {
+        $categories = [
+            'execution started' => 'lifecycle',
+            'execution completed' => 'lifecycle',
+            'continued as new' => 'lifecycle',
+            'activity scheduled' => 'scheduling',
+            'activity completed' => 'activity',
+            'activity cancelled' => 'activity',
+            'timer scheduled' => 'timer',
+            'timer fired' => 'timer',
+            'timer cancelled' => 'timer',
+            'side effect' => 'effect',
+            'child scheduled' => 'child',
+            'child completed' => 'child',
+            'signal' => 'signal',
+            'update' => 'signal',
+            'execution cancelled' => 'lifecycle',
+            'cancellation requested' => 'lifecycle',
+        ];
+        foreach (self::storeEvents() as $name => [$event]) {
+            yield $name => [$event, $categories[$name]];
+        }
+    }
+
+    #[DataProvider('storeEventCategories')]
+    public function testAStoreEventIsFiledUnderItsCategory(Event $event, string $expected): void
+    {
+        self::assertSame($expected, DurableProfilerEventPresentation::fromStoreEvent($event)['category']);
+    }
+
     public function testAProcessTraceIsTitledInEnglish(): void
     {
         self::assertSame(
