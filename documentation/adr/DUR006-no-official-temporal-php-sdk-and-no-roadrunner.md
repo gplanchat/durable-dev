@@ -1,4 +1,4 @@
-# DUR006 — No official Temporal PHP SDK and no RoadRunner
+# DUR006: No official Temporal PHP SDK and no RoadRunner
 
 ## Status
 

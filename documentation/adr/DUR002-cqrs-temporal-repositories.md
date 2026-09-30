@@ -1,4 +1,4 @@
-# DUR002 — WorkflowClient, WorkflowHistorySourceInterface, WorkflowCommandBufferInterface
+# DUR002: WorkflowClient, WorkflowHistorySourceInterface, WorkflowCommandBufferInterface
 
 ## Status
 

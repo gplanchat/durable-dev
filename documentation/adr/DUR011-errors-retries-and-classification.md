@@ -1,4 +1,4 @@
-# DUR011 — Errors, classification, and retries
+# DUR011: Errors, classification, and retries
 
 ## Status
 

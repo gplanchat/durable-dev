@@ -1,4 +1,4 @@
-# DUR045 — Serving a Nexus operation: one worker, two shapes, and a refusal at startup
+# DUR045: Serving a Nexus operation: one worker, two shapes, and a refusal at startup
 
 ## Status
 

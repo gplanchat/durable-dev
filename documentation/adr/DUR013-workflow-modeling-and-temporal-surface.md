@@ -1,4 +1,4 @@
-# DUR013 — Workflow modelling and Query / Signal / Update surface
+# DUR013: Workflow modelling and Query / Signal / Update surface
 
 ## Status
 

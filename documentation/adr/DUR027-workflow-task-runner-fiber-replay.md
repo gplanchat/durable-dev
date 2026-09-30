@@ -1,4 +1,4 @@
-# DUR027 — WorkflowTaskRunner: fiber-based replay from Temporal history
+# DUR027: WorkflowTaskRunner: fiber-based replay from Temporal history
 
 ## Status
 

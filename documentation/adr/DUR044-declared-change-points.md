@@ -1,4 +1,4 @@
-# DUR044 — Declared change points
+# DUR044: Declared change points
 
 ## Status
 

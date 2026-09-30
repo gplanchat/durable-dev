@@ -1,4 +1,4 @@
-# DUR033 — Assemblers return an Awaitable, and `await()` is the only wait
+# DUR033: Assemblers return an Awaitable, and `await()` is the only wait
 
 ## Status
 

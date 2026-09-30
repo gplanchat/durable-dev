@@ -1,4 +1,4 @@
-# DUR032 — Workflow-side deadlines: a failure, and a verdict read from history
+# DUR032: Workflow-side deadlines: a failure, and a verdict read from history
 
 ## Status
 

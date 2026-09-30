@@ -1,4 +1,4 @@
-# DUR046 — Magento: a Tier 1 host, and the four things it changed about the core
+# DUR046: Magento: a Tier 1 host, and the four things it changed about the core
 
 ## Status
 

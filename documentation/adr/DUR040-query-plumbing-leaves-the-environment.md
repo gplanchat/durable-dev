@@ -1,4 +1,4 @@
-# DUR040 — Query plumbing leaves the environment
+# DUR040: Query plumbing leaves the environment
 
 ## Status
 

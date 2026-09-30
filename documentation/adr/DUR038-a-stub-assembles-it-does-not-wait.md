@@ -1,4 +1,4 @@
-# DUR038 — A stub assembles, it does not wait
+# DUR038: A stub assembles, it does not wait
 
 ## Status
 

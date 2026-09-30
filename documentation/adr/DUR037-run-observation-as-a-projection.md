@@ -1,4 +1,4 @@
-# DUR037 — Run observation is a projection, and an absent fact stays absent
+# DUR037: Run observation is a projection, and an absent fact stays absent
 
 ## Status
 

@@ -1,4 +1,4 @@
-# DUR001 — Event store and cursor traversal
+# DUR001: Event store and cursor traversal
 
 ## Status
 

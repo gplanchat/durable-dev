@@ -1,4 +1,4 @@
-# DUR004 — ActivityStub, activities, and activity methods
+# DUR004: ActivityStub, activities, and activity methods
 
 ## Status
 

@@ -1,4 +1,4 @@
-# DUR029 — Temporal read-through event store and profiler event conversion
+# DUR029: Temporal read-through event store and profiler event conversion
 
 ## Status
 

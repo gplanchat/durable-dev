@@ -1,4 +1,4 @@
-# DUR048 — Audience measurement without a consent banner
+# DUR048: Audience measurement without a consent banner
 
 ## Status
 

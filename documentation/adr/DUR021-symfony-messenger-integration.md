@@ -1,4 +1,4 @@
-# DUR021 — Symfony Messenger integration
+# DUR021: Symfony Messenger integration
 
 ## Status
 

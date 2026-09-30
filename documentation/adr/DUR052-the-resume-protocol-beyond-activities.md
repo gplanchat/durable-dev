@@ -1,4 +1,4 @@
-# DUR052 — The resume protocol beyond activities: each pair names its own fact
+# DUR052: The resume protocol beyond activities: each pair names its own fact
 
 ## Status
 

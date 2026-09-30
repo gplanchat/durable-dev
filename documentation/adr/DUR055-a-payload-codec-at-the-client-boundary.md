@@ -1,4 +1,4 @@
-# DUR055 — A payload codec at the client boundary
+# DUR055: A payload codec at the client boundary
 
 ## Status
 

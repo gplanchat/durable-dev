@@ -1,4 +1,4 @@
-# DUR025 — Temporal WorkflowService gRPC RPCs: implementation map
+# DUR025: Temporal WorkflowService gRPC RPCs: implementation map
 
 ## Status
 

@@ -1,4 +1,4 @@
-# DUR030 — DBAL backend: simplified durable execution on a single SQL database
+# DUR030: DBAL backend: simplified durable execution on a single SQL database
 
 ## Status
 

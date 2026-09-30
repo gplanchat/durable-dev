@@ -1,4 +1,4 @@
-# DUR053 — A superseded pass cannot write: one fencing epoch per pass
+# DUR053: A superseded pass cannot write: one fencing epoch per pass
 
 ## Status
 

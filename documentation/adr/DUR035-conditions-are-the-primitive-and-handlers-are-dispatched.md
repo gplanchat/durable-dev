@@ -1,4 +1,4 @@
-# DUR035 — The condition is the primitive, and handlers are dispatched by the engine
+# DUR035: The condition is the primitive, and handlers are dispatched by the engine
 
 ## Status
 

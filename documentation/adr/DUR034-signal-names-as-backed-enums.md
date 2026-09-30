@@ -1,4 +1,4 @@
-# DUR034 — A signal name is a backed enum, and the wire keeps the string
+# DUR034: A signal name is a backed enum, and the wire keeps the string
 
 ## Status
 

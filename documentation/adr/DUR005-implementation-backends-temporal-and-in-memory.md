@@ -1,4 +1,4 @@
-# DUR005 — Implementation backends: Temporal and In-Memory
+# DUR005: Implementation backends: Temporal and In-Memory
 
 ## Status
 

@@ -1,4 +1,4 @@
-# DUR012 — API client layer and repository adapters
+# DUR012: API client layer and repository adapters
 
 ## Status
 

@@ -1,4 +1,4 @@
-# DUR007 — Serialization and Symfony Serializer
+# DUR007: Serialization and Symfony Serializer
 
 ## Status
 

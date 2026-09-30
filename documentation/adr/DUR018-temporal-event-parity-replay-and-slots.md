@@ -1,4 +1,4 @@
-# DUR018 — Event parity, slots, and replay (Temporal alignment)
+# DUR018: Event parity, slots, and replay (Temporal alignment)
 
 ## Status
 

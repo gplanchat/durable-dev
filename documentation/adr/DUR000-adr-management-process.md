@@ -1,4 +1,4 @@
-# DUR000 — ADR management process
+# DUR000: ADR management process
 
 ## Status
 

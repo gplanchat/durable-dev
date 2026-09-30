@@ -1,4 +1,4 @@
-# DUR019 — Temporal gRPC bridge
+# DUR019: Temporal gRPC bridge
 
 ## Status
 

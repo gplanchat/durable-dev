@@ -1,4 +1,4 @@
-# DUR054 — The journal does not share the application's connection
+# DUR054: The journal does not share the application's connection
 
 ## Status
 

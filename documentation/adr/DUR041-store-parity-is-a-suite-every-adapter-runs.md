@@ -1,4 +1,4 @@
-# DUR041 — Store parity is a suite every adapter runs, and the in-memory store is the reference
+# DUR041: Store parity is a suite every adapter runs, and the in-memory store is the reference
 
 ## Status
 

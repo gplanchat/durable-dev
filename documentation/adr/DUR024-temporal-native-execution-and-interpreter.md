@@ -1,4 +1,4 @@
-# DUR024 — Temporal native execution: WorkflowTaskRunner and fiber-based interpreter
+# DUR024: Temporal native execution: WorkflowTaskRunner and fiber-based interpreter
 
 ## Status
 

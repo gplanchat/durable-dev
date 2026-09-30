@@ -1,4 +1,4 @@
-# DUR026 — Commands-only orchestration path
+# DUR026: Commands-only orchestration path
 
 ## Status
 

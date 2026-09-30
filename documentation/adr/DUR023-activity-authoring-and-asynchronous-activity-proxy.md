@@ -1,4 +1,4 @@
-# DUR023 — Activity authoring and asynchronous activity invoker
+# DUR023: Activity authoring and asynchronous activity invoker
 
 ## Status
 

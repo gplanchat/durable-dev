@@ -1,4 +1,4 @@
-# DUR009 — Testing standards
+# DUR009: Testing standards
 
 ## Status
 

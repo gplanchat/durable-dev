@@ -1,4 +1,4 @@
-# DUR014 — Temporal edge cases and external integrations
+# DUR014: Temporal edge cases and external integrations
 
 ## Status
 

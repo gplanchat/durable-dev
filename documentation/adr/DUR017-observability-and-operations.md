@@ -1,4 +1,4 @@
-# DUR017 — Observability and operations
+# DUR017: Observability and operations
 
 ## Status
 

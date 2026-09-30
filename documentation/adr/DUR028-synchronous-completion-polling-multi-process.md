@@ -1,4 +1,4 @@
-# DUR028 — Synchronous workflow completion polling for multi-process Temporal setups
+# DUR028: Synchronous workflow completion polling for multi-process Temporal setups
 
 ## Status
 

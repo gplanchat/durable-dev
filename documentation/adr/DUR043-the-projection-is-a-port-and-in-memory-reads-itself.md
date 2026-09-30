@@ -1,4 +1,4 @@
-# DUR043 — The projection is a port, and the in-memory backend reads its own runs
+# DUR043: The projection is a port, and the in-memory backend reads its own runs
 
 ## Status
 

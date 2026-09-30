@@ -1,4 +1,4 @@
-# DUR008 — PER (PHP-FIG) style and naming
+# DUR008: PER (PHP-FIG) style and naming
 
 ## Status
 

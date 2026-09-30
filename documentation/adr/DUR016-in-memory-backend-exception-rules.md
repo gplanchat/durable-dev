@@ -1,4 +1,4 @@
-# DUR016 — In-Memory backend: storage rules and exceptions
+# DUR016: In-Memory backend: storage rules and exceptions
 
 ## Status
 

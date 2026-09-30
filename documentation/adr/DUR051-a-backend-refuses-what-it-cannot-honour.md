@@ -1,4 +1,4 @@
-# DUR051 — One command port, and a backend refuses by name what it cannot honour
+# DUR051: One command port, and a backend refuses by name what it cannot honour
 
 ## Status
 

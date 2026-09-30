@@ -1,4 +1,4 @@
-# DUR047 — Laravel: the host that measured before it wired
+# DUR047: Laravel: the host that measured before it wired
 
 ## Status
 

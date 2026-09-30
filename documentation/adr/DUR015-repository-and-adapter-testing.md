@@ -1,4 +1,4 @@
-# DUR015 — Repository, adapter, and test data
+# DUR015: Repository, adapter, and test data
 
 ## Status
 

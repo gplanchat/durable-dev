@@ -1,4 +1,4 @@
-# DUR031 — Value objects across the ports, and who owns the wire
+# DUR031: Value objects across the ports, and who owns the wire
 
 ## Status
 

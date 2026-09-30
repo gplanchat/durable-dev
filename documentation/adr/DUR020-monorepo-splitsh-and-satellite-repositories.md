@@ -1,4 +1,4 @@
-# DUR020 — Monorepo, splitsh, and satellite repositories
+# DUR020: Monorepo, splitsh, and satellite repositories
 
 ## Status
 

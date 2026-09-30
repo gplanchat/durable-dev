@@ -1,4 +1,4 @@
-# DUR010 — Test pyramid
+# DUR010: Test pyramid
 
 ## Status
 

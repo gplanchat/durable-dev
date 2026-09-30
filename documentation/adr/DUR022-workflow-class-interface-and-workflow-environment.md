@@ -1,4 +1,4 @@
-# DUR022 — Workflow class, interface, and WorkflowEnvironment
+# DUR022: Workflow class, interface, and WorkflowEnvironment
 
 ## Status
 

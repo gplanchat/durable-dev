@@ -1,4 +1,4 @@
-# DUR050 — The resume is dispatched first, and a resume that arrives early waits
+# DUR050: The resume is dispatched first, and a resume that arrives early waits
 
 ## Status
 

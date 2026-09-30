@@ -1,4 +1,4 @@
-# DUR003 — Fiber-based replay, ExecutionEngine, and awaitables
+# DUR003: Fiber-based replay, ExecutionEngine, and awaitables
 
 ## Status
 

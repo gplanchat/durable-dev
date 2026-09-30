@@ -1,4 +1,4 @@
-# DUR036 — Nexus is supported on the caller side only, and one backend can serve it
+# DUR036: Nexus is supported on the caller side only, and one backend can serve it
 
 > **Superseded on one point by [DUR045](DUR045-serving-a-nexus-operation.md).** The handler side is
 > built: this component now serves Nexus operations as well as calling them. The title's "caller
