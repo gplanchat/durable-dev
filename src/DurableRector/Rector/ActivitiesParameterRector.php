@@ -19,6 +19,7 @@ use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
@@ -29,6 +30,7 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Foreach_;
+use PhpParser\Node\Stmt\Property;
 use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
@@ -113,6 +115,29 @@ AFTER,
         }
         $method->stmts = array_values($method->stmts);
 
+        $constructor = $node->getMethod('__construct');
+        foreach ($constructor->stmts ?? [] as $key => $stmt) {
+            $built = $this->builtStub($stmt);
+            if (null === $built || !$built[0] instanceof PropertyFetch || !$this->isName($built[0]->var, 'this')
+                || null === ($name = $this->getName($built[0]->name))) {
+                continue;
+            }
+            $property = $this->privateProperty($node, $name);
+            if (null === $property || [] !== $node->getTraitUses() || $this->hasParam($method, $name)
+                || $this->writesTo($method, $name) > 0 || !$this->readOnlyIn($node, $name, $method)) {
+                continue;
+            }
+            \assert(null !== $constructor && null !== $constructor->stmts);
+            unset($constructor->stmts[$key]);
+            $node->stmts = array_values(array_filter($node->stmts, static fn(Stmt $s): bool => $s !== $property));
+            $this->traverseNodesWithCallable($method->stmts, fn(Node $n): ?Variable => $this->isThisFetch($n, $name) ? new Variable($name) : null);
+            $this->addStubParam($method, $name, $built[1]);
+            $changed = true;
+        }
+        if (null !== $constructor?->stmts) {
+            $constructor->stmts = array_values($constructor->stmts);
+        }
+
         return $changed ? $node : null;
     }
 
@@ -174,6 +199,43 @@ AFTER,
         }
 
         return $this->isName($options->name, 'default') && [] === $options->args ? [] : null;
+    }
+
+    private function privateProperty(Class_ $class, string $name): ?Property
+    {
+        $property = $class->getProperty($name);
+
+        return null !== $property && 1 === \count($property->props) && $property->isPrivate() && !$property->isStatic() ? $property : null;
+    }
+
+    /** Whether `$this->$name` appears once in the constructor (its assignment) and elsewhere in `$method` only. */
+    private function readOnlyIn(Class_ $class, string $name, ClassMethod $method): bool
+    {
+        $reads = 0;
+        foreach ($class->getMethods() as $candidate) {
+            $count = 0;
+            $this->traverseNodesWithCallable($candidate->stmts ?? [], function (Node $n) use (&$count, $name): null {
+                $count += $this->isThisFetch($n, $name) ? 1 : 0;
+
+                return null;
+            });
+            $expected = match (true) {
+                $candidate === $method => $count,
+                $this->isName($candidate, '__construct') => 1,
+                default => 0,
+            };
+            if ($count !== $expected) {
+                return false;
+            }
+            $reads += $candidate === $method ? $count : 0;
+        }
+
+        return $reads > 0;
+    }
+
+    private function isThisFetch(Node $node, string $name): bool
+    {
+        return $node instanceof PropertyFetch && $this->isName($node->var, 'this') && $this->isName($node->name, $name);
     }
 
     private function hasParam(ClassMethod $method, string $name): bool
