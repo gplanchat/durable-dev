@@ -57,7 +57,7 @@ the `@param ActivityStub<Contract>` docblock that `gplanchat/durable-phpstan` re
 that stub in when it runs the workflow, and the reader sees the contract and its options in the
 signature.
 
-It rewrites a `final` class only, and in it two shapes: a local variable assigned once, by a
+It rewrites a `final` class that uses no trait, and in it two shapes: a local variable assigned once, by a
 statement directly in the body of the workflow method (not nested in an `if` or a loop), and a
 private property assigned once in the constructor and read only by that method. The contract must be
 a `Contract::class` constant. The options must be absent, or `ActivityOptions::of()` with literal
@@ -84,16 +84,18 @@ or where the rewrite could change what runs:
   queue named after a tenant; `of()` arguments given as value objects (`RetryLimit::once()`,
   `Duration::seconds()`), as an exception class written as a string, as an empty task queue, or as
   an `activityId`, which the attribute has no field for; and `ActivityOptions::default()` or an
-  `of()` with no argument, because a bare `#[Activities]` builds the stub with no options at all,
+  `of()` that sets nothing (no argument, only `null`, or an empty exception list), because a bare `#[Activities]` builds the stub with no options at all,
   and the Durable worker then retries a failed activity without backoff;
 - **a stub read outside the workflow method**: Durable calls a signal or update method with the
   message payload only, and a helper method would need the stub passed in. A read inside a
-  `function () {}` closure or an anonymous class counts too, and so does a dynamic `$this->{$name}`
-  anywhere in the class;
+  `function () {}` closure or an anonymous class counts too, and so does, anywhere in the class, a
+  dynamic `$this->{$name}` or a fetch of the property on another receiver (`$self->orders` after
+  `$self = $this`, or `$other->orders` on another instance);
 - **a variable with the stub's name** in the workflow method, such as an arrow function parameter,
   a caught exception or a destructuring: it would take the stub's place;
-- **a class that is not `final`, or that calls its own workflow method**: a subclass may override
-  the method, and a call from inside the class would miss the new parameter;
+- **a class that is not `final`, that uses a trait, or that calls its own workflow method**: a
+  subclass may override the method, a trait may call it or declare it abstract, and a call from
+  inside the class would miss the new parameter;
 - **a workflow method declared by an interface or a parent class**: PHP forbids the implementation
   from adding a required parameter. A workflow migrated with `temporal-sdk.php` usually still
   implements its SDK contract, so it keeps the stub that `TemporalFacadeToEnvironmentRector` wrote

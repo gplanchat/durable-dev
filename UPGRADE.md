@@ -479,7 +479,7 @@ is rewritten:
 
 - **The workflow method gains a required parameter.** Durable supplies it; code that calls the
   method directly, such as a unit test calling `$workflow->run($orderId)`, must now pass a stub.
-  The rule leaves a class alone when the class calls the method itself.
+  The rule leaves a class alone when the class calls the method itself or uses a trait.
 - **The options are checked at registration**, not when the activity is scheduled or when the method
   runs. The workflow no longer registers when:
   - `backoffCoefficient` is under 1;
