@@ -1,5 +1,13 @@
 # Spike #709: a database backend for the Magento bridge
 
+> **Decided on 2026-09-30: option B.** The owner chose Magento's own database layer
+> (`ResourceConnection` on a dedicated `durable` connection) and rejected option A (Doctrine DBAL
+> through `durable-bridge-dbal`). The decision is recorded in
+> [#709 (comment)](https://github.com/gplanchat/durable-dev/issues/709#issuecomment-5900702249), epic
+> [#740](https://github.com/gplanchat/durable-dev/issues/740) and the ADR DUR056 proposed in
+> [PR #741](https://github.com/gplanchat/durable-dev/pull/741). The recommendation below stays as
+> the spike wrote it.
+
 Throwaway. Nothing under `src/` imports this directory, and no shipped package gained a dependency.
 The public promise (the module's `conflict`, `ALLOWED.magento`, the backends page) is unchanged:
 this is findings and a recommendation, for the user to decide on.
@@ -105,7 +113,7 @@ answer for a dedicated connection, and what #695 documents for Laravel.
 - **Timers must be `FireWorkflowTimersMessage`**, handled by `FireWorkflowTimersHandler`. The spike
   first copied `LaravelWorkflowTimerDispatcher` (a timer as a delayed plain resume) and spun: 1146
   passes in 15 s on a due timer that never fired, because in distributed mode only
-  `FireWorkflowTimersHandler` calls `checkTimers()`. See follow-up 3.
+  `FireWorkflowTimersHandler` calls `checkTimers()`. See #726.
 - **Per-execution lock**: symfony/lock `DoctrineDbalStore` on the journal connection (a TTL row in
   `lock_keys`, 30 s), taken non-blocking; a held lock re-queues the message 1 s later. The activity
   attempt claim is `LockActivityAttemptClaim` on the same store, reused unchanged. A killed holder
@@ -164,19 +172,33 @@ table queue, the worker loop, `durable:setup`, and the wiring in `RuntimeFactory
   every constructor type. The spike installs the Temporal bridge to get past it. CI does not see it:
   the matrix only resolves, and the bench installs the Temporal bridge. It blocks A: a SQL-only
   Magento install cannot boot until it is fixed, and the `none` baseline resolves but would not install.
+  **Resolved**: #725, closed by PR #743 (the fix) and PR #757 (CI installs the module without the Temporal bridge).
+- **The Laravel `illuminate` backend queued a due timer as a plain resume**, the loop this spike hit
+  first (Q3). **Resolved**: #726, confirmed and closed by PR #742 (`FireWorkflowTimersJob`).
 - `durable_workflow_runs.waiting_on` stays "activity spike.ship attempt 1 in flight" after completion.
 
-## Proposed follow-up tickets (not opened; the user decides first)
+## Follow-up tickets (opened under epic #740)
 
-1. **ADR: Magento may journal to SQL on a connection of its own**: supersede DUR046's "no native journal" (human).
-2. **Bug: durable-magento cannot be installed without durable-bridge-temporal**: no Temporal type in `RuntimeFactory`'s constructor. Prerequisite of 5.
-3. **Bug (to confirm): Laravel `illuminate` timers are plain resumes**: check a `sleep()` wakes on the Laravel bench; send `FireWorkflowTimersMessage`.
-4. **durable-bridge-dbal: a table queue**: `durable_queue` in `DurableSchema`, lease + `available_at`, lease longer than the attempt-claim TTL, PostgreSQL/SQLite too, with its own conformance.
-5. **durable-magento: SQL wiring**: `durable/db/url` in `env.php` builds the DBAL stores; both DSNs set is refused by name.
-6. **durable-magento: `durable:worker` for SQL and `durable:setup`**: the spike's loop (lock, DUR050 deferral, attempt claim, timers). The spike acks every failure; the real loop re-queues transient ones such as lock-wait timeouts (#616).
-7. **durable-magento: admin grid and run page on `DbalWorkflowRunCatalog`.**
-8. **Resume lock on MySQL**: TTL row vs a `GET_LOCK` store on the journal connection (released when the worker dies); measure both.
-9. **CI (supervised)**: matrix resolution with the DBAL bridge; boot job runs the restart experiment on a second MySQL.
-10. **Public promise change**: `conflict`, `ALLOWED`/`WHYNOT`/`FWNOTE` EN+FR, backends and configuration pages EN+FR, module README, UPGRADE.
-11. **DBAL projection clears `waiting_on` on completion.**
-12. **Optional: durable-bridge-dbal without symfony/messenger**: move the middleware out, two packages fewer on Magento.
+In the epic's dependency order:
+
+- #730: ADR DUR056: Magento journals through its own DB layer on a dedicated connection, superseding DUR046 on that point
+- #735: durable-magento: the resource/durable connection, the silent fallback to the shop's connection refused by name
+- #746: durable-magento: the journal schema on the Magento adapter, and bin/magento durable:setup
+- #747: durable-magento: run the shared SQL conformance suites against Magento-adapter stores inside a Magento bootstrap
+- #748: durable-magento: event store on the Magento adapter (append, read, replay)
+- #749: durable-magento: the DUR053 pass fence on the Magento event store (claimPass, appendFenced)
+- #750: durable-magento: workflow metadata store on the Magento adapter
+- #751: durable-magento: child workflow parent link store on the Magento adapter
+- #733: durable-magento: run projection on the Magento adapter, waiting_on cleared when a run ends
+- #752: durable-magento: run catalogue on the Magento adapter
+- #731: durable-magento: a table queue on the Magento adapter (lease, available_at)
+- #732: durable-magento: resume lock on the Magento adapter, a TTL row or GET_LOCK on the journal's connection, measured
+- #753: durable-magento: activity attempt claim on the journal's adapter connection
+- #754: durable-magento: RuntimeFactory assembles the Magento SQL backend, no Nexus, timers as FireWorkflowTimersMessage
+- #736: durable-magento: durable:worker on the Magento SQL backend
+- #737: durable-magento: admin grid and run page on the Magento-adapter run catalogue
+- #738: CI (supervised): Magento boot job runs the adapter conformance harness and the restart experiment on a second MySQL
+- #739: Magento on a database: change the public promise (picker, backends and configuration pages, UPGRADE)
+
+Closed: #725 and #726 (see "Found on the way"); #734, "Optional: durable-bridge-dbal without
+symfony/messenger (two packages fewer on Magento)", not planned, as it only served option A.
