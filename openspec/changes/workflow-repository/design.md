@@ -89,9 +89,9 @@ the id.
 `$stub->start(...$input): WorkflowStub` starts the execution and returns the stub, now bound to a
 started execution. `$stub->execute(...$input): mixed` starts it and waits for the result.
 
-Two starts under the same id at the same time: exactly one wins. The journal backends take the
-same lock the resume path takes; Temporal decides on the server. The loser gets the same exception
-as a second start.
+Two starts under the same id at the same time: exactly one wins, and the loser gets the same
+exception as a second start. See "Two starts of one id" below for what serialises them on each
+backend.
 
 The arguments are mapped to the workflow's input by parameter name, the way a parent's call on a
 child stub is mapped today. PHPStan types them from the entry method's signature. Calling
@@ -110,13 +110,27 @@ method. `result(?Duration $timeout = null)` waits for the result and throws
 `WorkflowResultTimeout` when the bound elapses. A failed execution throws its failure, typed as
 the journal records it.
 
+### Method names the stub keeps for itself
+
+The stub's own verbs share the namespace of the workflow's signal, query and update methods:
+`start`, `execute`, `result`, `cancel`, `terminate` and `executionId`. A workflow that declares one
+of them with `#[AsSignalMethod]`, `#[AsQueryMethod]` or `#[AsUpdateMethod]` could never be reached
+through that method. The host checks this when it registers a repository, in both forms (a declared
+class and `#[RepositoryFor]`), and fails the boot with an exception that names the workflow class
+and the method. PHP method names are case-insensitive, so the comparison is too: `Cancel()`
+collides with `cancel()`.
+
+Rejected: prefixing the stub's verbs (`__start()`, `stubResult()`). Every call site would pay for a
+collision that a rename in the workflow avoids once.
+
 ### The client port, and what the journal backends gain
 
 A core port, `WorkflowClientPort`, carries the operations keyed by `ExecutionId`: start, signal,
 query, update, result, cancel, terminate. Two implementations:
 
 - **Temporal**: the current `WorkflowClient`, re-keyed on `ExecutionId` (it already converts with
-  `workflowId()`), with `cancel()` and `terminate()` added through the existing gRPC methods.
+  `workflowId()`), with `cancel()` and `terminate()` added through the existing gRPC methods, and
+  a start that reports an already started execution instead of returning (see "Starting twice").
 - **Journal** (in-memory, DBAL, Illuminate):
   - *Signal* and *update*: appended through the same path the Symfony bus handlers use today, then
     a resume is dispatched. The update's result is read back from `WorkflowUpdateHandled`.
@@ -134,6 +148,115 @@ query, update, result, cancel, terminate. Two implementations:
 `cancel()` and `terminate()` on an execution that has ended throw
 `WorkflowExecutionAlreadyEnded`, naming the id, and change nothing. Temporal answers the same case
 with an error the adapter maps to that exception (probed in 0.2).
+
+### Starting twice: a behaviour change on every backend
+
+No backend fails a second start today.
+
+- **Temporal**: `WorkflowClient::doStartWorkflow()` catches the `StartWorkflowExecution` error,
+  and when `isWorkflowAlreadyStartedGrpcError()` matches (gRPC code 6, or a message containing
+  "already running") it returns as if the start had succeeded (`src/Bridge/Temporal/WorkflowClient.php`,
+  lines 373 to 381 on `main` at c908668a). `startAsync()` then returns the execution id.
+- **Journal backends**: every dispatcher's `dispatchNewWorkflowRun()` calls
+  `WorkflowMetadataStore::save()`, an upsert on DBAL and Illuminate and an array write in memory.
+  A second start overwrites the first one's workflow type and input, resets `completed`, and
+  dispatches a resume.
+
+The client port fails the second start with the "already started" exception, naming the id, and
+leaves the first execution as it was. The change is scoped to the port. The engine's own path,
+`WorkflowResumeDispatcher::dispatchNewWorkflowRun()`, keeps its current behaviour, because a
+Messenger or queue redelivery of a start must stay harmless; on Temporal that path goes through
+`TemporalWorkflowResumeDispatcher` to `startAsync()`, so the swallowing moves out of
+`doStartWorkflow()` into `startAsync()`, and the port calls a variant that does not swallow.
+
+Code 6 is `ALREADY_EXISTS`. It is assumed, not probed, that the server also answers a start the id
+reuse policy refuses with code 6. If it does, Temporal ignores reuse refusals today, which breaks
+"honoured or refused" on the one backend that claims to honour the policy. Task 0.2 probes it.
+
+### Two starts of one id
+
+Nothing serialises two starts today. A start writes the metadata row, then dispatches a resume;
+the resume lock is taken by the consumer of that resume, after the write:
+
+| Backend and host | Lock held around a resume today | Around a start |
+|---|---|---|
+| DBAL on Symfony | `SingleResumeLockMiddleware`, a Messenger middleware on `symfony/lock` | none |
+| Illuminate on Laravel | `ResumeLock`, on the cache store `durable.lock.store` names | none |
+| In-memory (Symfony, Laravel, Magento) | none: one process | none |
+| Temporal (Symfony, Laravel, Magento) | the server | the server |
+
+What this change adds, on the SQL backends: the port's start inserts the metadata row instead of
+upserting it. `execution_id` is already the primary key of `durable_workflow_metadata`
+(`DurableSchema`, and `->primary()` in the Illuminate migration), so the database serialises two
+starts and the second insert fails on the duplicate key, which the port reports as an already
+started execution. No lock store is involved, so the Laravel `durable.lock.store` setting has no
+bearing on it. A start that the id reuse policy allows after an ended execution is a conditional
+`UPDATE ... WHERE execution_id = ? AND completed = true`: one affected row wins, zero means another
+start came first. `completed` changes from true to false in that update, so MySQL's count of
+changed rows and SQLite's count of matched rows agree. The continue-as-new path keeps calling the
+upsert.
+
+In memory, an execution lives in one process, so two processes cannot start the same id; the port
+checks the map before writing. Magento runs the in-memory and Temporal backends on `main`; a SQL
+backend for Magento, when it lands, uses the same insert.
+
+### Correlating an update with its result
+
+`WorkflowUpdateHandled` carries the update's name, arguments, result and failure, and no id. A
+pending update reaches the journal the same way: `PendingUpdate` holds a name and arguments, the
+`$pendingUpdates` shape of `dispatchResume()` and `ResumeWorkflowMessage` is
+`list<array{name, arguments}>`, and `DeliverWorkflowUpdateHandler` drops the `updateId` that
+`DeliverWorkflowUpdateMessage` already carries. Two concurrent updates with the same name and the
+same arguments therefore write two events the client cannot tell apart, and each caller may read
+the other's result.
+
+The event gains an update id, set by the client when it sends the update and carried through
+`PendingUpdate`, the `$pendingUpdates` shape, `EventStoreCommandBuffer::recordUpdateHandled()` and
+`EventDataMapper`. The client waits for the event with its own id. It follows the house precedent
+for a field added to a journal event (`WorkflowSignalReceived::requestId`,
+`WorkflowContinuedAsNew::newExecutionId`): nullable on read.
+
+- **Journals written before the change**: an event without an id replays as it does today. No
+  client call waits on it, since the client did not exist when it was written, so the client never
+  matches an event whose id is null.
+- **Messages queued before the upgrade**: a pending update without an id is handled and journaled
+  with a null id. Nobody waits for it through the port; a Symfony caller that sent it through
+  `DeliverWorkflowUpdateMessage` did not receive the result before either.
+- **Temporal**: `WorkflowClient::update()` already takes `$updateId` and sends it as
+  `Meta.update_id`, and `UpdateProtocol` answers the server with it. The gap is on replay:
+  `TemporalExecutionHistory` pairs each `WORKFLOW_EXECUTION_UPDATE_COMPLETED` event with the last
+  accepted update rather than by id. The completed event carries `meta` (with the update id) and
+  `accepted_event_id`, so the pairing is made on them.
+
+### An execution that continued as new
+
+The backends name the next run differently. On the journal backends, `ResumeWorkflowHandler`
+marks the old execution completed and starts the next run under a new execution id
+(`ContinueAsNewRequested::nextExecutionId`, or a generated one), recorded as
+`WorkflowContinuedAsNew::newExecutionId`. On Temporal, the next run keeps the workflow id and gets a
+new run id; the command buffer writes the `durableExecutionId` memo onto it (#560). This is a parity
+gap between backends: `backend-data-parity` lists linking the runs of a chain on the SQL backends as
+tracked separately (proposal, "Not in scope"). This change does not close it.
+
+The stub follows the chain, so the application sees the same outcome on every backend:
+
+- `result()` waits for the result of the last run of the chain. On the journal backends it follows
+  `newExecutionId` from each `WorkflowContinuedAsNew` it meets; on Temporal the server's current run
+  under the workflow id is already the last one.
+- `cancel()` and `terminate()` act on the current run of the chain, found the same way. They throw
+  "already ended" only when the last run has ended.
+- A journal written before #322 has `WorkflowContinuedAsNew` without `newExecutionId`. There, the
+  three calls fail with an exception that names the execution and says the continuation cannot be
+  followed. They do not wait for the bound.
+
+### What `get()` needs from `backend-data-parity`
+
+`get()` reads `WorkflowRunCatalogInterface::findRun()` and `WorkflowRunDescription::executionId`.
+Both are on `main` (c908668a) on all four backends, so `get()` does not wait for the open change
+`openspec/changes/backend-data-parity`. On Temporal, `findRun()` matches on the `durableExecutionId`
+memo, and the command buffer writes it onto a continued run, so `get()` finds the current run of a
+chain without parity probe 0.4. The parts of that change still open (the cursor, the refusal of
+execution ids the Temporal derivation would alter) do not change what `get()` returns.
 
 ### Start options on the journal backends
 
@@ -155,6 +278,14 @@ that the next change closes, stated in the docs as such.
   workflow that is completing. The client must return the same outcome from the journal backends.
 - **To probe first**: `RequestCancelWorkflowExecution` and `TerminateWorkflowExecution` through the
   existing gRPC methods, on the server version CI runs (1.32) and on the dev server (1.25.2).
+- **To probe first**: the gRPC code and message of `StartWorkflowExecution` for a workflow id that
+  is running, and for one the id reuse policy refuses after it ended. The design assumes code 6
+  for both.
+- **To probe first**: that `WorkflowExecutionUpdateCompletedEventAttributes.meta.update_id` holds
+  the id the client sent. The field exists in the protocol; its content is not probed.
+- **Read, not probed**: the swallowing of an already started workflow, the metadata upsert, the
+  resume locks, the continue-as-new paths and the memo on a continued run are read from `main` at
+  c908668a.
 - **Assumed**: the read-only replay reaches the same state as the live execution. That is the
   determinism rule every workflow already follows. A workflow that breaks it breaks its own replay
   too.
