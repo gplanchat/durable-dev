@@ -19,6 +19,7 @@ cleanup() {
     if [[ -n "$PHP_PID" ]]; then pkill -P "$PHP_PID" 2>/dev/null || true; kill "$PHP_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
+trap "exit 130" INT TERM   # so that EXIT runs its cleanup under `timeout` too
 
 start() {
     rm -rf var && mkdir var

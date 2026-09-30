@@ -11,7 +11,7 @@ const PROTOCOL = 5;
 const T_START = 0x0000, T_SUSPENSION = 0x0001, T_ERROR = 0x0002, T_END = 0x0003, T_PROPOSE_RUN = 0x0005;
 const T_INPUT = 0x0400, T_OUTPUT = 0x0401, T_GET_PROMISE = 0x0409, T_COMPLETE_PROMISE = 0x040B;
 const T_SLEEP = 0x040C, T_RUN = 0x0411;
-const T_CALL = 0x040D, T_SEND_SIGNAL = 0x0410, T_SIGNAL = 0xFBFF;
+const T_CALL = 0x040D, T_SEND_SIGNAL = 0x0410, T_COMPLETE_AWAKEABLE = 0x0414, T_SIGNAL = 0xFBFF;
 const SIGNAL_CANCEL = 1;   // BuiltInSignal.CANCEL
 
 final class Suspend extends Exception
@@ -37,15 +37,24 @@ final class Invocation
     private array $replayed = [];
     /** @var array<int, array<int, list<int|string>>> completion id => notification fields */
     private array $notifications = [];
-    /** @var array<int, true> built-in signal index => received */
+    /** @var array<int, string> signal index => value (CANCEL, awakeables) */
     private array $signals = [];
+    /** @var array<string, list<string>> signal name => values, in the order the journal holds them */
+    private array $named = [];
+    private string $startId = '';
+    private int $awakeables = 0;
     public readonly string $input;
 
     public function __construct(string $body)
     {
         foreach (Wire::frames($body) as [$type, $message]) {
-            if (T_SIGNAL === $type) {   // field 1 is reserved here: the signal index is field 2
-                $this->signals[Wire::decode($message)[2][0] ?? 0] = true;
+            if (T_START === $type) {
+                $this->startId = (string) (Wire::decode($message)[1][0] ?? '');
+            } elseif (T_SIGNAL === $type) {   // field 1 is reserved here: index = 2, name = 3, value = 5
+                $fields = Wire::decode($message);
+                file_put_contents(__DIR__.'/var/signals.log', bin2hex($message).' '.json_encode(array_map(static fn ($l) => array_map(static fn ($v) => is_string($v) ? bin2hex($v) : $v, $l), $fields))."\n", \FILE_APPEND);
+                $value = self::value((string) ($fields[5][0] ?? ''));
+                isset($fields[3]) ? $this->named[$fields[3][0]][] = $value : $this->signals[$fields[2][0] ?? 0] = $value;
             } elseif ($type >= 0x8000) {
                 $fields = Wire::decode($message);
                 $this->notifications[$fields[1][0] ?? 0] = $fields;
@@ -108,6 +117,49 @@ final class Invocation
     public function cancelInvocation(string $invocationId): void
     {
         $this->next(T_SEND_SIGNAL, Wire::bytes(1, $invocationId).Wire::varint(2, SIGNAL_CANCEL).Wire::bytes(4, ''));
+    }
+
+    public function sendNamedSignal(string $invocationId, string $name, string $value): void
+    {
+        $this->next(T_SEND_SIGNAL, Wire::bytes(1, $invocationId).Wire::bytes(3, $name).Wire::bytes(5, Wire::bytes(1, $value)));
+    }
+
+    /**
+     * Waits until `$count` signals named `$name` are in the journal; returns them in journal order.
+     *
+     * @return list<string>
+     */
+    public function namedSignals(string $name, int $count): array
+    {
+        if (\count($this->named[$name] ?? []) >= $count) {
+            return $this->named[$name];
+        }
+        $this->out .= Wire::frame(T_SUSPENSION, Wire::bytes(3, $name));   // waiting_named_signals = 3
+
+        throw new Suspend();
+    }
+
+    /**
+     * An awakeable is only a signal index the SDK reserves, above the 16 built-in ones; its id is
+     * "prom_1" + base64url(StartMessage.id + index as u32 big-endian) (sdk-shared-core docs).
+     *
+     * @return array{string, int} [id to hand out, signal index to await]
+     */
+    public function awakeable(): array
+    {
+        $index = 17 + $this->awakeables++;
+
+        return ['prom_1'.rtrim(strtr(base64_encode($this->startId.pack('N', $index)), '+/', '-_'), '='), $index];
+    }
+
+    public function awaitSignal(int $index): string
+    {
+        return $this->signals[$index] ?? throw $this->suspend([], [$index]);
+    }
+
+    public function completeAwakeable(string $id, string $value): void
+    {
+        $this->next(T_COMPLETE_AWAKEABLE, Wire::bytes(1, $id).Wire::bytes(2, Wire::bytes(1, $value)));
     }
 
     public function error(string $message): string
@@ -207,6 +259,10 @@ if ('/discover' === $path) {   // the public spec says /discovery; server 1.7.12
             ['name' => 'approve', 'ty' => 'SHARED'],
         ]], ['name' => 'Cancel', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
+        ]], ['name' => 'Sig', 'ty' => 'WORKFLOW', 'handlers' => [
+            ['name' => 'run', 'ty' => 'WORKFLOW'],
+        ]], ['name' => 'Sender', 'ty' => 'SERVICE', 'handlers' => [
+            ['name' => 'burst'], ['name' => 'one'], ['name' => 'update'],
         ]], ['name' => 'Size', 'ty' => 'WORKFLOW', 'handlers' => [
             ['name' => 'run', 'ty' => 'WORKFLOW'],
         ]], ['name' => 'Retry', 'ty' => 'WORKFLOW', 'handlers' => [
@@ -257,6 +313,38 @@ $handler = match ($path) {
             }
             throw $cancelled;
         }
+    },
+    // Scenario 4 (#641): a mailbox of signals that share one name. The workflow waits for N of them,
+    // answers the ones that carry an awakeable id (an update's reply path), and returns them in the
+    // order the journal holds them.
+    '/invoke/Sig/run' => static function (Invocation $ctx): string {
+        $messages = array_map(static fn (string $m): array => json_decode($m, true), $ctx->namedSignals('msg', (int) json_decode($ctx->input)));
+        foreach ($messages as $message) {
+            isset($message['reply']) && $ctx->completeAwakeable($message['reply'], json_encode('ack '.$message['v']));
+        }
+
+        return json_encode(array_column($messages, 'v'));
+    },
+    '/invoke/Sender/burst' => static function (Invocation $ctx): string {   // N signals from one journal
+        ['target' => $target, 'n' => $n] = json_decode($ctx->input, true);
+        foreach (range(1, $n) as $v) {
+            $ctx->sendNamedSignal($target, 'msg', json_encode(['v' => $v]));
+        }
+
+        return '"sent"';
+    },
+    '/invoke/Sender/one' => static function (Invocation $ctx): string {   // one signal per concurrent sender
+        ['target' => $target, 'v' => $v] = json_decode($ctx->input, true);
+        $ctx->sendNamedSignal($target, 'msg', json_encode(['v' => $v]));
+
+        return '"sent"';
+    },
+    '/invoke/Sender/update' => static function (Invocation $ctx): string {   // request, then await the reply
+        ['target' => $target, 'v' => $v] = json_decode($ctx->input, true);
+        [$replyId, $replyIndex] = $ctx->awakeable();
+        $ctx->sendNamedSignal($target, 'msg', json_encode(['v' => $v, 'reply' => $replyId]));
+
+        return $ctx->awaitSignal($replyIndex);
     },
     // Scenario 3 (#641): N steps, each a 1 KB activity result then a suspension; size.log gets the
     // request size and the PHP time of every round trip.
