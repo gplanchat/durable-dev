@@ -12,7 +12,10 @@ constructor parameter, without declaring a class. A host that cannot resolve par
 SHALL say so in its documentation.
 
 A repository whose workflow class is not registered SHALL be refused when the application boots,
-naming the repository and the workflow.
+naming the repository and the workflow. A repository, declared or received through a parameter
+attribute, whose workflow declares a signal, query or update method named `start`, `execute`,
+`result`, `cancel`, `terminate` or `executionId`, compared without regard to case, SHALL be refused
+when the application boots, naming the workflow class and the method.
 
 #### Scenario: A declared repository on three hosts
 
@@ -30,6 +33,12 @@ naming the repository and the workflow.
 
 - **WHEN** an application declares a repository for a workflow class it does not register
 - **THEN** the application fails to boot, naming the repository and the workflow class
+
+#### Scenario: A workflow method that takes a name the stub keeps
+
+- **WHEN** an application registers a repository for a workflow that declares a signal method
+  named `cancel`
+- **THEN** the application fails to boot, naming the workflow class and the method `cancel`
 
 ### Requirement: Starting an execution says whether it waits
 
@@ -60,6 +69,7 @@ reuse policy refuses, SHALL fail the same way on every backend.
 - **WHEN** an application starts an execution under an identifier whose execution has already
   started
 - **THEN** the start fails, naming the identifier, whatever the backend
+- **AND** the execution already started keeps its workflow, its input and its progress
 
 #### Scenario: Two starts at the same time
 
@@ -84,10 +94,24 @@ once, naming the identifier.
 #### Scenario: Signal, query, update, result on every backend
 
 - **WHEN** an application signals a running execution, queries it, sends it an update and waits for
-  its result, on an in-memory, a SQL and a cluster backend
+  its result, on the in-memory, DBAL, Illuminate and Temporal backends
 - **THEN** the query's answer reflects the signal, the update's result is returned, and the result
   is the workflow's
-- **AND** the three backends give the same answers
+- **AND** the four backends give the same answers
+
+#### Scenario: Two identical updates at the same time
+
+- **WHEN** two callers send the same update, with the same arguments, to one execution at the same
+  time, and the workflow returns a different result to each
+- **THEN** each caller receives the result of its own update
+
+#### Scenario: An execution that continued as new
+
+- **WHEN** an application holds a stub for an execution that has continued as new, and waits for
+  its result or cancels it
+- **THEN** the result is the one the last run of the chain returns, and the cancellation reaches
+  the run that is current
+- **AND** the outcome is the same on every backend
 
 #### Scenario: A query leaves no trace
 

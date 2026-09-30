@@ -10,7 +10,9 @@ once per backend by hand.
       forms, the start-option table. The ADR is the owner's decision (DUR000).
 - [ ] 0.2 Probe Temporal: a query on a closed workflow; an update sent while the workflow
       completes; cancel and terminate through the existing gRPC methods; on Server 1.32 (CI) and
-      1.25.2 (dev server).
+      1.25.2 (dev server). Also: the gRPC code and message of a start on a running workflow id
+      and of a start the id reuse policy refuses; the update id in the `meta` of
+      `WORKFLOW_EXECUTION_UPDATE_COMPLETED`.
 - [ ] 0.3 Confirm `Container::whenHasAttribute()` on Laravel 11, the lowest supported line.
 - [ ] 0.4 Confirm the `#[RepositoryFor]` compiler pass approach on Symfony 6.4.
 
@@ -23,11 +25,23 @@ once per backend by hand.
 - [ ] 1.3 `WorkflowStub`: `start()`, `execute()`, signal, query and update methods resolved from
       the workflow's attributes, `result()`, `cancel()`, `terminate()`, `executionId()`.
 - [ ] 1.4 `#[RepositoryFor]`, the plain attribute.
+- [ ] 1.5 The reserved-name check, shared by the hosts: a workflow whose signal, query or update
+      method is named `start`, `execute`, `result`, `cancel`, `terminate` or `executionId`, in any
+      case, is refused with an exception naming the class and the method.
+- [ ] 1.6 `WorkflowUpdateHandled` gains a nullable update id, carried by `PendingUpdate`, the
+      `$pendingUpdates` shape of `dispatchResume()` and `ResumeWorkflowMessage`,
+      `recordUpdateHandled()` and `EventDataMapper`; `DeliverWorkflowUpdateHandler` passes the
+      message's `updateId` on. Test: an event written without an id replays unchanged, and the
+      client never matches it.
+- [ ] 1.7 The stub follows a continue-as-new chain for `result()`, `cancel()` and `terminate()`;
+      a `WorkflowContinuedAsNew` without `newExecutionId` (before #322) fails with a named
+      exception instead of waiting.
 
 ## 2. Journal backends (in-memory, DBAL, Illuminate)
 
-- [ ] 2.1 Signal and update through the port, the update's result read from
-      `WorkflowUpdateHandled`.
+- [ ] 2.1 Signal and update through the port, the update's result read from the
+      `WorkflowUpdateHandled` that carries the caller's update id. Test: two identical updates at
+      once, each caller gets its own result.
 - [ ] 2.2 The read-only query pass. Test: a query answers the state the live execution holds, and
       the journal has no new event afterwards.
 - [ ] 2.3 Result with a bound; a failed execution rethrows its failure.
@@ -35,12 +49,22 @@ once per backend by hand.
 - [ ] 2.5 Terminate: the `terminated` kind, and no workflow code runs afterwards.
 - [ ] 2.6 Start options: id reuse and timeouts honoured; task timeout, task queue, search
       attributes and cron refused at `start()` with a named exception.
+- [ ] 2.7 The port's start on DBAL and Illuminate inserts the metadata row; a duplicate key is
+      reported as an already started execution, and a start the reuse policy allows after an
+      ended execution is an `UPDATE ... WHERE completed = true`. In memory, the map is checked
+      first. The engine's `dispatchNewWorkflowRun()` and the continue-as-new path keep the upsert.
+      Test: two concurrent starts of one id on DBAL and Illuminate, one wins, the first
+      execution's input is unchanged.
 
 ## 3. Temporal
 
 - [ ] 3.1 The port's Temporal implementation, `ExecutionId`-keyed, passing the same conformance
       test case against a real server.
 - [ ] 3.2 Cancel and terminate.
+- [ ] 3.3 An already started workflow fails the port's start. The swallowing moves from
+      `doStartWorkflow()` to `startAsync()`, which the engine's dispatcher keeps calling.
+- [ ] 3.4 `TemporalExecutionHistory` pairs `WORKFLOW_EXECUTION_UPDATE_COMPLETED` with its
+      accepted update by id instead of taking the last one.
 
 ## 4. Hosts
 
@@ -65,7 +89,18 @@ once per backend by hand.
 - [ ] 6.2 Correct every statement the audit listed: `backends` (the parity table and "fails
       explicitly"), `concepts`, `options`, `getting-started`, `packages`, `cancellation`.
 - [ ] 6.3 The temporary start-option refusals, stated as such.
-- [ ] 6.4 A second model reviews the pages (CLAUDE.md, dispatch rule 3).
+- [ ] 6.4 UPGRADE.md, at the end of "Unreleased": the client API keyed by `ExecutionId`
+      instead of a Temporal workflow id (`signal()`, `query()`, `update()` on
+      `WorkflowClientInterface`), with before and after code; a class that implements the
+      interface migrates by hand; and the behaviour change: a second start through the client
+      fails on every backend where it used to return (Temporal) or overwrite the first input
+      (journal backends). That change has no Rector rule, since no call site changes.
+- [ ] 6.5 A Rector rule for the re-keying, in `src/DurableRector`, added to the `durable-upgrade`
+      set: it unwraps `$client->signal($client->workflowId($id), ...)`, and the same for
+      `query()`, `update()` and `WorkflowClient::workflowIdOf()`, into the `ExecutionId`. It
+      does not wrap a bare string: a string that already holds a workflow id would be prefixed a
+      second time. Bare strings are listed in UPGRADE.md for a hand migration.
+- [ ] 6.6 A second model reviews the pages (CLAUDE.md, dispatch rule 3).
 
 ## 7. Close
 
