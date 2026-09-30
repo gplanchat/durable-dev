@@ -88,7 +88,7 @@ class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConfor
         ]);
         // And its search attributes, which the filters read (#558).
         TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, $executionId, $workflowType, SearchAttributes::none()), $request);
-        self::startOnceMapped(fn() => $this->client->StartWorkflowExecution($request));
+        self::onceMapped('A start', fn() => $this->client->StartWorkflowExecution($request));
 
         $this->awaitListed($executionId, WorkflowRunStatus::Running);
     }
@@ -102,19 +102,23 @@ class TemporalWorkflowRunCatalogConformanceTest extends WorkflowRunCatalogConfor
             ]));
         }
 
-        $task = $this->client->PollWorkflowTaskQueue(new PollWorkflowTaskQueueRequest([
-            'namespace' => $this->namespace(),
-            'task_queue' => new TaskQueue(['name' => self::queueOf($executionId)]),
-            'identity' => $this->connection->identity,
-        ]), [], ['timeout' => 10_000_000]);
-        self::assertNotSame('', $task->getTaskToken(), \sprintf('no workflow task came for "%s"', $executionId));
+        // A continue-as-new writes the search attributes, checked by the history service against a
+        // cache that may still lack their mapping: it fails the task and schedules another (#718).
+        self::onceMapped('A continue-as-new', function () use ($executionId, $outcome): void {
+            $task = $this->client->PollWorkflowTaskQueue(new PollWorkflowTaskQueueRequest([
+                'namespace' => $this->namespace(),
+                'task_queue' => new TaskQueue(['name' => self::queueOf($executionId)]),
+                'identity' => $this->connection->identity,
+            ]), [], ['timeout' => 10_000_000]);
+            self::assertNotSame('', $task->getTaskToken(), \sprintf('no workflow task came for "%s"', $executionId));
 
-        $this->client->RespondWorkflowTaskCompleted(new RespondWorkflowTaskCompletedRequest([
-            'namespace' => $this->namespace(),
-            'task_token' => $task->getTaskToken(),
-            'identity' => $this->connection->identity,
-            'commands' => [$this->closingCommand($outcome, $executionId)],
-        ]));
+            $this->client->RespondWorkflowTaskCompleted(new RespondWorkflowTaskCompletedRequest([
+                'namespace' => $this->namespace(),
+                'task_token' => $task->getTaskToken(),
+                'identity' => $this->connection->identity,
+                'commands' => [$this->closingCommand($outcome, $executionId)],
+            ]));
+        });
 
         // A continue-as-new opens its successor under the same workflow id (DUR037 §5).
         $this->awaitListed($executionId, ...(WorkflowRunStatus::ContinuedAsNew === $outcome ? [$outcome, WorkflowRunStatus::Running] : [$outcome]));

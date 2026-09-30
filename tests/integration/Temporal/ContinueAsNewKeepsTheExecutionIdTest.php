@@ -21,6 +21,7 @@ use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 
@@ -59,21 +60,28 @@ final class ContinueAsNewKeepsTheExecutionIdTest extends TestCase
         // As Durable starts it, search attributes included: the continue-as-new below writes them
         // too, and a start the server accepts proves their mapping is in place for it (#650).
         TemporalPolicyMapper::applySearchAttributes(DurableSearchAttributes::of($this->connection, 'order/42', 'App\\OrderWorkflow', SearchAttributes::none()), $start);
-        self::startOnceMapped(fn() => $this->client->StartWorkflowExecution($start));
+        self::onceMapped('A start', fn() => $this->client->StartWorkflowExecution($start));
 
-        $task = $this->client->PollWorkflowTaskQueue(new PollWorkflowTaskQueueRequest([
-            'namespace' => $namespace,
-            'task_queue' => $queue,
-            'identity' => $this->connection->identity,
-        ]), [], ['timeout' => 10_000_000]);
-        $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'order/42');
-        $buffer->continueAsNew('App\\OrderWorkflow', []);
-        $this->client->RespondWorkflowTaskCompleted(new RespondWorkflowTaskCompletedRequest([
-            'namespace' => $namespace,
-            'task_token' => $task->getTaskToken(),
-            'identity' => $this->connection->identity,
-            'commands' => $buffer->flush(),
-        ]));
+        // The history service checks the continue-as-new against its own cache, which may still lack
+        // the mapping the start was accepted with: it fails the task and schedules another (#718).
+        $task = self::onceMapped('A continue-as-new', function () use ($namespace, $queue): PollWorkflowTaskQueueResponse {
+            $task = $this->client->PollWorkflowTaskQueue(new PollWorkflowTaskQueueRequest([
+                'namespace' => $namespace,
+                'task_queue' => $queue,
+                'identity' => $this->connection->identity,
+            ]), [], ['timeout' => 10_000_000]);
+            self::assertNotSame('', $task->getTaskToken(), 'no workflow task came for durable-order-42');
+            $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'order/42');
+            $buffer->continueAsNew('App\\OrderWorkflow', []);
+            $this->client->RespondWorkflowTaskCompleted(new RespondWorkflowTaskCompletedRequest([
+                'namespace' => $namespace,
+                'task_token' => $task->getTaskToken(),
+                'identity' => $this->connection->identity,
+                'commands' => $buffer->flush(),
+            ]));
+
+            return $task;
+        });
 
         $successor = $this->client->DescribeWorkflowExecution(new DescribeWorkflowExecutionRequest([
             'namespace' => $namespace,

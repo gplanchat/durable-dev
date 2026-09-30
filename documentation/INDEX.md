@@ -110,7 +110,11 @@ This repository documents the **Durable** component (durable execution orchestra
   - [Getting started](user/getting-started/) — installation, Symfony configuration, a first workflow, the worker
   - [Backends](user/backends/) — in memory, SQL (DBAL or Illuminate) or Temporal, and what each supports
   - [gRPC in your container image](user/container-images/) — the `php-grpc` images, and how to add `ext-grpc` to yours
-  - [The dashboard](user/dashboard/) — the run list and the run history, the same panels on every host
+  - [The dashboard](user/dashboard/) — the run list and the run history, on Sylius, Magento and Filament
+    - [Parity](user/dashboard/parity/) — what each surface shows, row by row
+    - [Read a run](user/dashboard/reading-a-run/) — the header, the timeline, the events, the Nexus table
+    - [A run does not progress](user/dashboard/run-not-progressing/) — from what the page says to what to do
+    - [Sylius](user/dashboard/sylius/), [Magento](user/dashboard/magento/), [Filament](user/dashboard/filament/), [web profiler](user/dashboard/profiler/) — one page per surface
   - [Durable and the Temporal PHP SDK](user/comparison/) — what maps to what, and the Rector set that migrates a project
   - [Concepts](user/concepts/) — workflows, activities, replay and backends in plain language
   - [Creating a workflow](user/workflows/) — `WorkflowEnvironment`, signals, queries, updates, child workflows

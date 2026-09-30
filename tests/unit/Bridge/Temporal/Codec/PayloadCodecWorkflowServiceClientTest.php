@@ -13,6 +13,9 @@ use Temporal\Api\Common\V1\Header;
 use Temporal\Api\Common\V1\Payload;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\SearchAttributes;
+use Temporal\Api\Failure\V1\Failure;
+use Temporal\Api\History\V1\ActivityTaskFailedEventAttributes;
+use Temporal\Api\History\V1\ActivityTaskScheduledEventAttributes;
 use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
@@ -143,6 +146,28 @@ final class PayloadCodecWorkflowServiceClientTest extends TestCase
         self::assertSame(strrev('left alone'), $attributes?->getIndexedFields()['K']->getData());
     }
 
+    /**
+     * A failure nests its cause, a message of its own type: the walk reaches a payload however deep
+     * the chain, and a header's map values as well as a list's items (#764).
+     */
+    public function testAPayloadDeepInAFailureChainOrInAHeaderIsDecoded(): void
+    {
+        $failure = new Failure(['cause' => new Failure(['cause' => new Failure(['encoded_attributes' => ReversingCodec::encoded('root cause')])])]);
+        $scheduled = new ActivityTaskScheduledEventAttributes(['header' => new Header(['fields' => ['trace' => ReversingCodec::encoded('abc')]])]);
+        $response = new GetWorkflowExecutionHistoryResponse();
+        $response->setHistory(new History(['events' => [
+            new HistoryEvent(['activity_task_scheduled_event_attributes' => $scheduled]),
+            new HistoryEvent(['activity_task_failed_event_attributes' => new ActivityTaskFailedEventAttributes(['failure' => $failure])]),
+        ]]));
+        $inner = $this->createMock(WorkflowServiceClientInterface::class);
+        $inner->method('GetWorkflowExecutionHistory')->willReturn($response);
+
+        $events = (new PayloadCodecWorkflowServiceClient($inner, new ReversingCodec()))->GetWorkflowExecutionHistory(new GetWorkflowExecutionHistoryRequest())->getHistory()?->getEvents();
+
+        self::assertNotNull($events);
+        self::assertSame('abc', $events[0]->getActivityTaskScheduledEventAttributes()?->getHeader()?->getFields()['trace']->getData());
+        self::assertSame('root cause', $events[1]->getActivityTaskFailedEventAttributes()?->getFailure()?->getCause()?->getCause()?->getEncodedAttributes()?->getData());
+    }
 }
 
 /**

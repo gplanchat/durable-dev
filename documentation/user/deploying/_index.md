@@ -5,18 +5,20 @@ weight: 28
 
 # Changing a workflow that is already running
 
-A workflow that runs for weeks outlives the deployment that started it. Sooner or later you will
-deploy a change while executions are still in flight, and what happens then is worth knowing before
-it happens rather than after.
+A workflow (the PHP class that describes an execution's steps; see the [glossary](../glossary/))
+that runs for weeks outlives the deployment that started it. This guide shows what happens when you
+deploy a change while executions (durable runs of a workflow) are still in flight, and how to
+handle it.
 
-## Why a running execution is not just old code
+## How a running execution meets new code {#why-a-running-execution-is-not-just-old-code}
 
 A workflow does not resume where it stopped: it **replays from the start** on every task, and each
-step it schedules is matched to the journal **by position**. Step 3 is the third activity this
+step it schedules is matched to the journal (the recorded history of the execution's steps and
+their results) **by position**. Step 3 is the third activity (a call with a side effect) this
 workflow scheduled, not the third call to that particular activity.
 
-So inserting one call ahead of another shifts everything after it. Position 3 in the code no longer
-means what position 3 in the journal means.
+Inserting one call ahead of another therefore shifts everything after it, and position 3 in the
+code no longer matches position 3 in the journal.
 
 ```php
 // The code that started the run
@@ -32,7 +34,7 @@ $this->await($this->activities->shipOrder($order));    // position 2
 The run that is in flight recorded `chargeCard` at position 0. The new code asks for
 `reserveStock` there.
 
-## What you will see
+## The divergence error {#what-you-will-see}
 
 The execution stops on that task, and the failure names both sides:
 
@@ -51,18 +53,18 @@ their endpoint/service/operation triple, child workflows by type.
 
 ## What to do about it
 
-### Revert, and the run finishes
+### Revert the deployment {#revert-and-the-run-finishes}
 
-The failure is telling you the deployment does not fit the runs it landed on. Put the previous
-version back, and the next retry replays cleanly: the run continues exactly where it was, having
-lost nothing but the time between the two deployments.
+The failure means the deployment does not fit the runs it landed on. Put the previous version back,
+and the next retry replays cleanly: the run continues exactly where it was, and loses nothing but
+the time between the two deployments.
 
-This is the whole reason the task fails rather than the run.
+This is why the task fails and the run does not.
 
 ### Or declare a change point
 
-When the change fits in a branch, say so in the workflow and let each execution keep the behaviour
-it started on:
+When the change fits in a branch, declare a change point (a named fork in workflow code; see the
+[glossary](../glossary/)) and let each execution keep the behaviour it started on:
 
 ```php
 use Gplanchat\Durable\Versioning\ChangePoint;
@@ -77,27 +79,29 @@ if (ChangePoint::DEFAULT_VERSION === $version) {
 ```
 
 The answer is **fixed the first time an execution reaches that point** and read back from its
-journal afterwards. Deploy what you like next: a run already past the point keeps its behaviour.
+journal afterwards. You can deploy further changes: a run already past the point keeps its
+behaviour.
 
-Three things worth knowing before you use it:
+Before you use a change point, note the following:
 
 - **The change id lives in the journal.** Renaming it later makes every in-flight execution look
-  like it never reached the point. Pick a name you can live with.
+  like it never reached the point. Pick a name you will keep.
 - **A run that passed this place before the point existed gets `DEFAULT_VERSION`.** It started on
   the old behaviour, it finishes on the old behaviour. Nothing is written for it; it is recognised,
   not marked.
-- **Recognising it takes recorded work ahead.** "Passed this place" is deduced from the activity,
-  timer, child, Nexus operation or side effect the journal still holds beyond the point. A run that
+- **Recognising it requires recorded work after the point.** "Passed this place" is deduced from
+  the activity, timer, child, Nexus operation or side effect the journal still holds beyond the point. A run that
   passed it and is now waiting only on a condition (a signal or an update) has none: a point
   inserted before that wait gives it the new version. Put the point after the wait, or before
   recorded work.
-- **The divergence check still applies everywhere else.** Declaring one change point does not
-  license an undeclared change three lines below: that one still stops the run.
+- **The divergence check still applies everywhere else.** An undeclared change three lines below a
+  declared change point still stops the run.
 
-### Deleting the old branch
+### Delete the old branch {#deleting-the-old-branch}
 
-The branch may go once no live execution can still resolve to it. On the **Temporal backend** the
-server answers that, because each marker is accompanied by a standard search attribute:
+You can delete the branch once no live execution can still resolve to it. On the **Temporal
+backend**, the server answers that question, because each marker is accompanied by a standard
+search attribute:
 
 ```
 temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
@@ -106,18 +110,17 @@ temporal workflow list --query 'TemporalChangeVersion = "add-discount-1"'
 An empty answer means nobody is on version 1 any more, and the `DEFAULT_VERSION` branch can go.
 
 When a branch goes, raise the minimum with it: `version('add-discount', 1, 1)` once the
-`DEFAULT_VERSION` branch is deleted. An execution still on a version outside that range is then
-refused with a `WorkflowTaskFailure` naming the change point, its version and the range, instead of
+`DEFAULT_VERSION` branch is deleted. An execution still on a version outside that range then fails
+with a `WorkflowTaskFailure` that names the change point, its version and the range, instead of
 silently taking the branch that remains. On Temporal the task fails and the run waits for code that
 supports it. On the journal backends the execution ends, as a divergence does (see below).
 
 **On the journal backends (In-Memory, DBAL and Illuminate) there is no search attribute and no
-equivalent answer.** There, knowing when a branch is dead means knowing your own executions, which
-in practice means keeping
-the branch until you are certain, or using the workflow-type rename below, whose drain window is
-visible.
+equivalent answer.** There, you know that a branch is dead only by knowing your own executions.
+In practice, keep the branch until you are certain, or use the workflow-type rename below, whose
+drain window is visible.
 
-### Or give the new shape a new name
+### Or register the workflow under a new type name {#or-give-the-new-shape-a-new-name}
 
 When you cannot wait for runs to drain, register the changed workflow under a **new type name** and
 keep the old class registered until the old executions finish:
@@ -133,28 +136,28 @@ final class CheckoutV2Workflow { … }
 Executions resolve their handler by the type recorded when they started, so runs already in flight
 never see the new class. New runs start on `checkout-v2`.
 
-This costs two classes and a drain window. It remains the right answer when the change is **too
-large to express as a branch**, a different set of activities and a different shape entirely, where
-a change point would only make one workflow carry two workflows.
+This costs two classes and a drain window. Use it when the change is **too large to express as a
+branch**, such as a different set of activities and an entirely different shape, where a change
+point would only make one workflow carry two workflows.
 
 ## What is not checked
 
 **Timers.** A timer records an absolute due date, not the delay that produced it, and its label is
-optional, and there is nothing in the journal that identifies *which* timer a position holds. Changing
-only timer durations therefore replays without being reported.
+optional, so nothing in the journal identifies *which* timer a position holds. Changing only timer
+durations therefore replays without being reported.
 
-The gap is narrower than it sounds: a shift escapes the check only if it touches timers **alone**.
-As soon as an activity moves with it, the activity's name catches it.
+A shift escapes the check only if it touches timers **alone**. As soon as an activity moves with
+it, the check on the activity's name detects it.
 
 ## On the backends without workflow tasks
 
 The journal backends (In-Memory, DBAL and Illuminate) have no notion of a workflow *task*, so there
-is nothing to fail and retry. There, a divergence ends the execution instead. That is still far better than the alternative
-of resolving the wrong recorded value in silence, but reverting will not bring the run back.
+is nothing to fail and retry. There, a divergence ends the execution instead of resolving the wrong
+recorded value in silence, and reverting does not bring the run back.
 
 ---
 
-The decisions behind all of this: [DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md)
+Two decision records cover this page: [DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md)
 for why the check rests only on what the journal already records, and
 [DUR044](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR044-declared-change-points.md)
 for change points, including why an execution older than the point is recognised rather than

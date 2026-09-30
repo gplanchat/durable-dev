@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Codec;
 
 use Google\Protobuf\Any;
+use Google\Protobuf\Descriptor;
 use Google\Protobuf\DescriptorPool;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\Message;
@@ -28,6 +29,11 @@ use Temporal\Api\Common\V1\Payload;
 final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceClient
 {
     private const SEARCH_ATTRIBUTES = 'temporal.api.common.v1.SearchAttributes';
+    private const PAYLOAD = 'temporal.api.common.v1.Payload';
+    private const ANY = 'google.protobuf.Any';
+
+    /** @var array<class-string<Message>, list<array{string, string}>> */
+    private static array $payloadFields = [];
 
     public function __construct(
         private readonly WorkflowServiceClientInterface $inner,
@@ -70,20 +76,10 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
 
             return;
         }
-        $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($message::class);
-        if (self::SEARCH_ATTRIBUTES === $descriptor->getFullName()) {
-            return;
-        }
-
-        for ($index = 0; $index < $descriptor->getFieldCount(); ++$index) {
-            $field = $descriptor->getField($index);
-            if (GPBType::MESSAGE !== $field->getType()) {
-                continue;
-            }
-            $name = str_replace('_', '', ucwords($field->getName(), '_'));
-            $value = $message->{'get' . $name}();
+        foreach (self::payloadFieldsOf($message::class) as [$getter, $setter]) {
+            $value = $message->{$getter}();
             if ($value instanceof Payload) {
-                $message->{'set' . $name}($transform($value));
+                $message->{$setter}($transform($value));
             } elseif ($value instanceof Message) {
                 $this->walk($value, $transform);
             } elseif (is_iterable($value)) {
@@ -97,5 +93,61 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
                 }
             }
         }
+    }
+
+    /**
+     * The fields of a message class that can lead to a payload, as getter and setter names: read
+     * from the descriptors once per class, then walked without them (#764). A field whose type holds
+     * no payload at any depth is left out; so are search attributes.
+     *
+     * @param class-string<Message> $class
+     *
+     * @return list<array{string, string}>
+     */
+    private static function payloadFieldsOf(string $class): array
+    {
+        if (isset(self::$payloadFields[$class])) {
+            return self::$payloadFields[$class];
+        }
+        $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($class);
+        $fields = [];
+        if (self::SEARCH_ATTRIBUTES !== $descriptor->getFullName()) {
+            for ($index = 0; $index < $descriptor->getFieldCount(); ++$index) {
+                $field = $descriptor->getField($index);
+                if (GPBType::MESSAGE === $field->getType() && self::leadsToAPayload($field->getMessageType(), [])) {
+                    $name = str_replace('_', '', ucwords($field->getName(), '_'));
+                    $fields[] = ['get' . $name, 'set' . $name];
+                }
+            }
+        }
+
+        return self::$payloadFields[$class] = $fields;
+    }
+
+    /**
+     * An `Any` may pack anything, so it counts as a payload. A map field's type is its entry, whose
+     * value field this follows like any other. A type met again on the way down is a cycle
+     * (`Failure.cause`): it adds nothing the first visit does not already check.
+     *
+     * @param array<string, true> $visiting
+     */
+    private static function leadsToAPayload(Descriptor $descriptor, array $visiting): bool
+    {
+        $name = $descriptor->getFullName();
+        if (self::PAYLOAD === $name || self::ANY === $name) {
+            return true;
+        }
+        if (self::SEARCH_ATTRIBUTES === $name || isset($visiting[$name])) {
+            return false;
+        }
+        $visiting[$name] = true;
+        for ($index = 0; $index < $descriptor->getFieldCount(); ++$index) {
+            $field = $descriptor->getField($index);
+            if (GPBType::MESSAGE === $field->getType() && self::leadsToAPayload($field->getMessageType(), $visiting)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

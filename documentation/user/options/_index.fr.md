@@ -6,13 +6,14 @@ weight: 32
 # Options et objets valeur
 
 Les options de planification (limites de réessai, délais, files de tâches, planifications cron,
-attributs de recherche) sont des **objets valeur**, pas des primitives. Chacun valide ce qu'il peut
-à la construction, si bien qu'une erreur se manifeste là où vous l'avez écrite, plutôt qu'en rejet
-du serveur, en valeur réécrite en silence, ou en exécution qui attend indéfiniment.
+attributs de recherche) sont des **objets valeur** plutôt que des primitives. Chacun valide ce qu'il
+peut à la construction. Une erreur apparaît donc à la ligne où vous l'avez écrite, au lieu de
+surgir plus tard en rejet du serveur, en valeur réécrite en silence, ou en exécution (un
+déroulement durable d'un workflow ; voir le [glossaire](../glossary/)) qui attend indéfiniment.
 
 Chaque règle appliquée ici a été **éprouvée contre un serveur Temporal en marche** avant d'être
 écrite. Là où le serveur est permissif, ces objets le sont en général aussi ; là où ils sont plus
-stricts, le docblock dit pourquoi.
+stricts, le docblock en donne la raison.
 
 ---
 
@@ -31,11 +32,11 @@ Duration::zero();                       // aucune attente
 Duration::infinity();                   // aucune borne : l'échéance par défaut d'await()
 ```
 
-`infinity()` est une **valeur**, pas une absence. Elle se compare (`shortest()`, `isLongerThan()`),
-elle voyage dans la configuration, et elle évite au code qui calcule une échéance d'écrire un cas
-particulier pour « pas de borne ». Ce n'est pas une durée transmissible : `timer()` la refuse, car
-un minuteur qui ne se déclenche jamais est une commande inscrite à l'historique pour un réveil qui
-ne viendra pas.
+`infinity()` est une **valeur** ordinaire. Elle se compare (`shortest()`, `isLongerThan()`),
+elle voyage dans la configuration, et elle évite au code qui calcule une échéance un cas
+particulier pour « pas de borne ». Elle ne peut pas être transmise au serveur : `timer()` la
+rejette, car un minuteur qui ne se déclenche jamais est une commande inscrite à l'historique pour
+un réveil qui n'arrive jamais.
 
 Elle accepte aussi les valeurs natives et Carbon, sans dépendre de Carbon :
 
@@ -49,17 +50,18 @@ $duration->toDateInterval();
 ```
 
 `of()` prend une **longueur**, `until()` prend un **instant**. Un `DateTimeInterface` ne devient une
-durée qu'une fois mesuré contre un autre instant : d'où deux méthodes et non une seule.
+durée qu'une fois mesuré contre un autre instant, d'où deux méthodes distinctes.
 
-Une durée négative est refusée, tout comme un `INF` ou un `NAN` calculé, car une durée infinie se
-demande par son nom. Les unités calendaires (années, mois) n'ont pas de longueur fixe et sont
+Une durée négative est rejetée, tout comme un `INF` ou un `NAN` calculé : une durée infinie se
+crée par son nom, avec `infinity()`. Les unités calendaires (années, mois) n'ont pas de longueur fixe et sont
 résolues contre une ancre UTC fixe : préférez les jours, les heures et les minutes pour une borne.
 
 ---
 
 ## `RetryLimit` {#retrylimit}
 
-Jusqu'où vous acceptez de réessayer une activité.
+Combien de fois une activité peut s'exécuter. Une activité est une unité d'effet de bord dans un
+workflow : un appel HTTP, une écriture en base, un e-mail ; voir le [glossaire](../glossary/).
 
 ```php
 use Gplanchat\Durable\Activity\RetryLimit;
@@ -72,14 +74,14 @@ RetryLimit::once();             // tout échec est définitif
 
 > [!WARNING]
 > **L'illimité est le défaut**, à l'image d'une `RetryPolicy` Temporal sans `maximum_attempts`. Une
-> activité qui échoue systématiquement sans borner ses tentatives **ne fera pas échouer le
-> workflow** ; elle réessaiera indéfiniment. Seuls une exception non réessayable, un dépassement de
+> activité qui échoue systématiquement sans borner ses tentatives **ne fait pas échouer le
+> workflow** ; elle réessaie indéfiniment. Seuls une exception non réessayable, un dépassement de
 > délai ou une annulation l'arrêtent.
 >
 > Passez `RetryLimit::once()` quand vous voulez qu'un échec soit définitif.
 
-`ofAttempts(0)` est refusé : une limite non bornée s'écrit `unlimited()`, pas zéro. `ofRetries(0)`
-signifie « pas de plafond », le sens que ce réglage a toujours eu dans la configuration du bundle.
+`ofAttempts(0)` est rejeté ; une limite non bornée s'écrit `unlimited()`. `ofRetries(0)` signifie
+« pas de plafond », le sens que ce réglage a toujours eu dans la configuration du bundle.
 
 ---
 
@@ -114,17 +116,18 @@ ActivityTimeouts::attempt(Duration::seconds(30))
     ->withHeartbeat(Duration::seconds(5));
 ```
 
-Un battement plus long que `startToClose` est refusé : la tentative se terminerait avant le premier
-battement manqué, et la borne serait donc morte.
+Un battement plus long que `startToClose` est rejeté : la tentative se terminerait avant le premier
+battement manqué, et la borne de battement ne s'appliquerait donc jamais.
 
-Hors Temporal, `startToClose` est vérifié quand la tentative se termine, pas imposé pendant qu'elle
-tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté, et la
-politique de reprise décide de la suite. Rien n'interrompt une tentative qui ne rend jamais la main :
-arrêter un worker bloqué revient à ce qui supervise le processus. `messenger:consume --time-limit`
-ne vérifie qu'entre deux messages, il n'y suffit donc pas.
+Hors Temporal, `startToClose` est vérifié quand la tentative se termine ; rien ne l'impose pendant
+qu'elle tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
+et la politique de reprise détermine la suite. Rien n'interrompt une tentative qui ne rend jamais
+la main. Arrêter un worker bloqué revient à ce qui supervise le processus.
+`messenger:consume --time-limit` ne vérifie qu'entre deux messages, il ne peut donc pas l'arrêter.
 
-Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut, et
-ce repli s'appelle `executionBoundOr()` plutôt que d'être caché dans la construction de la commande.
+Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut.
+Ce repli porte son propre nom, `executionBoundOr()`, au lieu d'être caché dans la construction de la
+commande.
 
 ---
 
@@ -137,12 +140,11 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 $options = ActivityOptions::of(3, 30, 1, [PaymentRefusedException::class], 'payments');
 ```
 
-`of()` est le constructeur écrit dans l'ordre où l'on pense : combien de tentatives, et combien de
-temps chacune peut prendre. Il accepte les équivalents scalaires : un **entier** est un nombre de
-tentatives, une **durée** nue est la borne `startToClose` d'une tentative, un **flottant** est un
-nombre de secondes. Rien n'est magique : `of(0)` est refusé plutôt que lu comme « illimité ». La
-forme longue reste disponible et strictement équivalente, pour quand vous voulez nommer chaque
-intention :
+`of()` prend ses arguments dans l'ordre où vous raisonnez : combien de tentatives, et combien de
+temps chacune peut prendre. Il accepte des équivalents scalaires : un **entier** est un nombre de
+tentatives, une **durée** nue est la borne `startToClose` d'une tentative, et un **flottant** est
+un nombre de secondes. `of(0)` est rejeté ; il n'est pas lu comme « illimité ». La forme longue
+reste disponible et strictement équivalente, pour quand vous voulez nommer chaque intention :
 
 ```php
 use Gplanchat\Durable\Activity\{ActivityOptions, ActivityTimeouts, RetryLimit};
@@ -163,8 +165,8 @@ $result = $this->environment->await($orders->charge($orderId));
 ```
 
 L'intervalle de réessai croît selon `backoffCoefficient` et se plafonne. Sans plafond explicite,
-c'est le défaut de Temporal qui s'applique : **100 × l'intervalle initial**. Ce plafond compte dès
-lors que les tentatives sont illimitées : sans lui, un recul exponentiel diverge.
+le défaut de Temporal s'applique : **100 × l'intervalle initial**. Avec des tentatives illimitées,
+ce plafond empêche un recul exponentiel de diverger.
 
 ---
 
@@ -194,11 +196,11 @@ new WorkflowTimeouts(
 WorkflowTimeouts::run(Duration::minutes(10))->withTask(Duration::seconds(10));
 ```
 
-Une borne de run plus longue que la borne d'exécution est **refusée**. Le serveur, lui, ne la refuse
-pas : il rabaisse silencieusement la borne de run à la borne d'exécution, si bien que la
-configuration que vous avez écrite n'est pas celle qui s'applique. Autant l'apprendre.
+Une borne de run plus longue que la borne d'exécution est **rejetée** à la construction. Le
+serveur l'accepte et rabaisse silencieusement la borne de run à la borne d'exécution, si bien que la
+configuration que vous avez écrite ne serait pas celle qui s'applique.
 
-`ContinueAsNewOptions` refuse purement et simplement une borne d'exécution : le nouveau run
+`ContinueAsNewOptions` rejette toute borne d'exécution : le nouveau run
 appartient à l'exécution courante et en hérite. Employez `withoutExecutionBound()` pour y réutiliser
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
@@ -214,10 +216,10 @@ TaskQueue::named('payments-activities');
 WorkflowNamespace::named('billing');
 ```
 
-Les deux refusent un nom vide, des espaces en bordure et des caractères de contrôle. Le serveur
-accepte les trois, mais ils ne sont jamais intentionnels, et pour une file de tâches la conséquence
-est silencieuse : le travail est mis en file sous un nom que personne n'interroge, et l'exécution
-attend, sans rien dans les journaux.
+Les deux rejettent un nom vide, des espaces en bordure et des caractères de contrôle. Le serveur
+accepte les trois, mais ils ne sont jamais intentionnels. Pour une file de tâches, la conséquence
+est silencieuse : le travail est mis en file sous un nom qu'aucun worker n'interroge, et
+l'exécution attend, sans rien dans les logs.
 
 > [!NOTE]
 > Ni l'un ni l'autre n'attrape une faute de frappe qui reste un nom valide, tel que
@@ -232,8 +234,8 @@ La comparaison d'espaces de noms est **sensible à la casse**, comme sur le serv
 
 ## `CronSchedule`
 
-Une récurrence, validée à la construction, sans quoi une faute de frappe n'apparaîtrait qu'au refus
-du premier démarrage par le serveur.
+Une récurrence, validée à la construction. Sans cette validation, une faute de frappe n'apparaît
+que lorsque le serveur rejette le premier démarrage.
 
 ```php
 use Gplanchat\Durable\{CronSchedule, Duration};
@@ -246,12 +248,12 @@ CronSchedule::dailyAt(9)->inTimeZone('Europe/Paris');
 ```
 
 > [!WARNING]
-> Sans fuseau horaire, le serveur lit l'expression en **UTC**, rarement ce que « tous les jours à
-> 9 h » est censé vouloir dire. `inTimeZone()` émet le préfixe `CRON_TZ=` que le serveur attend.
+> Sans fuseau horaire, le serveur lit l'expression en **UTC**, ce qui correspond rarement au sens
+> de « tous les jours à 9 h ». `inTimeZone()` émet le préfixe `CRON_TZ=` que lit le serveur.
 
-La validation reproduit celle du serveur, expression par expression : nombre de champs, caractères,
-plages, et **atteignabilité** : `0 0 31 4 *` est refusé parce qu'avril compte trente jours. Le jour
-de la semaine va de 0 à 6, donc `7` pour dimanche est refusé. `?` est accepté partout comme synonyme
+La validation reproduit celle du serveur, expression par expression. Elle vérifie le nombre de
+champs, les caractères, les plages et l'**atteignabilité** : `0 0 31 4 *` est rejeté parce
+qu'avril compte trente jours. Le jour de la semaine va de 0 à 6, donc `7` pour dimanche est rejeté. `?` est accepté partout comme synonyme
 de `*`.
 
 Les deux erreurs les plus probables sont nommées dans le message : une expression à six champs (un
@@ -292,14 +294,14 @@ L'objet est immuable : chaque appel renvoie une nouvelle instance.
 
 Deux des trois règles du serveur sont vérifiées localement :
 
-- **la valeur doit correspondre au type** : un `Int` à qui l'on donne une chaîne est refusé avant
+- **la valeur doit correspondre au type** : un `Int` qui reçoit une chaîne est rejeté avant
   l'aller-retour ;
 - **seize attributs système sont en lecture seule** (`RunId`, `WorkflowId`, `TaskQueue`,
   `StartTime`, …). `BuildIds`, `BinaryChecksums` et `TemporalChangeVersion` n'en font *pas* partie
   et peuvent être écrits.
 
-La troisième ne peut pas être vérifiée ici : **l'attribut doit être enregistré dans l'espace de
-noms**. Cela supposerait de lire le registre de l'espace de noms. Le serveur répond
+La troisième ne peut pas être vérifiée localement : **l'attribut doit être enregistré dans l'espace
+de noms**, et le vérifier supposerait de lire le registre de l'espace de noms. Le serveur répond
 `has no mapping defined for search attribute`.
 
 ```bash
@@ -322,9 +324,9 @@ $client->startAsync('NightlyReconciliation', $input, ExecutionId::fromString($ex
 ));
 ```
 
-Un cron Temporal n'est **pas un ordonnanceur externe** : c'est la même exécution logique, relancée
-par le serveur avec un historique neuf à chaque échéance. Le run suivant ne démarre pas tant que le
-précédent n'est pas terminé ; une occurrence manquée est **sautée, pas rattrapée**.
+Un cron Temporal est la même exécution logique, relancée par le serveur avec un historique neuf à
+chaque échéance ; **aucun ordonnanceur externe** n'intervient. Le run suivant ne démarre pas tant
+que le précédent n'est pas terminé, et une occurrence manquée est **sautée**, jamais rattrapée.
 
 Les workflows enfants acceptent la même planification par `ChildWorkflowOptions`.
 
@@ -337,7 +339,7 @@ Les workflows enfants acceptent la même planification par `ChildWorkflowOptions
 ## Migrer depuis l'API précédente
 
 Les arguments nommés ont changé en même temps que les objets valeur. Un appel non migré échoue
-immédiatement et bruyamment, jamais en silence.
+immédiatement, avec une erreur.
 
 | Avant | Maintenant |
 |---|---|
@@ -357,7 +359,7 @@ immédiatement et bruyamment, jamais en silence.
 | `searchAttributes: ['OrderId' => 'x']` | `SearchAttributes::none()->keyword('OrderId', 'x')` |
 
 > [!CAUTION]
-> **Changement de comportement, pas seulement de signatures.** `maxAttempts: 0` voulait dire *aucun
+> **Le comportement change en plus des signatures.** `maxAttempts: 0` voulait dire *aucun
 > réessai* et veut maintenant dire *illimité*, comme sur Temporal. Une activité qui échoue
 > systématiquement sans borner ses tentatives ne fait plus échouer le workflow. Repassez sur toute
 > activité qui s'appuyait sur l'ancien défaut et posez-y `RetryLimit::once()` là où un échec doit
@@ -366,7 +368,8 @@ immédiatement et bruyamment, jamais en silence.
 Douze méthodes `with*()` d'`ActivityOptions` que personne n'appelait ont été retirées.
 `withRetryLimit()` et `withTimeouts()` restent.
 
-Les attributs de recherche avaient un second problème, plus discret : ils étaient journalisés et
-**jamais envoyés au serveur**. Ils lui parviennent désormais, si bien qu'un attribut qui était
+Les attributs de recherche avaient un second problème, moins visible : ils étaient écrits dans le
+journal (l'enregistrement de tout ce qu'une exécution a décidé et reçu) et **jamais envoyés au
+serveur**. Ils lui parviennent désormais, si bien qu'un attribut qui était
 silencieusement perdu peut maintenant être rejeté comme non enregistré. Enregistrez-le, ou
 retirez-le.

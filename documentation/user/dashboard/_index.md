@@ -6,10 +6,13 @@ weight: 17
 # The dashboard
 
 There is **one** dashboard. Sylius, Magento and Filament render it in their own admin chrome, and an
-API Platform surface is on the way, but what they show, how a run is grouped, and the words they use are
-decided once, in `gplanchat/durable`, beside the observation model the pages read.
+API Platform surface is on the way. What they show and how a run is grouped are decided once, in
+`gplanchat/durable`, beside the observation model the pages read. The Symfony web profiler panel
+reads the same journals but answers a narrower question, what happened during one request, so it
+keeps its own layout. [Parity](parity/) lists, row by row, what each surface shows today and where
+they differ.
 
-That is not tidiness. A panel one surface has and another lacks is a question one application can
+The point is not consistency for its own sake. A panel one surface has and another lacks is a question one application can
 answer about a run and another cannot, about the same run, recorded by the same backend. An operator
 who works on two applications of the same house should have nothing to translate.
 
@@ -37,34 +40,35 @@ execution stops at its first task of that kind. On Temporal, `bin/console durabl
 non-zero when a role's queue has gone two minutes without a poll, and names the
 `durable:worker --role` to start; alert on it. It checks workflow and activity when Temporal holds
 the journal, and nexus once the application serves a Nexus handler. On Temporal, the Sylius
-dashboard shows the same state above the run list, one line per role.
+dashboard shows the same state above the run list, one line per role. The Magento page does too,
+for the journal and activity roles.
 
 ### 2. The runs
 
-Filterable by outcome (running, completed, failed, cancelled, continued as new) and paged.
+Sylius and Magento filter by outcome (running, completed, failed, cancelled, continued as new);
+Filament and the profiler do not. Every list except the profiler's is paged.
 
-On Sylius, the list can also be filtered by workflow name (the whole name) and by the start of the
-execution id. Both are exact about case and take `%` and `_` literally. They show only where the
-backend can apply them. On Temporal, that means [turning on its search
+On Sylius and Filament, the list can also be filtered by workflow name (the whole name) and by the
+start of the execution id. Both are exact about case and take `%` and `_` literally. They show only
+where the backend can apply them. On Temporal, that means [turning on its search
 attributes](../backends/#register-durables-search-attributes); without them, the page filters by
-outcome only.
+outcome only. The Magento grid offers its own text filters on workflow name, execution id and run
+id: the workflow name filter ignores case, the two id filters match the text as typed, and each looks for it anywhere in the value, among the runs of its window.
 
 A **continued-as-new** run is not a failure. It is a normal ending: the component treats it as a
 fresh execution, and the run that handed over finished without error. Painting both alike would put
 perfectly healthy long-running workflows in red.
 
 A running run that **no worker has picked up yet** says so, and since when:
-`waiting for a worker · 42 s`. It was dispatched, and nothing consumed it, which usually means no
-worker is running: start one with [`durable:worker`](../getting-started/#5-run-a-consumer-or-nothing-happens)
+`waiting for a worker · 42 s`. It was dispatched, and nothing consumed it, which means the queue has no worker, or its worker is stopped: start one with [`durable:worker`](../getting-started/#5-run-a-consumer-or-nothing-happens)
 on Symfony, or `php artisan queue:work` on Laravel.
-A running run without that line has been picked up, and is working or waiting on a timer or a signal,
-as it should. The counters add a **Waiting for a worker** count over the same page.
+A running run without that line has been picked up, and is working or waiting on a timer or a signal. On Sylius and Filament, the counters add a **Waiting for a worker** count over the
+same page.
 
 The SQL backends can tell (DBAL on Symfony, Illuminate on Laravel), on a runs table that has the
-`picked_up_at` column, and so can the in-memory backend within its process. Laravel has no run list
-screen of its own yet; its `WorkflowRunCatalogInterface` is fed and ready for one. Temporal cannot
-from the run list, so
-neither the line nor the count appears there; Temporal UI shows pending tasks. Neither does the
+`picked_up_at` column, and so can the in-memory backend within its process. On Laravel, the
+[Filament panel](filament/) is the run list. Temporal cannot from the run list, so neither the
+line nor the count appears there; Temporal UI shows pending tasks. Neither does the
 Magento grid, whose backends are the in-memory one, empty from the admin, and Temporal. See
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
 table created before it existed.
@@ -78,19 +82,22 @@ it a label (`await(…, label: 'signal approve')` shows `waiting on signal appro
 backends tell it, on a runs table that has the `waiting_on` column. Temporal tells it too, the
 Magento grid included, from a `durableWaitingOn` memo the worker updates at each suspension. It
 leaves out the attempt, since no workflow task runs when an activity attempt starts, and a timer's
-summary, which is never sent to the server.
+summary, which is never sent to the server. Sylius shows the line in the list, Filament in the list
+and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
 
 ### 3. Counters, over what you are looking at
 
 One per outcome, and they cover **the set the list is paging through**, never the application's
 whole history. Each surface says which set that is, because it depends on how the host pages:
 
-- the Sylius dashboard fetches a page and counts it;
-- the Magento grid pages by offset inside a bounded window, so the set is the window, and the screen
-  says so as soon as the window is full.
+- the Sylius and Filament dashboards fetch a page and count it, and the heading gives the number of
+  runs on it;
+- the Magento grid pages by offset inside a bounded window of 200 runs. Its counters cover that
+  window whatever the grid filters say, and the screen says so as soon as the window is full.
 
 A heading reading `Total` above a twenty would teach you that an application with five hundred runs
-has twenty.
+has twenty. The Magento counters carry a `Total` column: it counts the window, not the history.
+The profiler has no counters, since it lists only the runs of one request.
 
 ### 4. A run's recorded history, one line per *action* {#4-a-runs-recorded-history--one-line-per-action}
 
@@ -145,32 +152,38 @@ Two absences look alike and are not:
   queues.
 - **This run does not have this fact.** A run still going has no end date. The column exists for
   its neighbours, so in a table it reads as an explicit em dash. A blank cell reads as a rendering
-  that failed.
+  that failed. Magento and the profiler apply this rule. The Sylius grid still leaves the start
+  date of such a run blank, and the Filament Notes column leaves an empty note blank.
 
-## What differs between hosts
+## What differs between surfaces {#what-differs-between-hosts}
 
-The chrome, and only the chrome.
+| | Sylius | Magento | Filament | Web profiler |
+| --- | --- | --- | --- | --- |
+| Where | **Configuration > Durable Dashboard** | **System > Durable processes > Process history** | Panel navigation > **Durable runs** | The **Durable** panel of the profiler, and its toolbar item |
+| What it lists | Every run the backend knows | The 200 most recent runs | Every run the backend knows | The runs dispatched during one request |
+| Paging | Cursor, 20 a page | Offset inside the 200-run window, whose ceiling the screen states | Cursor, 20 a page | None, 500 events per journal at most |
+| Read-only | Yes | Yes | Yes | Yes |
 
-| | Sylius | Magento | Filament |
-| --- | --- | --- | --- |
-| Where | Admin menu → Durable | **System > Durable processes > Process history** | Panel navigation → **Durable runs** |
-| The list | A Sylius grid, filtered by outcome, and by workflow name and execution id prefix where the backend can apply them; cursor paging | The standard grid: paging, bookmarks, column controls, export, and a status filter whose options come from the status enum | A table filtered by workflow name and execution id prefix where the backend can apply them; cursor paging |
-| Paging | Cursor, 20 a page | Offset inside a 200-run window, whose ceiling the screen states | Cursor, 20 a page |
-| Read-only | Yes | Yes | Yes |
+The Sylius list is a Sylius grid, the Magento one the standard admin grid (paging, column controls,
+filters), and the Filament one a table in the panel's own components: on Filament 3 a table reads an
+Eloquent query and nothing else, and a catalog's cursor only goes forward. It renders the same on
+Filament 3 and 4.
 
-The Filament list is a table in the panel's own components rather than a Filament table: on
-Filament 3 a table reads an Eloquent query and nothing else, and a catalog's cursor only goes
-forward. It renders the same on Filament 3 and 4.
-
-All three are **read-only**, and will stay so: what you come to a dashboard for is to know whether an
+All four are **read-only**: what you come to a dashboard for is to know whether an
 order went through, not to restart it by hand. Resuming an execution from a browser would bypass the
 per-execution lock.
 
-Scaling seconds into a bar width is the one presentation decision a host owns, because it needs to know
-how wide its column is, and a surface that renders no markup has none. Everything else is shared.
+Scaling seconds into a bar width is one presentation decision a host owns, because it needs to know
+how wide its column is, and a surface that renders no markup has none. The other differences are
+gaps rather than choices, and [Parity](parity/) lists them.
 
 ## See also
 
+- [Parity](parity/) compares the four surfaces, row by row
+- [Read a run](reading-a-run/) explains a run page, whichever surface shows it
+- [A run does not progress](run-not-progressing/) goes from what you see to what to do
+- One page per surface: [Sylius](sylius/), [Magento](magento/), [Filament](filament/),
+  [web profiler](profiler/)
 - [Packages](../packages/) covers `gplanchat/durable-plugin` for the Sylius chrome,
   `gplanchat/durable-magento` for the Magento one, `gplanchat/durable-filament` for the Filament one
 - [Backends](../backends/) says which of them records what
