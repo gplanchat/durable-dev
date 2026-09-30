@@ -61,12 +61,15 @@ It rewrites a local variable assigned once, at the top of the workflow method, a
 property assigned once in the constructor and read only by that method. The contract must be a
 `Contract::class` constant. The options must be absent, `ActivityOptions::default()`, or
 `ActivityOptions::of()` with literal arguments only, because an attribute argument is a constant.
+`#[Activities]` checks its options when the workflow is registered, so a retry policy Temporal would
+refuse, such as a backoff coefficient under 1, now stops the registration instead of the first
+scheduling.
 
 It keeps the constructor form, which stays supported, wherever the attribute cannot carry the stub:
 
 - **options computed at run time**, such as a task queue named after a tenant, and `of()` arguments
-  given as value objects (`RetryLimit::once()`, `Duration::seconds()`) or as an `activityId`, which
-  the attribute has no field for;
+  given as value objects (`RetryLimit::once()`, `Duration::seconds()`), as an exception class
+  written as a string, or as an `activityId`, which the attribute has no field for;
 - **a stub read outside the workflow method**: Durable calls a signal or update method with the
   message payload only, and a helper method would need the stub passed in;
 - **a workflow method declared by an interface or a parent class**: PHP forbids the implementation

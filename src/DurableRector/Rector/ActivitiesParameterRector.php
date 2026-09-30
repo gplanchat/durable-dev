@@ -21,6 +21,7 @@ use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
@@ -151,7 +152,8 @@ AFTER,
             }
             $property = $this->privateProperty($node, $name);
             if (null === $property || [] !== $node->getTraitUses() || $this->hasParam($method, $name)
-                || $this->writesTo($method, $name) > 0 || !$this->readOnlyIn($node, $name, $method)) {
+                || $this->writesTo($method, $name) > 0 || !$this->readOnlyIn($node, $name, $method)
+                || $this->readInClosure($method, $name)) {
                 continue;
             }
             \assert(null !== $constructor && null !== $constructor->stmts);
@@ -277,7 +279,7 @@ AFTER,
             'number' => $value instanceof Int_ || $value instanceof Float_,
             'string' => $value instanceof String_,
             'classes' => $value instanceof Array_ && [] === array_filter($value->items, fn(ArrayItem $item): bool => null !== $item->key || $item->unpack
-                || !($item->value instanceof String_ || ($item->value instanceof ClassConstFetch && $item->value->class instanceof Name && $this->isName($item->value->name, 'class')))),
+                || !($item->value instanceof ClassConstFetch && $item->value->class instanceof Name && $this->isName($item->value->name, 'class'))),
             'cancellation' => $value instanceof ClassConstFetch && $value->class instanceof Name
                 && $this->isName($value->class, ActivityCancellationType::class) && !$this->isName($value->name, 'class'),
             default => false,
@@ -314,6 +316,25 @@ AFTER,
         }
 
         return $reads > 0;
+    }
+
+    /** A `function () {}` sees no parameter it does not `use`; an arrow function captures by itself. */
+    private function readInClosure(ClassMethod $method, string $name): bool
+    {
+        $found = false;
+        $this->traverseNodesWithCallable($method->stmts ?? [], function (Node $n) use (&$found, $name): null {
+            if ($n instanceof Closure) {
+                $this->traverseNodesWithCallable($n->stmts, function (Node $inner) use (&$found, $name): null {
+                    $found = $found || $this->isThisFetch($inner, $name);
+
+                    return null;
+                });
+            }
+
+            return null;
+        });
+
+        return $found;
     }
 
     private function isThisFetch(Node $node, string $name): bool
