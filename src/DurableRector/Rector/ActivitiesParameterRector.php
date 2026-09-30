@@ -132,7 +132,8 @@ AFTER,
         $method = $this->workflowMethod($node);
         // A subclass may override the method, and a call from the class itself would miss the new
         // parameter: neither can be rewritten from here.
-        if (null === $method || null === $method->stmts || !$node->isFinal()
+        // A trait may call the method or declare it abstract, from a file this rule does not see.
+        if (null === $method || null === $method->stmts || !$node->isFinal() || [] !== $node->getTraitUses()
             || $this->isDeclaredAbove($node, $method->name->toString()) || $this->callsItself($node, $method->name->toString())) {
             return null;
         }
@@ -160,9 +161,10 @@ AFTER,
             $property = $this->privateProperty($node, $name);
             // Any variable of that name (an arrow fn or catch parameter, a destructuring) would take
             // the stub's place; inside an anonymous class, `$this` is another object.
-            if (null === $property || [] !== $node->getTraitUses() || $this->hasParam($method, $name)
+            if (null === $property || $this->hasParam($method, $name)
                 || $this->contains($method->stmts, fn(Node $n): bool => ($n instanceof Variable && $this->isName($n, $name)) || $n instanceof Class_)
-                || $this->contains($node->stmts, fn(Node $n): bool => ($n instanceof PropertyFetch || $n instanceof NullsafePropertyFetch) && !$n->name instanceof Identifier)
+                || $this->contains($node->stmts, fn(Node $n): bool => ($n instanceof PropertyFetch || $n instanceof NullsafePropertyFetch)
+                    && (!$n->name instanceof Identifier || ($this->isName($n->name, $name) && !$this->isName($n->var, 'this'))))
                 || !$this->readOnlyIn($node, $name, $method) || $this->readInClosure($method, $name)) {
                 continue;
             }
@@ -265,7 +267,9 @@ AFTER,
             if ($ofArg->unpack || null === $parameter || !\array_key_exists($parameter, self::OF_TO_ATTRIBUTE)) {
                 return null;
             }
-            if ($ofArg->value instanceof ConstFetch && $this->isName($ofArg->value, 'null')) {
+            // null and an empty list set nothing, which of() reads as its default.
+            if (($ofArg->value instanceof ConstFetch && $this->isName($ofArg->value, 'null'))
+                || ($ofArg->value instanceof Array_ && [] === $ofArg->value->items)) {
                 continue;
             }
             [$target, $accepts] = self::OF_TO_ATTRIBUTE[$parameter];
