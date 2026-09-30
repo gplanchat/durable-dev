@@ -42,6 +42,7 @@ use PhpParser\Node\Stmt\Property;
 use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\ObjectType;
 use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfoFactory;
 use Rector\Comments\NodeDocBlock\DocBlockUpdater;
@@ -80,6 +81,7 @@ final class ActivitiesParameterRector extends AbstractRector
     ];
 
     public function __construct(
+        private readonly ReflectionProvider $reflectionProvider,
         private readonly PhpDocInfoFactory $phpDocInfoFactory,
         private readonly DocBlockUpdater $docBlockUpdater,
     ) {}
@@ -123,7 +125,7 @@ AFTER,
         \assert($node instanceof Class_);
 
         $method = $this->workflowMethod($node);
-        if (null === $method || null === $method->stmts) {
+        if (null === $method || null === $method->stmts || $this->isDeclaredAbove($node, $method->name->toString())) {
             return null;
         }
 
@@ -181,6 +183,23 @@ AFTER,
 
         // The loader wants exactly one; anything else is not a workflow this rule can reason about.
         return 1 === \count($found) && !$found[0]->isStatic() ? $found[0] : null;
+    }
+
+    private function isDeclaredAbove(Class_ $class, string $method): bool
+    {
+        $name = $this->getName($class);
+        if (null === $name || !$this->reflectionProvider->hasClass($name)) {
+            return true;
+        }
+        $native = $this->reflectionProvider->getClass($name)->getNativeReflection();
+        $parent = $native->getParentClass();
+        foreach ([...$native->getInterfaces(), ...(false === $parent ? [] : [$parent])] as $ancestor) {
+            if ($ancestor->hasMethod($method)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
