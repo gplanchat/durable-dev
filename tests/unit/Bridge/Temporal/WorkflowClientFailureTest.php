@@ -30,6 +30,8 @@ use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use Gplanchat\Durable\Port\DeclaredActivityFailureInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Temporal\Api\Common\V1\Payload;
+use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
@@ -129,6 +131,7 @@ final class WorkflowClientFailureTest extends TestCase
         $chain = $previous->getPrevious();
         self::assertInstanceOf(ActivityFailureCauseException::class, $chain);
         self::assertSame('PDOException', $chain->originalExceptionClass());
+        self::assertSame('[PDOException] connection lost', $chain->getMessage());
     }
 
     public function testAnUnhandledDeclaredActivityFailureComesBackWithTheDeclaredExceptionAsPrevious(): void
@@ -215,6 +218,24 @@ final class WorkflowClientFailureTest extends TestCase
         self::assertInstanceOf(DeadlineExceededException::class, $caught);
         self::assertSame($cause->getMessage(), $caught->getMessage());
         self::assertSame('activity charge_card', $caught->awaited());
+    }
+
+    public function testAFailureWithDetailsThatAreNotJsonComesBackAsWorkflowFailed(): void
+    {
+        $failure = new Failure();
+        $failure->setMessage('encrypted by another SDK');
+        $failure->setApplicationFailureInfo(new ApplicationFailureInfo([
+            'type' => 'SomeGoError',
+            'details' => new Payloads(['payloads' => [new Payload([
+                'metadata' => ['encoding' => 'binary/encrypted'],
+                'data' => "\x0a\x03\xff\xfe",
+            ])]]),
+        ]));
+
+        $caught = $this->poll($this->failedEvent($failure));
+
+        self::assertInstanceOf(WorkflowFailedException::class, $caught);
+        self::assertSame('Workflow "exec-1" failed: encrypted by another SDK', $caught->getMessage());
     }
 
     public function testACancelledWorkflowComesBackAsWorkflowCancelledWithItsReason(): void
