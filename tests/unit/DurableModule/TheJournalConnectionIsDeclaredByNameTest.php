@@ -93,10 +93,10 @@ final class TheJournalConnectionIsDeclaredByNameTest extends TestCase
     private function resolver(array $env, ResourceConnection $connections): JournalConnectionResolver
     {
         $config = $this->createStub(DeploymentConfig::class);
-        $config->method('get')->willReturnCallback(static fn ($key = null, $default = null): mixed => $env[$key] ?? $default);
+        $config->method('get')->willReturnCallback(static fn($key = null, $default = null): mixed => $env[$key] ?? $default);
 
         $warnings = &$this->warnings;
-        $logger = new class($warnings) extends AbstractLogger {
+        $logger = new class ($warnings) extends AbstractLogger {
             /** @param list<string> $warnings */
             public function __construct(private array &$warnings) {}
 
