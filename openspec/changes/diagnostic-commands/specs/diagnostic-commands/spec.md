@@ -40,6 +40,12 @@ committed matrix that differs from the generated one SHALL fail the project's te
 - **THEN** that capability is listed as not supported by this server, with the server's version
   and the minimum
 
+#### Scenario: Capabilities without a server
+
+- **WHEN** an operator runs `durable:capabilities` and the Temporal server does not answer
+- **THEN** the static matrix of the backend is printed
+- **AND** each row that depends on the server is marked "not checked"
+
 #### Scenario: The documentation matrix drifts
 
 - **WHEN** a backend's declaration changes and the documentation matrix is not regenerated
@@ -70,8 +76,13 @@ the registered search attributes, the Nexus endpoints the workflows name, the jo
 finding, not only the first. Each finding SHALL carry a stable code, its subject, and the URL of the
 documentation page that explains it.
 
-A check that the command cannot perform, because a declaration is not visible to it, SHALL be
-reported as not performed, never as passed.
+A check that the command cannot perform SHALL be reported as not checked, never as passed. When the
+server does not answer, every probe that needs it SHALL be marked not checked, and the doctor SHALL
+report one error for the unreachable server.
+
+The doctor SHALL read the workflow list the host has built, and SHALL NOT build it itself. When the
+application's container is not compiled, the doctor SHALL fail with a message naming the command
+that compiles it.
 
 #### Scenario: A Nexus handler on a SQL journal
 
@@ -79,6 +90,12 @@ reported as not performed, never as passed.
   `durable:doctor`
 - **THEN** a finding names the handler class and the Nexus serve capability
 - **AND** it links to the page on backend capabilities
+
+#### Scenario: A Nexus call on a SQL journal
+
+- **WHEN** an application backed by a SQL journal registers a workflow whose method receives Nexus
+  operations through a parameter attribute, and runs `durable:doctor`
+- **THEN** an error names the workflow class, the parameter and the Nexus call capability
 
 #### Scenario: A search attribute is not registered
 
@@ -90,7 +107,19 @@ reported as not performed, never as passed.
 #### Scenario: The journal shares the application's connection
 
 - **WHEN** the journal is on the application's default database connection
-- **THEN** `durable:doctor` reports it, naming the connection and DUR054
+- **THEN** `durable:doctor` reports a warning naming the connection and DUR054
+
+#### Scenario: The server does not answer
+
+- **WHEN** an operator runs `durable:doctor` and the Temporal server does not answer
+- **THEN** each probe that needs the server is marked "not checked"
+- **AND** one error names the unreachable server
+- **AND** the command exits with a non-zero code
+
+#### Scenario: The container is not compiled
+
+- **WHEN** an operator runs `durable:doctor` on a Magento application before `setup:di:compile`
+- **THEN** the command fails with a message naming `bin/magento setup:di:compile`
 
 #### Scenario: Several gaps at once
 
@@ -100,16 +129,24 @@ reported as not performed, never as passed.
 ### Requirement: The output is readable by a person and by a CI job
 
 The three commands SHALL print a table by default and JSON with `--format=json`. The JSON SHALL
-carry a format version. The exit code SHALL be zero when no gap is found and non-zero when one is,
-so that a CI job can stop a deployment on it.
+carry a format version. Each finding SHALL be an error or a warning. The three commands SHALL share
+one exit code contract: non-zero when an error is found, zero otherwise, warnings included. With
+`--fail-on=warning`, a warning SHALL also give a non-zero exit code. A CI job can then stop a
+deployment on it.
 
 #### Scenario: Gating a deployment
 
-- **WHEN** a CI job runs `durable:doctor --format=json` and a gap is found
+- **WHEN** a CI job runs `durable:doctor --format=json` and an error is found
 - **THEN** the command exits with a non-zero code
 - **AND** the output parses as JSON listing the gap
 
+#### Scenario: Warnings only
+
+- **WHEN** `durable:doctor` finds warnings and no error
+- **THEN** it exits with code zero
+- **AND** with `--fail-on=warning`, the same run exits with a non-zero code
+
 #### Scenario: A clean configuration
 
-- **WHEN** `durable:doctor` finds no gap
+- **WHEN** `durable:doctor` finds nothing to report
 - **THEN** it exits with code zero

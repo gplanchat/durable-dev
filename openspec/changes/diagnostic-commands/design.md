@@ -123,23 +123,50 @@ subject (a backend, a role, a workflow class, an attribute name), a sentence, an
 documentation page that explains it. The table and the JSON render the same findings. The JSON
 carries a format version so a CI script can detect a shape change.
 
-### Output and exit code
+### Output and exit code: one contract for the three commands
 
-A readable table by default, `--format=json` on all three commands. The exit code is 0 when no gap
-is found and non-zero when one is. What counts as a gap per severity is an open point below.
+A readable table by default, `--format=json` on all three commands. A finding is an error or a
+warning. The three commands share one exit code contract:
 
-### The code scan reads declarations
+- An error gives a non-zero exit code. Without errors, the exit code is 0, warnings included.
+- `--fail-on=warning` makes warnings give a non-zero exit code too.
+- The journal on the application's default connection (DUR054) is a warning. This matches DUR054
+  decision 6, "warned about, never refused".
 
-`durable:doctor` reads the workflows the host registers and their attributes by reflection, and
-matches what they declare against the backend's matrix: a Nexus handler (`#[AsNexusServiceHandler]`,
-`#[FulfilsNexusOperation]`) on a backend without Nexus serve, a signal, query or update method on a
-backend that does not support it, and so on.
+### `durable:doctor` requires the compiled container
 
-It does not execute workflow code and does not parse method bodies. A Nexus call made through
-`$env->nexusStub()` inside the body is therefore invisible to it. The `#[NexusOperations]`
-parameter attribute proposed by `inject-nexus-and-child-workflow-stubs` (PR #781) makes a Nexus
-call a declaration; once that change lands, the scan reports a Nexus call on a SQL journal from it.
-Until then the scan reports handlers only, and `durable:doctor` says so in its output.
+The doctor reads the workflow list the host has already built. It does not build that list itself.
+
+- Symfony: the container cache must be warmed (`bin/console cache:warmup`).
+- Magento: the DI must be compiled (`bin/magento setup:di:compile`).
+- Laravel: the `WorkflowRegistry` singleton is resolved the way it is today, on first use.
+
+When the container or DI is not compiled, `durable:doctor` fails with a message that names the
+command to run.
+
+### An unreachable server
+
+- `durable:health` fails. Reporting a service that does not answer is its job.
+- `durable:capabilities` falls back to the static matrix and marks each live row "not checked".
+- `durable:doctor` marks each probe that needs the server "not checked", and reports one overall
+  error for the unreachable server rather than one error per probe.
+
+### The code scan reads declarations, Nexus calls included
+
+`durable:doctor` reads the workflows the host registers and their attributes by reflection. It
+matches what they declare against the backend's matrix. Examples: a Nexus handler
+(`#[AsNexusServiceHandler]`, `#[FulfilsNexusOperation]`) on a backend without Nexus serve, or a
+signal, query or update method on a backend that does not support it.
+
+The scan does not execute workflow code and does not parse method bodies. A Nexus call is a
+declaration through the `#[NexusOperations]` parameter attribute of
+`inject-nexus-and-child-workflow-stubs` (PR #781). That change is implemented first, and the
+doctor checks Nexus calls from its first version: a workflow parameter carrying
+`#[NexusOperations]` on a backend without Nexus call is an error.
+
+Reflection reads class, method and parameter attributes on every host. Magento's object manager
+does not resolve parameter attributes for injection, but that limit does not apply to the scan:
+the scan only reads attributes and injects nothing.
 
 ## Probed and assumed
 
@@ -164,24 +191,15 @@ matrix when those PRs merge, with the PR as their source.
 
 ## Open points for the owner
 
-Not decided in this change. Each one is a question with today's facts.
+None. The four points the first draft listed (exit code per severity, a compiled container for the
+code scan, Magento's limits, an unreachable server) were decided on 2026-10-01 and are recorded
+under Decisions.
 
-1. **Exit code semantics per severity.** Does a warning fail the command, or only an error? Do the
-   three commands share one contract, or does `durable:health` keep exiting 1 on a missing poller
-   only? Example to settle: DUR054 is "warned, never refused" at boot; is it a gap in
-   `durable:doctor`? A `--fail-on=warning|error` option is one possible answer.
-2. **Does the doctor's code scan need the container compiled?** On Symfony the workflow list is
-   built by `WorkflowPass` at container compilation; on Laravel the `WorkflowRegistry` singleton is
-   resolved on first use; on Magento `RuntimeFactory` builds a new `WorkflowRegistry` per call. A
-   CI job that runs the doctor before `cache:warmup` or `setup:di:compile` may see no workflows.
-3. **Magento's limits.** Magento's object manager does not resolve parameter attributes. The scan
-   reads class and method attributes by reflection, which works on Magento; whether it can read
-   `#[NexusOperations]` on a workflow parameter (PR #781) the same way, and whether the workflow
-   list is available without `setup:di:compile`, is to be decided.
-4. **An unreachable server.** For each probe (version, search attributes, Nexus endpoints, pollers),
-   the command can report "not checked" and continue, or report a gap. Today Magento's
-   `durable:health` exits 1 when the cluster does not answer, and Symfony's reports each role as
-   unanswered. The capabilities command could also fall back to the static matrix alone.
+**Still to verify while implementing:** how `durable:doctor` detects an uncompiled container on
+Symfony and an uncompiled DI on Magento. On Symfony the workflow list is built by `WorkflowPass`
+at container compilation. On Magento, `RuntimeFactory` builds a new `WorkflowRegistry` per call
+(PR #781, design, Context), so the check that `setup:di:compile` has run has to be found on that
+host.
 
 ## Risks
 

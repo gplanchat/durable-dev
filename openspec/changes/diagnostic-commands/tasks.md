@@ -6,7 +6,10 @@ the command, with the same expected output.
 
 ## 0. Decide and probe before building
 
-- [ ] 0.1 The owner settles the four open points of `design.md`.
+- [x] 0.1 The owner settles the four open points of `design.md` (2026-10-01, recorded there).
+- [ ] 0.1b `inject-nexus-and-child-workflow-stubs` (PR #781) is implemented and merged. Task 1.6
+      does not start before it: the scan reads Nexus calls from its `#[NexusOperations]`
+      parameter attribute.
 - [ ] 0.2 Draft the ADR: three commands on a shared core, a capability matrix declared by each
       backend, the exit code contract. The ADR is the owner's decision (DUR000).
 - [ ] 0.3 Probe `GetSystemInfo` on Server 1.25.2 and 1.32: the shape of `server_version`, and what
@@ -23,13 +26,21 @@ the command, with the same expected output.
       supported from a server version.
 - [ ] 1.2 The finding: code, severity, subject, sentence, documentation URL.
 - [ ] 1.3 The runner: runs the checks a command selects, collects every finding, computes the exit
-      code from the contract settled in 0.1.
+      code. Only an error exits non-zero; `--fail-on=warning` makes a warning exit non-zero too.
+      Test: a configuration with one warning exits 0, and exits non-zero under `--fail-on=warning`.
+- [ ] 1.3b "Not checked": a probe that needs an unreachable server is marked "not checked".
+      `durable:capabilities` falls back to the static matrix; `durable:doctor` reports one
+      overall error for the unreachable server, not one per probe.
 - [ ] 1.4 The table renderer and the JSON renderer, with a format version. Test: the same findings
       render to the same JSON whatever the host.
 - [ ] 1.5 The health check over `WorkflowRunCatalogInterface::checkHealth()`: reachable,
       unreachable, ephemeral.
-- [ ] 1.6 The code scan: reads the registered workflow classes and their attributes, and reports
-      each declaration the backend's matrix marks as not supported.
+- [ ] 1.6 The code scan: reads the registered workflow classes and their class, method and
+      parameter attributes, and reports each declaration the backend's matrix marks as not
+      supported, `#[NexusOperations]` (from #781) included. Test: a workflow with a
+      `#[NexusOperations]` parameter on a SQL journal gives an error.
+- [ ] 1.7 The doctor reads the workflow list the host built and builds none itself. When the
+      container is not compiled, it fails and names the command to run.
 
 ## 2. Backends
 
@@ -43,15 +54,17 @@ the command, with the same expected output.
 - [ ] 2.5 Temporal's search attribute probe, when `TemporalConnection::$searchAttributes` is on.
 - [ ] 2.6 Temporal's Nexus endpoint probe, for the endpoints the registered workflows name.
 - [ ] 2.7 The DUR054 check on DBAL and Illuminate, reusing what `WarnOnSharedJournalConnectionPass`
-      and `warnWhenTheJournalSharesTheDefaultConnection()` compare.
+      and `warnWhenTheJournalSharesTheDefaultConnection()` compare. The finding is a warning.
 
 ## 3. Hosts
 
 - [ ] 3.1 Symfony (Sylius through it): `durable:capabilities`, `durable:doctor`, and
-      `durable:health` registered on every backend. The existing worker messages are kept.
+      `durable:health` registered on every backend. The existing worker messages are kept. The
+      doctor fails before `cache:warmup`, naming it.
 - [ ] 3.2 Laravel: the three commands, registered with the worker commands.
 - [ ] 3.3 Magento: the three commands in `di.xml`; `durable:health` moves onto the core and keeps
-      its ephemeral message.
+      its ephemeral message. The doctor fails before `setup:di:compile`, naming it; how to detect
+      that is found here (design, "Still to verify").
 - [ ] 3.4 A parity test per bench: the same configuration gives the same JSON on the three hosts.
 
 ## 4. Documentation, EN and FR

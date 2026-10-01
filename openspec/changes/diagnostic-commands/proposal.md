@@ -44,7 +44,23 @@ Decisions made on 2026-10-01, recorded here and not reopened by this change:
   3. The application's code: a declared workflow that uses a capability the backend does not
      support, found from its attributes and declarations.
 - **Output**: a readable table by default, `--format=json` for machines, and a non-zero exit code
-  when a gap is found, so a CI job can gate a deployment on it.
+  when an error is found, so a CI job can gate a deployment on it.
+
+Decisions on the points the first draft left open, also made on 2026-10-01:
+
+- **One exit code contract for the three commands.** Only an error gives a non-zero exit code;
+  `--fail-on=warning` makes warnings fail too. The journal on the application's connection
+  (DUR054) is a warning.
+- **`durable:doctor` requires the compiled container**: a warmed cache on Symfony,
+  `setup:di:compile` on Magento, and on Laravel the registry as it resolves today. When the
+  container is not compiled, the doctor fails and names the command to run. It does not build
+  the workflow list itself.
+- **An unreachable server.** `durable:health` fails. `durable:capabilities` falls back to the
+  static matrix and marks the live rows "not checked". `durable:doctor` marks each probe "not
+  checked" and reports one overall error.
+- **Nexus calls are checked from the first version.** This change depends on
+  `inject-nexus-and-child-workflow-stubs` (PR #781): its `#[NexusOperations]` parameter attribute
+  makes a Nexus call a declaration the doctor reads. #781 is implemented first.
 
 ## Not in scope
 
@@ -52,6 +68,11 @@ Decisions made on 2026-10-01, recorded here and not reopened by this change:
 - A dashboard panel. The dashboards already show worker presence; they may consume the same core
   later.
 - Wiring the commands into the project's own CI: `.github/workflows/` is changed by a human.
+
+## Dependencies
+
+- `inject-nexus-and-child-workflow-stubs` (PR #781), implemented before the code scan.
+- #877 and #855 for the minimum server versions of updates and of a child's summary and details.
 
 ## Impact
 
