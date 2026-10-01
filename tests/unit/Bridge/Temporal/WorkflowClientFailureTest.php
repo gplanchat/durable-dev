@@ -11,11 +11,22 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\ActivityCatastrophicFailure;
+use Gplanchat\Durable\Exception\ActivitySupersededException;
+use Gplanchat\Durable\Exception\DeadlineExceededException;
+use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Exception\DurableCatastrophicActivityFailureException;
+use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
 use Gplanchat\Durable\Exception\WorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowTerminatedException;
 use Gplanchat\Durable\Exception\WorkflowTimedOutException;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\Failure\FailureEnvelope;
+use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
+use Gplanchat\Durable\Port\DeclaredActivityFailureInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\EventType;
@@ -91,6 +102,115 @@ final class WorkflowClientFailureTest extends TestCase
         self::assertInstanceOf(WorkflowFailedException::class, $caught);
         self::assertInstanceOf(\RuntimeException::class, $caught);
         self::assertSame('Workflow "exec-1" failed: written by another worker', $caught->getMessage());
+    }
+
+    public function testAnUnhandledActivityFailureComesBackWrappedWithTheActivityFailureAsPrevious(): void
+    {
+        $cause = new DurableActivityFailedException('act-9', 'charge_card', 2, new FailureEnvelope(
+            'App\\PaymentException',
+            'card declined',
+            42,
+            [],
+            null,
+            [['class' => 'PDOException', 'message' => 'connection lost', 'code' => 0]],
+        ));
+
+        $caught = $this->pollFailedWith($cause);
+
+        self::assertInstanceOf(DurableWorkflowAlgorithmFailureException::class, $caught);
+        self::assertSame('Workflow did not handle activity failure: ' . $cause->getMessage(), $caught->getMessage());
+        $previous = $caught->getPrevious();
+        self::assertInstanceOf(DurableActivityFailedException::class, $previous);
+        self::assertSame($cause->getMessage(), $previous->getMessage());
+        self::assertSame(['act-9', 'charge_card', 2, 42], [$previous->activityId(), $previous->activityName(), $previous->attempt(), $previous->getCode()]);
+        self::assertSame('App\\PaymentException', $previous->envelope()->class);
+        self::assertSame('connection lost', $previous->getPrevious()?->getMessage());
+    }
+
+    public function testAnUnhandledDeclaredActivityFailureComesBackWithTheDeclaredExceptionAsPrevious(): void
+    {
+        $caught = $this->pollFailedWith(new StockShortage('SKU-7', 3));
+
+        self::assertInstanceOf(DurableWorkflowAlgorithmFailureException::class, $caught);
+        self::assertSame('Workflow did not handle declared activity failure: SKU-7 is short by 3', $caught->getMessage());
+        $previous = $caught->getPrevious();
+        self::assertInstanceOf(StockShortage::class, $previous);
+        self::assertSame(['SKU-7', 3], [$previous->sku, $previous->missing]);
+    }
+
+    public function testASupersededActivityComesBackWithTheSupersededActivityAsPrevious(): void
+    {
+        $caught = $this->pollFailedWith(new ActivitySupersededException('act-5', 'race_superseded'));
+
+        self::assertInstanceOf(DurableWorkflowAlgorithmFailureException::class, $caught);
+        self::assertSame('Workflow did not handle superseded activity: Activity act-5 was superseded (race_superseded)', $caught->getMessage());
+        $previous = $caught->getPrevious();
+        self::assertInstanceOf(ActivitySupersededException::class, $previous);
+        self::assertSame(['act-5', 'race_superseded'], [$previous->activityId(), $previous->cancellationReason()]);
+    }
+
+    public function testACatastrophicActivityFailureComesBackWithTheCatastrophicFailureAsPrevious(): void
+    {
+        $cause = new DurableCatastrophicActivityFailureException(ActivityCatastrophicFailure::forThrowable(
+            ExecutionId::fromString('exec-1'),
+            'act-3',
+            'reserve_stock',
+            2,
+            new \RuntimeException('NAN in payload'),
+            'json_encode_failed',
+        ));
+
+        $caught = $this->pollFailedWith($cause);
+
+        self::assertInstanceOf(DurableWorkflowAlgorithmFailureException::class, $caught);
+        self::assertSame('Workflow did not handle catastrophic activity failure: ' . $cause->getMessage(), $caught->getMessage());
+        $previous = $caught->getPrevious();
+        self::assertInstanceOf(DurableCatastrophicActivityFailureException::class, $previous);
+        self::assertSame($cause->getMessage(), $previous->getMessage());
+        self::assertSame(['act-3', 'reserve_stock', 2], [$previous->activityId(), $previous->activityName(), $previous->attempt()]);
+    }
+
+    public function testAnActivityFailureFromAnOlderHistoryKeepsTheServerMessageAsPrevious(): void
+    {
+        $failure = $this->failureOf(new \RuntimeException('unused'));
+        $failure->setMessage('[charge_card / act-9] attempt=2 failed');
+        $failure->getApplicationFailureInfo()?->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode([
+            'kind' => 'unhandled_activity_failure',
+            'failureClass' => DurableActivityFailedException::class,
+            'failureMessage' => '[charge_card / act-9] attempt=2 failed',
+            'failureCode' => 0,
+            'context' => ['activityId' => 'act-9', 'activityName' => 'charge_card'],
+        ])));
+
+        $caught = $this->poll($this->failedEvent($failure));
+
+        self::assertInstanceOf(DurableWorkflowAlgorithmFailureException::class, $caught);
+        self::assertInstanceOf(WorkflowFailedException::class, $caught->getPrevious());
+        self::assertSame('Workflow "exec-1" failed: [charge_card / act-9] attempt=2 failed', $caught->getPrevious()->getMessage());
+    }
+
+    public function testAnUnhandledNexusFailureComesBackAsItsOwnClass(): void
+    {
+        $cause = new DurableNexusOperationFailedException('payments', 'Billing', 'charge', NexusOperationFailureKind::HandlerError, new FailureEnvelope('App\\Declined', 'card declined', 3), 'non_retryable');
+
+        $caught = $this->pollFailedWith($cause);
+
+        self::assertInstanceOf(DurableNexusOperationFailedException::class, $caught);
+        self::assertSame($cause->getMessage(), $caught->getMessage());
+        self::assertSame(3, $caught->getCode());
+        self::assertSame(['payments', 'Billing', 'charge', NexusOperationFailureKind::HandlerError, 'non_retryable'], [$caught->endpoint(), $caught->service(), $caught->operation(), $caught->kind(), $caught->retryBehaviour()]);
+        self::assertSame('App\\Declined', $caught->envelope()->class);
+    }
+
+    public function testAnElapsedDeadlineComesBackAsDeadlineExceeded(): void
+    {
+        $cause = new DeadlineExceededException(Duration::seconds(30.0), 'activity charge_card');
+
+        $caught = $this->pollFailedWith($cause);
+
+        self::assertInstanceOf(DeadlineExceededException::class, $caught);
+        self::assertSame($cause->getMessage(), $caught->getMessage());
+        self::assertSame('activity charge_card', $caught->awaited());
     }
 
     public function testACancelledWorkflowComesBackAsWorkflowCancelledWithItsReason(): void
@@ -172,6 +292,24 @@ final class WorkflowClientFailureTest extends TestCase
 }
 
 final class OrderRejected extends \RuntimeException {}
+
+final class StockShortage extends \RuntimeException implements DeclaredActivityFailureInterface
+{
+    public function __construct(public readonly string $sku, public readonly int $missing)
+    {
+        parent::__construct(\sprintf('%s is short by %d', $sku, $missing));
+    }
+
+    public function toActivityFailureContext(): array
+    {
+        return ['sku' => $this->sku, 'missing' => $this->missing];
+    }
+
+    public static function restoreFromActivityFailureContext(array $context): static
+    {
+        return new static((string) $context['sku'], (int) $context['missing']);
+    }
+}
 
 final class OrderNotFound extends \RuntimeException
 {
