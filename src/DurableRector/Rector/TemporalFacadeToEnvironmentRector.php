@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Rector\Rector;
 
+use Gplanchat\Durable\Versioning\ChangePoint;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PhpParser\Comment;
 use PhpParser\Modifiers;
@@ -11,6 +12,7 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
@@ -20,11 +22,15 @@ use PhpParser\Node\Expr\YieldFrom;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Param;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Interface_;
+use PhpParser\NodeVisitor;
 use PHPStan\Reflection\ReflectionProvider;
+use Rector\PhpParser\Node\FileNode;
 use Rector\Rector\AbstractRector;
+use Rector\StaticTypeMapper\ValueObject\Type\FullyQualifiedObjectType;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
@@ -157,8 +163,10 @@ AFTER,
             $usesEnvironment = $this->rewriteBody($method) || $usesEnvironment;
         }
 
+        $renamedConstant = $this->rewriteDefaultVersion($node);
+
         if (!$usesEnvironment) {
-            return null;
+            return $renamedConstant ? $node : null;
         }
 
         $this->injectEnvironment($node);
@@ -243,6 +251,8 @@ AFTER,
             return false;
         }
 
+        $this->dropOldVersionMarkers($method->stmts);
+
         $used = false;
         $deYielded = false;
 
@@ -286,6 +296,56 @@ AFTER,
     }
 
     /**
+     * A statement whose getVersion() is about to become version() no longer needs the "no equivalent
+     * yet" marker an earlier run of the set wrote above it. Done before the rewrite, while the
+     * yielded call is still there to recognise.
+     *
+     * @param Stmt[] $stmts
+     */
+    private function dropOldVersionMarkers(array $stmts): void
+    {
+        $this->traverseNodesWithCallable($stmts, function (Node $node): ?Node {
+            if (!$node instanceof Stmt) {
+                return null;
+            }
+
+            $comments = UnmigratableTemporalCallRector::withoutOldVersionMarker($node->getComments());
+            if (\count($comments) !== \count($node->getComments()) && $this->yieldsMappedVersion($node)) {
+                $node->setAttribute('comments', $comments);
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Whether this statement itself, not one nested in it, yields a getVersion() the rewrite maps.
+     */
+    private function yieldsMappedVersion(Stmt $statement): bool
+    {
+        $found = false;
+
+        $this->traverseNodesWithCallable($statement, function (Node $node) use ($statement, &$found): ?int {
+            if ($node instanceof Stmt && $node !== $statement) {
+                return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+            }
+
+            if ($node instanceof Yield_
+                && $node->value instanceof StaticCall
+                && $this->isFacade($node->value, self::SDK_WORKFLOW_FACADE)
+                && 'getVersion' === $this->staticCallName($node->value)
+                && 3 === \count($node->value->args)
+            ) {
+                $found = true;
+            }
+
+            return null;
+        });
+
+        return $found;
+    }
+
+    /**
      * `yield` is the SDK's wait. Four facade calls already wait once rewritten; everything else
      * yielded was a promise, and a promise waited for is `await()`.
      */
@@ -315,6 +375,12 @@ AFTER,
 
             if ('awaitWithTimeout' === $name) {
                 return $this->rewriteAwaitWithTimeout($value);
+            }
+
+            if ('getVersion' === $name) {
+                // The SDK hands back a promise of the version, version() the int itself: the yield
+                // goes, and nothing is awaited. Another arity is left as written and reported.
+                return 3 === \count($value->args) ? $this->environmentCall('version', $value->args) : null;
             }
         }
 
@@ -428,6 +494,42 @@ AFTER,
             new Arg($call->args[1]->value),
             new Arg($call->args[0]->value),
         ]);
+    }
+
+    /**
+     * `Workflow::DEFAULT_VERSION` and `ChangePoint::DEFAULT_VERSION` are both `-1`, so the comparison
+     * a caller writes against it keeps its meaning.
+     *
+     * @return bool whether a reference was rewritten
+     */
+    private function rewriteDefaultVersion(Class_ $class): bool
+    {
+        $found = false;
+
+        $this->traverseNodesWithCallable($class->stmts, function (Node $node) use (&$found): ?Node {
+            if (!$node instanceof ClassConstFetch
+                || !$node->class instanceof Node\Name
+                || self::SDK_WORKFLOW_FACADE !== $node->class->toString()
+                || !$node->name instanceof Identifier
+                || 'DEFAULT_VERSION' !== $node->name->toString()
+            ) {
+                return null;
+            }
+
+            $found = true;
+
+            // Assumes the short name ChangePoint is free in the file; another class under that name would need an alias.
+            return new ClassConstFetch(new Node\Name('ChangePoint'), $node->name);
+        });
+
+        if ($found) {
+            $fileNode = $this->file->getFileNode();
+            if ($fileNode instanceof FileNode) {
+                $fileNode->getPendingImports()->addUseImport(new FullyQualifiedObjectType(ChangePoint::class));
+            }
+        }
+
+        return $found;
     }
 
     /**

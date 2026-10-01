@@ -8,14 +8,14 @@ class ReportedWorkflow
 {
     public function run($mutex)
     {
-        $version = yield Workflow::getVersion('change', 1, 2);
+        $id = yield Workflow::uuid();
         yield Workflow::runLocked($mutex, fn () => null);
 
         if (yield Workflow::await(fn () => true)) {
             return Workflow::getInfo()->execution->getID();
         }
 
-        return $version;
+        return $id;
     }
 }
 
@@ -31,8 +31,8 @@ class ReportedWorkflow
 {
     public function run($mutex)
     {
-        // durable-rector: Workflow::getVersion() — no equivalent yet — workflow versioning is an open change, and a run that reached this marker cannot migrate before it lands
-        $version = yield Workflow::getVersion('change', 1, 2);
+        // durable-rector: Workflow::uuid() — sideEffect() is the equivalent, and it changes when the value is captured — a review, not a rename
+        $id = yield Workflow::uuid();
         // durable-rector: Workflow::runLocked() — no mutex; a workflow is single-threaded here, so what the lock protected may not need protecting
         yield Workflow::runLocked($mutex, fn () => null);
 
@@ -41,7 +41,7 @@ class ReportedWorkflow
             return Workflow::getInfo()->execution->getID();
         }
 
-        return $version;
+        return $id;
     }
 }
 
