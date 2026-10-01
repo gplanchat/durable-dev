@@ -478,10 +478,14 @@ appelant. Avec un DSN, il démarre le workflow sur le cluster et attend son rés
 les workers ci-dessous. L'attente dure environ `budgetSeconds` et se termine par
 `WorkflowStuckException`.
 
-Un workflow qui échoue arrive chez l'appelant avec la même exception, avec ou sans DSN, tant que sa
-classe se charge dans le processus appelant et se construit à partir de `(message, code)`. Sinon, il
-arrive sous la forme d'une `WorkflowFailedException`, dont le message commence par
-`Workflow "<execution id>" failed:`. Seul le DSN ajoute deux issues : `WorkflowTimedOutException`
+Avec un DSN, un workflow qui échoue arrive chez l'appelant avec la classe que lève le backend en
+mémoire. L'exception du workflow est reconstruite par `new $class($message, $code)` : elle porte le
+message et le code enregistrés, sans exception précédente ni autre propriété. Il faut pour cela que
+sa classe se charge dans le processus appelant et que son constructeur accepte `(message, code)` ;
+sinon, l'appelant reçoit une `WorkflowFailedException`, dont le message commence par
+`Workflow "<execution id>" failed:`. Un échec d'activité arrive sous la forme d'une
+`DurableWorkflowAlgorithmFailureException`, avec l'exception de l'activité comme exception
+précédente. Seul le DSN ajoute deux issues : `WorkflowTimedOutException`
 quand un délai fixé sur le cluster expire, et `WorkflowTerminatedException` quand quelqu'un termine
 l'exécution. Un workflow qui attend un signal attend tout le budget au lieu d'échouer aussitôt.
 

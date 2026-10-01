@@ -812,9 +812,10 @@ to the failure details it writes. A run that failed before the upgrade has no `c
 
 **Who is affected:** code around `pollForCompletion()` that catches `\RuntimeException`, directly or
 through a host that waits with it: the Symfony bench runner, Laravel's `WorkflowClientInterface`,
-the Nexus demo commands and `MagentoRuntime::run()` with a DSN. The new classes,
+the Nexus demo commands and `MagentoRuntime::run()` with a DSN. The new `WorkflowFailedException`,
+`WorkflowTimedOutException` and `WorkflowTerminatedException` extend `\RuntimeException`, as do
 `WorkflowCancelledException`, `DurableWorkflowAlgorithmFailureException` and
-`DeadlineExceededException` extend `\RuntimeException`. A workflow exception that does not, such as
+`DeadlineExceededException`. A workflow exception that does not, such as
 a `\LogicException`, a plain `\Exception` or `DurableNexusOperationFailedException`, now reaches the
 caller as its own class, and `catch (\RuntimeException)` no longer catches it.
 
