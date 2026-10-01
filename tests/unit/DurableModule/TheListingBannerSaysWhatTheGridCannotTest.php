@@ -54,6 +54,26 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
         self::assertStringContainsString('Continued as new', $page, 'every outcome has its bucket');
     }
 
+    public function testTheCountersSayThatTheGridFiltersDoNotChangeThem(): void
+    {
+        // #816: the counters are read once, with the screen, and the grid filters apply later, by
+        // AJAX. They cover the window, and say so, and their first one does not read "Total".
+        $page = $this->renderBanner($this->health(), runs: 3);
+
+        self::assertStringContainsString('whatever the grid filters say', $page);
+        self::assertStringContainsString('<th>In the window</th>', $page);
+        self::assertStringNotContainsString('<th>Total</th>', $page);
+    }
+
+    public function testTheInMemoryBannerIsNamedAndDatedLikeTheOthers(): void
+    {
+        // #816: the only state without a check time was the one of a journal that dies with the
+        // request, and it is the one that most needs to be told apart from a stale answer.
+        $page = $this->renderBanner($this->health(ephemeral: true, backend: 'In-memory'), runs: 0);
+
+        self::assertStringContainsString('In-memory · checked at 2023-11-14 22:13:20', $page);
+    }
+
     public function testAFullWindowAnnouncesItsCeiling(): void
     {
         // A bounded window that does not announce itself gets discovered through an execution
@@ -126,10 +146,10 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
         return $page;
     }
 
-    private function health(bool $reachable = true, bool $ephemeral = false): BackendHealth
+    private function health(bool $reachable = true, bool $ephemeral = false, string $backend = 'Temporal'): BackendHealth
     {
         return new BackendHealth(
-            'Temporal',
+            $backend,
             $reachable,
             $reachable ? 'Connected to Temporal namespace "default".' : 'Temporal namespace "default" is unreachable: connection refused',
             new \DateTimeImmutable('@1700000000'),

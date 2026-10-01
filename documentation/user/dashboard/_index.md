@@ -95,7 +95,7 @@ whole history. Each surface says which set that is, because it depends on how th
   window whatever the grid filters say, and the screen says so as soon as the window is full.
 
 A heading reading `Total` above a twenty would teach you that an application with five hundred runs
-has twenty. The Magento counters carry a `Total` column: it counts the window, not the history.
+has twenty. The Magento counters head their first column `In the window`, and the heading above them says that the grid filters do not change them.
 The profiler has no counters, since it lists only the runs of one request.
 
 ### 4. A run's recorded history, one line per *action* {#4-a-runs-recorded-history--one-line-per-action}

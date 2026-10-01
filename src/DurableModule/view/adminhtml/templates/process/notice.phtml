@@ -24,6 +24,11 @@ $health = $block->getHealth();
         <span><?= $escaper->escapeHtml(__(
             'No Temporal DSN is configured, so the journal lives in the process that writes it — and this admin request opened a fresh one. An empty list here is the correct answer, not a failure. Set durable/temporal/dsn in app/etc/env.php to read the cluster.'
         )) ?></span>
+        <span><?= $escaper->escapeHtml(__(
+            '%1 · checked at %2',
+            $health->backend,
+            $health->checkedAt->format('Y-m-d H:i:s')
+        )) ?></span>
     </div>
 <?php else: ?>
     <div class="message message-notice">
@@ -66,11 +71,12 @@ $health = $block->getHealth();
     <?php $counters = $block->getCounters(); ?>
     <div class="admin__page-section">
         <?php /* The scope is stated: these counters cover what this screen reads, not the history
-                 of the store. A "total" with twenty under it would suggest a store that recorded
-                 five hundred runs has twenty. */ ?>
+                 of the store, and not what the grid filters keep (they apply by AJAX, after this
+                 block is rendered). A "total" with twenty under it would suggest a store that
+                 recorded five hundred runs has twenty. */ ?>
         <div class="admin__page-section-title">
             <span class="title"><?= $escaper->escapeHtml(__(
-                'Outcomes across the %1 most recent runs this screen reads',
+                'Outcomes across the %1 most recent runs this screen reads, whatever the grid filters say',
                 $block->getWindow()
             )) ?></span>
         </div>
@@ -78,7 +84,7 @@ $health = $block->getHealth();
             <tr>
                 <?php foreach ($counters as $outcome => $count): ?>
                     <?php $status = \Gplanchat\Durable\Observation\WorkflowRunStatus::tryFrom((string) $outcome); ?>
-                    <th><?= $escaper->escapeHtml($status !== null ? \Gplanchat\DurableModule\Ui\OutcomeLabel::of($status) : __('Total')) ?></th>
+                    <th><?= $escaper->escapeHtml($status !== null ? \Gplanchat\DurableModule\Ui\OutcomeLabel::of($status) : __('In the window')) ?></th>
                 <?php endforeach; ?>
             </tr>
             <tr>
