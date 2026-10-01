@@ -478,10 +478,12 @@ appelant. Avec un DSN, il démarre le workflow sur le cluster et attend son rés
 les workers ci-dessous. L'attente dure environ `budgetSeconds` et se termine par
 `WorkflowStuckException`.
 
-Un workflow qui échoue, expire ou est terminé arrive autrement chez l'appelant avec un DSN : sous la
-forme d'une `\RuntimeException` simple, dont le message commence par `Workflow "<execution id>"`,
-sans exception précédente. Un workflow qui attend un signal attend tout le budget au lieu d'échouer
-aussitôt.
+Un workflow qui échoue arrive chez l'appelant avec la même exception, avec ou sans DSN, tant que sa
+classe se charge dans le processus appelant et se construit à partir de `(message, code)`. Sinon, il
+arrive sous la forme d'une `WorkflowFailedException`, dont le message commence par
+`Workflow "<execution id>" failed:`. Seul le DSN ajoute deux issues : `WorkflowTimedOutException`
+quand un délai fixé sur le cluster expire, et `WorkflowTerminatedException` quand quelqu'un termine
+l'exécution. Un workflow qui attend un signal attend tout le budget au lieu d'échouer aussitôt.
 
 Le résultat revient décodé du JSON : un objet que le workflow renvoie arrive sous forme de tableau.
 
