@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityCatastrophicFailure;
+use Gplanchat\Durable\Exception\ActivityFailureCauseException;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DeadlineExceededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
@@ -124,7 +125,10 @@ final class WorkflowClientFailureTest extends TestCase
         self::assertSame($cause->getMessage(), $previous->getMessage());
         self::assertSame(['act-9', 'charge_card', 2, 42], [$previous->activityId(), $previous->activityName(), $previous->attempt(), $previous->getCode()]);
         self::assertSame('App\\PaymentException', $previous->envelope()->class);
-        self::assertSame('connection lost', $previous->getPrevious()?->getMessage());
+        // The chain comes back as the journal's replay gives it to the workflow.
+        $chain = $previous->getPrevious();
+        self::assertInstanceOf(ActivityFailureCauseException::class, $chain);
+        self::assertSame('PDOException', $chain->originalExceptionClass());
     }
 
     public function testAnUnhandledDeclaredActivityFailureComesBackWithTheDeclaredExceptionAsPrevious(): void
