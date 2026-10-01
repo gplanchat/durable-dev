@@ -455,9 +455,15 @@ ends. That is acceptable for a console command and unsuitable for anything else.
 process. With a DSN, it starts the workflow on the cluster and waits for its result, which the
 workers below produce. The wait lasts about `budgetSeconds` and ends with `WorkflowStuckException`.
 
-A workflow that fails, times out or is terminated reaches the caller differently with a DSN: as a
-plain `\RuntimeException` whose message starts with `Workflow "<execution id>"`, with no previous
-exception. A workflow that waits on a signal waits the whole budget instead of failing at once.
+With a DSN, a workflow that fails reaches the caller with the class the in-memory backend raises.
+The workflow's own exception is rebuilt as `new $class($message, $code)`: it carries the recorded
+message and code, with no previous exception and no other property. That requires its class to load
+in the calling process and its constructor to accept `(message, code)`; otherwise the caller gets
+`WorkflowFailedException`, whose message starts with `Workflow "<execution id>" failed:`. An
+activity failure comes back as `DurableWorkflowAlgorithmFailureException`, with the activity's
+exception as previous. Only a DSN adds two outcomes: `WorkflowTimedOutException` when a timeout set on the cluster elapses, and
+`WorkflowTerminatedException` when someone terminates the run. A workflow that waits on a signal
+waits the whole budget instead of failing at once.
 
 The result comes back decoded from JSON: an object the workflow returns arrives as an array.
 

@@ -43,7 +43,11 @@ interface WorkflowClientInterface
      * @param int $refreshIntervalMs Milliseconds between poll attempts (default: 500 ms).
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
-     * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
+     * @throws \Throwable when the workflow fails: the exception the journal backends raise for that
+     *                    failure, or {@see \Gplanchat\Durable\Exception\WorkflowFailedException}.
+     * @throws \Gplanchat\Durable\Exception\WorkflowCancelledException  when the workflow was cancelled.
+     * @throws \Gplanchat\Durable\Exception\WorkflowTimedOutException   when its execution or run timeout elapsed.
+     * @throws \Gplanchat\Durable\Exception\WorkflowTerminatedException when it was terminated from outside.
      * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
      *                                 It extends \RuntimeException.
      */
