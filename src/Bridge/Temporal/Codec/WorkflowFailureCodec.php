@@ -116,9 +116,15 @@ final class WorkflowFailureCodec
         if (null === $details || 0 === $details->getPayloads()->count()) {
             return null;
         }
-        $decoded = JsonPlainPayload::decode($details->getPayloads()[0]);
 
-        return \is_array($decoded) && isset($decoded['kind']) ? $decoded : null;
+        try {
+            $decoded = JsonPlainPayload::decode($details->getPayloads()[0]);
+        } catch (\JsonException) {
+            // Details in another encoding (another SDK's payload codec) carry no Durable kind.
+            return null;
+        }
+
+        return \is_array($decoded) && \is_string($decoded['kind'] ?? null) ? $decoded : null;
     }
 
     /**
