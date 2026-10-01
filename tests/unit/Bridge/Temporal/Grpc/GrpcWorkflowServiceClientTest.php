@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
+use Gplanchat\GrpcClient\GrpcTransport;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;

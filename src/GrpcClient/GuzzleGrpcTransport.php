@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Temporal\Http;
+namespace Gplanchat\GrpcClient;
 
 use Google\Protobuf\Internal\Message;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
-use Gplanchat\Bridge\Temporal\TemporalConnection;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
@@ -23,13 +21,13 @@ use Psr\Http\Message\ResponseInterface;
 final readonly class GuzzleGrpcTransport implements GrpcTransport
 {
     public function __construct(
-        private readonly TemporalConnection $connection,
+        private readonly GrpcEndpoint $endpoint,
         private readonly ClientInterface $client,
     ) {}
 
     public function unary(string $method, Message $request, string $responseClass, array $metadata, ?int $timeoutMs): Message
     {
-        $headers = ['content-type' => 'application/grpc', 'te' => 'trailers', 'user-agent' => 'durable-bridge-temporal/php'] + $metadata + $this->connection->metadata();
+        $headers = ['content-type' => 'application/grpc', 'te' => 'trailers', 'user-agent' => $this->endpoint->userAgent] + $metadata + $this->endpoint->metadata();
         if (null !== $timeoutMs) {
             $headers['grpc-timeout'] = $timeoutMs . 'm';
         }
@@ -38,15 +36,15 @@ final readonly class GuzzleGrpcTransport implements GrpcTransport
         $trailers = [];
 
         try {
-            $response = $this->client->request('POST', ($this->connection->tls ? 'https://' : 'http://') . $this->connection->target . $method, array_filter([
-                'verify' => $this->connection->tlsCa,
-                'cert' => $this->connection->tlsCert,
-                'ssl_key' => $this->connection->tlsKey,
+            $response = $this->client->request('POST', ($this->endpoint->tls ? 'https://' : 'http://') . $this->endpoint->target . $method, array_filter([
+                'verify' => $this->endpoint->tlsCa,
+                'cert' => $this->endpoint->tlsCert,
+                'ssl_key' => $this->endpoint->tlsKey,
             ], static fn(?string $file): bool => null !== $file) + [
                 'body' => GrpcWire::frame($request->serializeToString()),
                 'headers' => $headers,
                 'version' => '2.0',
-                'curl' => [\CURLOPT_HTTP_VERSION => $this->connection->tls ? \CURL_HTTP_VERSION_2_0 : \CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE],
+                'curl' => [\CURLOPT_HTTP_VERSION => $this->endpoint->tls ? \CURL_HTTP_VERSION_2_0 : \CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE],
                 'http_errors' => false,
                 'connect_timeout' => 10,
                 // The server enforces grpc-timeout; Guzzle's own deadline is the backstop for a

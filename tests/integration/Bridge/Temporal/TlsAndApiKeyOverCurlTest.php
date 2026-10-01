@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace integration\Bridge\Temporal;
 
-use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\GrpcClient\CurlGrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -55,7 +55,7 @@ final class TlsAndApiKeyOverCurlTest extends TestCase
     public function testGrpcOverCurlVerifiesTheServerWithTheCaAndSendsTheClientCertificateAndTheKey(): void
     {
         $seen = $this->served("HTTP/1.1 200 OK\r\ncontent-type: application/grpc\r\ngrpc-status: 0\r\ncontent-length: 5\r\nconnection: close\r\n\r\n" . GrpcWire::frame(''), static function (TemporalConnection $connection): void {
-            (new CurlGrpcTransport($connection))->unary('/temporal.api.workflowservice.v1.WorkflowService/DescribeWorkflowExecution', new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], 5_000);
+            (new CurlGrpcTransport($connection->endpoint()))->unary('/temporal.api.workflowservice.v1.WorkflowService/DescribeWorkflowExecution', new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], 5_000);
         });
 
         self::assertStringStartsWith('POST /temporal.api.workflowservice.v1.WorkflowService/DescribeWorkflowExecution ', $seen);

@@ -7,13 +7,13 @@ namespace Gplanchat\Bridge\Temporal;
 use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
 use Gplanchat\Bridge\Temporal\Codec\PayloadCodecWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\GrpcClient\CurlGrpcTransport;
+use Gplanchat\GrpcClient\GrpcTransport;
+use Gplanchat\GrpcClient\GuzzleGrpcTransport;
 use Grpc\ChannelCredentials;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\ClientInterface as GuzzleClientInterface;
@@ -108,11 +108,11 @@ final class WorkflowServiceClientFactory
             // Only Guzzle's cURL handler observes trailers; its stream handler refuses on_trailers.
             self::assertCurl($transport);
 
-            return new GuzzleGrpcTransport($settings, $guzzle ?? new GuzzleClient());
+            return new GuzzleGrpcTransport($settings->endpoint(), $guzzle ?? new GuzzleClient());
         }
         self::assertCurl($transport);
 
-        return new CurlGrpcTransport($settings);
+        return new CurlGrpcTransport($settings->endpoint());
     }
 
     private static function assertCurl(string $transport): void

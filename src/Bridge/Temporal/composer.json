@@ -18,6 +18,7 @@
         "google/common-protos": "^4.9",
         "google/protobuf": "^4.31",
         "gplanchat/durable": "self.version",
+        "gplanchat/grpc-client": "self.version",
         "grpc/grpc": "^1.57",
         "php": ">=8.2",
         "psr/log": "^1.1 || ^2.0 || ^3.0",

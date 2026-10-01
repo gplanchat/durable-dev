@@ -39,6 +39,7 @@
         "gplanchat/durable-plugin": "@dev",
         "gplanchat/durable-bridge-dbal": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/grpc-client": "@dev",
         "gplanchat/durable-demo-contracts": "@dev"
     },
     "require-dev": {
@@ -161,6 +162,13 @@
         {
             "type": "path",
             "url": "../src/Bridge/Dbal",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/GrpcClient",
             "options": {
                 "symlink": true
             }

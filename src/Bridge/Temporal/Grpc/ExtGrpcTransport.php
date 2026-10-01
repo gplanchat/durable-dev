@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\GrpcClient\GrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
 use Grpc\BaseStub;
 use Grpc\UnaryCall;
 

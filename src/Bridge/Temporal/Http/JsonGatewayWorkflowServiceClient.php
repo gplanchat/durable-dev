@@ -6,7 +6,10 @@ namespace Gplanchat\Bridge\Temporal\Http;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
+use Gplanchat\Bridge\Temporal\Grpc\GrpcFailure;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Gplanchat\GrpcClient\CurlGrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
 use Psr\Http\Client\ClientExceptionInterface;
 
 /**
@@ -28,7 +31,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
     {
         $route = JsonGatewayRoutes::ROUTES[$rpc] ?? null;
         if (null === $route) {
-            throw GrpcWire::failure(GrpcWire::UNIMPLEMENTED, \sprintf('%s has no HTTP binding on the Temporal server (task polling never has); use transport=grpc-curl.', $rpc));
+            throw GrpcFailure::of(GrpcWire::UNIMPLEMENTED, \sprintf('%s has no HTTP binding on the Temporal server (task polling never has); use transport=grpc-curl.', $rpc));
         }
         [$verb, $template] = $route;
 
@@ -43,7 +46,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
 
         $headers = ['content-type' => ['application/json'], 'accept' => ['application/json'], 'user-agent' => ['durable-bridge-temporal/php']] + $metadata + $this->connection->metadata();
         [$httpStatus, $body] = null === $this->http
-            ? self::overCurl($url, $verb, $json, $headers, $options, CurlGrpcTransport::tlsOptions($this->connection))
+            ? self::overCurl($url, $verb, $json, $headers, $options, CurlGrpcTransport::tlsOptions($this->connection->endpoint()))
             : self::overPsr18($this->http, $url, $verb, $json, $headers);
 
         if (200 === $httpStatus) {
@@ -60,7 +63,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
             ? $error['message']
             : \sprintf('HTTP %d from the gateway: %s', $httpStatus, substr($body, 0, 200));
 
-        throw GrpcWire::failure($code, $message);
+        throw GrpcFailure::of($code, $message);
     }
 
     /**
@@ -86,7 +89,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
         if (!\is_string($body)) {
             $code = \CURLE_OPERATION_TIMEDOUT === curl_errno($curl) ? GrpcWire::DEADLINE_EXCEEDED : GrpcWire::UNAVAILABLE;
 
-            throw GrpcWire::failure($code, curl_error($curl));
+            throw GrpcFailure::of($code, curl_error($curl));
         }
 
         return [(int) curl_getinfo($curl, \CURLINFO_RESPONSE_CODE), $body];
@@ -110,7 +113,7 @@ final class JsonGatewayWorkflowServiceClient extends AbstractWorkflowServiceClie
         try {
             $response = $http->client->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            throw GrpcWire::failure(GrpcWire::UNAVAILABLE, $e->getMessage());
+            throw GrpcFailure::of(GrpcWire::UNAVAILABLE, $e->getMessage());
         }
 
         return [$response->getStatusCode(), (string) $response->getBody()];

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace unit\DurableModule;
 
 use Google\Protobuf\Timestamp;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
 use Gplanchat\DurableModule\Console\Command\HealthCommand;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\GrpcClient\GrpcWire;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;

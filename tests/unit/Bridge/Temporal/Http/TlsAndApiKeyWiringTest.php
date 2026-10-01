@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Http;
 
-use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
-use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\GrpcClient\CurlGrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
+use Gplanchat\GrpcClient\GuzzleGrpcTransport;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -40,7 +40,7 @@ final class TlsAndApiKeyWiringTest extends TestCase
             return Create::promiseFor(new Response(200, ['grpc-status' => '0'], GrpcWire::frame('')));
         }]);
 
-        (new GuzzleGrpcTransport(self::connection(), $guzzle))
+        (new GuzzleGrpcTransport(self::connection()->endpoint(), $guzzle))
             ->unary(self::METHOD, new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], null);
 
         [$sent, $options] = $seen;
@@ -55,9 +55,9 @@ final class TlsAndApiKeyWiringTest extends TestCase
     {
         self::assertSame(
             [\CURLOPT_CAINFO => __FILE__, \CURLOPT_SSLCERT => __FILE__, \CURLOPT_SSLKEY => __FILE__],
-            CurlGrpcTransport::tlsOptions(self::connection()),
+            CurlGrpcTransport::tlsOptions(self::connection()->endpoint()),
         );
-        self::assertSame([], CurlGrpcTransport::tlsOptions(TemporalConnection::fromDsn('temporal+tls://127.0.0.1')));
+        self::assertSame([], CurlGrpcTransport::tlsOptions(TemporalConnection::fromDsn('temporal+tls://127.0.0.1')->endpoint()));
     }
 
     #[\PHPUnit\Framework\Attributes\RequiresPhpExtension('grpc')]
@@ -166,7 +166,7 @@ final class TlsAndApiKeyWiringTest extends TestCase
             }
 
             try {
-                (new CurlGrpcTransport($overCurl))->unary(self::METHOD, $request, DescribeWorkflowExecutionResponse::class, [], 1000);
+                (new CurlGrpcTransport($overCurl->endpoint()))->unary(self::METHOD, $request, DescribeWorkflowExecutionResponse::class, [], 1000);
                 self::fail('the call must fail');
             } catch (\RuntimeException $e) {
                 self::assertStringNotContainsString('S3CRETK3Y', print_r($e->getTrace(), true));

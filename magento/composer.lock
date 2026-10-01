@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2205a8b0ebe85407b699aa060a9e98d0",
+    "content-hash": "0abc1693242d7e82729df1b7d5236b12",
     "packages": [
         {
             "name": "2tvenom/cborencode",
@@ -2285,13 +2285,14 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Bridge/Temporal",
-                "reference": "fe0951c6311456b88597d338f371109faf10f1dc"
+                "reference": "4b5627879b7121df5e02cd38dc7797deebc8346e"
             },
             "require": {
                 "ext-filter": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
                 "gplanchat/durable": "self.version",
+                "gplanchat/grpc-client": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
                 "psr/log": "^1.1 || ^2.0 || ^3.0",
@@ -2390,6 +2391,54 @@
                 }
             ],
             "description": "Magento 2 / Mage-OS module bringing durable workflow execution to the host's own container and queue.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/grpc-client",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/GrpcClient",
+                "reference": "5634ecda4eaf208b8dbf6491cc77153c75dd9cc5"
+            },
+            "require": {
+                "google/protobuf": "^4.31",
+                "php": ">=8.2"
+            },
+            "suggest": {
+                "ext-curl": "For CurlGrpcTransport: one HTTP/2 POST per unary call",
+                "guzzlehttp/guzzle": "For GuzzleGrpcTransport (7.14 or newer, cURL handler): gRPC over the application's Guzzle client"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\GrpcClient\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "gRPC unary client over HTTP/2 without ext-grpc: curl or Guzzle, the status read from the trailers",
+            "keywords": [
+                "grpc",
+                "http2",
+                "protobuf",
+                "trailers"
+            ],
             "transport-options": {
                 "symlink": false,
                 "relative": true
@@ -25912,7 +25961,8 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "gplanchat/durable-bridge-temporal": 20,
-        "gplanchat/durable-magento": 20
+        "gplanchat/durable-magento": 20,
+        "gplanchat/grpc-client": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
