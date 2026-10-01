@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\ExecutionId;
 
 /**
@@ -43,7 +44,8 @@ interface WorkflowClientInterface
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
      * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
-     * @throws \RuntimeException when no completion event is found within {@code $maxRefreshes} attempts.
+     * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
+     *                                 It extends \RuntimeException.
      */
     public function pollForCompletion(
         string $executionId,

@@ -32,7 +32,8 @@ read-only.
 
 - **The backend state**, dated.
 - **Counters** per outcome, with a **Waiting for a worker** count, over the runs on the page.
-- **Filters** on workflow name and on execution id prefix, where the backend can apply them.
+- **Filters** on outcome, and on workflow name and execution id prefix where the backend can apply
+  them. The filters stay set from one page to the next.
 - **The run list**, 20 a page, forward by cursor. Each row carries the execution id (a link to the run), the outcome, the workflow, the start date and a note (`waiting for a worker`, `waiting on …`).
 - **A run page**, opened from a row: outcome, what it waits on, its [Nexus operations](../../nexus/) where the
   catalog can list them, and its history, one block per action, under a timeline. See [Read a
@@ -40,7 +41,7 @@ read-only.
 
 ## What it does not show
 
-There is no filter on outcome, and no worker presence panel. See [Parity](../parity/).
+There is no worker presence panel. See [Parity](../parity/).
 
 ## Language and payloads
 

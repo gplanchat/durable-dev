@@ -335,7 +335,7 @@ ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une bo
 `RetryLimit` propre à chaque activité.
 
 Sous Laravel, la même clé dans `config/durable.php` ; sous Magento, l'argument `maxActivityRetries`
-de `RuntimeFactory` dans `di.xml`, que seul `MagentoRuntime::run()`, dans le processus, lit (voir
+de `RuntimeFactory` dans `di.xml`, que seul `MagentoRuntime::run()` lit, et seulement sans DSN (voir
 [le tableau des hôtes](#host-table)).
 
 ---
@@ -428,8 +428,8 @@ SQL ne s'y appliquent pas.
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | aucun (les activités tournent dans le processus, ou sur la file de tâches de Temporal) | propre à l'hôte : la file de chaque hôte |
 | `messenger.buses` | aucun | aucun | propre à l'hôte : Messenger seulement |
 | `profiler.enabled` | aucun | aucun | propre à l'hôte : le profileur web de Symfony |
-| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` seulement ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers laissent les tentatives à la grappe. Sous Temporal, aucun hôte ne le lit |
-| aucun | aucun | argument `budgetSeconds` | propre à l'hôte : borne `MagentoRuntime::run()`, le seul appel de l'hôte qui mène un workflow à son terme dans le processus appelant |
+| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN seulement ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers laissent les tentatives à la grappe. Sous Temporal, aucun hôte ne le lit |
+| aucun | aucun | argument `budgetSeconds` | propre à l'hôte : borne `MagentoRuntime::run()`, l'exécution dans le processus sans DSN et l'attente du résultat de la grappe avec un DSN |
 | `activity_contracts.cache`, `activity_contracts.contracts` | aucun | aucun | à ajouter sous Laravel et Magento |
 | `child_workflow.async_messenger` | aucun | aucun | propre à l'hôte : Messenger seulement |
 | workflows : `#[AsWorkflow]` sur un service | `workflows` | argument `workflowClasses` | propre à l'hôte : aucun des deux conteneurs ne s'autoconfigure par attribut |

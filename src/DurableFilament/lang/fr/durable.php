@@ -12,6 +12,7 @@ return [
         'waiting_for_worker' => 'En attente d’un worker',
     ],
     'status' => [
+        'all' => 'Toutes',
         'running' => 'En cours',
         'completed' => 'Terminée',
         'failed' => 'En échec',
@@ -19,6 +20,7 @@ return [
         'continued_as_new' => 'Poursuivie à neuf',
     ],
     'filter' => [
+        'outcome' => 'Issue',
         'workflow_name' => 'Nom du workflow',
         'execution_id_prefix' => 'L’identifiant d’exécution commence par',
         'submit' => 'Filtrer',

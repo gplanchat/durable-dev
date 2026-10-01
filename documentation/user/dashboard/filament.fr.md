@@ -33,8 +33,8 @@ Illuminate ou Temporal) et est en lecture seule.
 - **L'état du backend**, daté.
 - **Des compteurs** par issue, avec un nombre **En attente d'un worker**, sur les exécutions de la
   page.
-- **Des filtres** sur le nom du workflow et sur le début de l'identifiant d'exécution, là où le
-  backend sait les appliquer.
+- **Des filtres** sur l'issue, et sur le nom du workflow et le début de l'identifiant d'exécution
+  là où le backend peut les appliquer. Les filtres restent posés d'une page à la suivante.
 - **La liste des exécutions**, 20 par page, en avant par curseur. Chaque ligne porte l'identifiant d'exécution (un lien vers l'exécution), l'issue, le workflow, la date de démarrage et une note (`waiting for a worker`, `waiting on …`).
 - **Une page d'exécution**, ouverte depuis une ligne : l'issue, ce qu'elle attend, ses [opérations
   Nexus](../../nexus/) quand le catalogue sait les lister, et son historique, un bloc par action, sous une frise.
@@ -42,7 +42,7 @@ Illuminate ou Temporal) et est en lecture seule.
 
 ## Ce qu'elle ne montre pas
 
-La page n'a ni filtre sur l'issue, ni panneau de présence des workers. Voir [Parité](../parity/).
+La page n'a pas de panneau de présence des workers. Voir [Parité](../parity/).
 
 ## Langue et contenus enregistrés
 

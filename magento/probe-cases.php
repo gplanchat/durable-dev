@@ -25,7 +25,7 @@ $factory = $om->get(\Gplanchat\DurableModule\Runtime\RuntimeFactory::class);
 $workflow = \Gplanchat\DurableProbe\Workflow\EveryCaseWorkflow::class;
 
 if ('here' === $mode) {
-    printf("%s run right here -> %s\n", $caseId, var_export($factory->create()->run($workflow, ['caseId' => $caseId]), true));
+    printf("%s run() on the configured backend -> %s\n", $caseId, var_export($factory->create()->run($workflow, ['caseId' => $caseId]), true));
 
     exit(0);
 }

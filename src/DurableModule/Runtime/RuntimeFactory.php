@@ -21,6 +21,7 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerDeclarations;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
@@ -191,6 +192,7 @@ class RuntimeFactory
                 $this->budgetSeconds,
                 $this->clock(),
             ),
+            null === $this->temporalSettings() ? null : $this->runOnCluster(...),
         );
 
         foreach ($this->workflowClasses as $workflowClass) {
@@ -213,9 +215,9 @@ class RuntimeFactory
      * chooses, it is **the presence of a DSN** under `durable/temporal/dsn` in `env.php`. Absent,
      * the journal lives in this process and dies with it — a legitimate choice for a command, and
      * ruinous for a consumer. Present, the cluster's history is the journal of every run it
-     * carries, and the store reads it through the bridge's assembly, as the other hosts do. A run
-     * executed in this process keeps its events here, exactly as without a DSN: what must survive
-     * is started with `workflowClient()` (#356). Magento reaches no other persistent journal: the
+     * carries, and the store reads it through the bridge's assembly, as the other hosts do. With a
+     * DSN, `MagentoRuntime::run()` starts on the cluster and waits (#765); `workflowClient()`
+     * starts without waiting (#356). Magento reaches no other persistent journal: the
      * host ships neither of the two connection types the SQL bridges bind to.
      */
     private function eventStore(): EventStoreInterface
@@ -317,14 +319,29 @@ class RuntimeFactory
     /**
      * What it takes to start an execution **on the cluster**, rather than in this process.
      *
-     * `MagentoRuntime::run()` executes here and now: its activities go into the in-memory
-     * transport whatever the journal underneath, and die with the process. For an activity to
-     * become a Temporal task, the execution has to be started on the cluster and carried by the
-     * workers — that is the split task 5 describes, and this client is its door.
+     * `MagentoRuntime::run()` goes through it too and waits for the result (#765). Called
+     * directly, `startAsync()` returns at once, which is what a web request wants: the workers
+     * carry the execution, and nothing in this process waits for it.
      */
     public function workflowClient(): WorkflowClient
     {
         return $this->assembly($this->requireCluster('Starting a workflow on the cluster'))->workflowClient();
+    }
+
+    /**
+     * What `MagentoRuntime::run()` does with a DSN (#765): start on the cluster, then wait for the
+     * close event, the pair the Symfony bench's runner uses. `startSync()` is not it: it reads the
+     * history once and returns null while the execution still runs. The wait polls every 500 ms
+     * for `budgetSeconds`, and ends with `WorkflowStuckException` as in memory.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function runOnCluster(string $workflowClass, array $input, string $executionId): mixed
+    {
+        $client = $this->workflowClient();
+        $client->startAsync($workflowClass, $input, ExecutionId::fromString($executionId));
+
+        return $client->pollForCompletion($executionId, 500, max(1, (int) ceil($this->budgetSeconds * 2.0)));
     }
 
     private function client(TemporalConnection $settings): WorkflowServiceClientInterface

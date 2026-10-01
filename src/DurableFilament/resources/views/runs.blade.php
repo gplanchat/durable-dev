@@ -2,35 +2,46 @@
 @php
     $t = fn (string $key, array $replace = []): string => __('durable-filament::durable.' . $key, $replace);
     $runUrl = fn (string $id): string => \Gplanchat\Durable\Filament\Pages\Run::getUrl(['executionId' => $id]);
-    $listUrl = fn (array $query = []): string => \Gplanchat\Durable\Filament\Pages\Runs::getUrl(array_filter($query + ['workflowName' => $filters['workflowName'], 'executionIdPrefix' => $filters['executionIdPrefix']], fn ($v) => null !== $v && '' !== $v));
+    // Read before the counters loop, which reuses $status as its own variable.
+    $selectedOutcome = \Gplanchat\Durable\Observation\WorkflowRunStatus::tryFrom($status)?->value ?? '';
+    $listUrl = fn (array $query = []): string => \Gplanchat\Durable\Filament\Pages\Runs::getUrl(array_filter($query + ['status' => $selectedOutcome, 'workflowName' => $filters['workflowName'], 'executionIdPrefix' => $filters['executionIdPrefix']], fn ($v) => null !== $v && '' !== $v));
 @endphp
 <x-filament-panels::page>
     @include('durable-filament::backend', ['backend' => $backend])
 
     @if ($backend['available'])
-        @if ($filters['workflowNameAvailable'] || $filters['executionIdPrefixAvailable'])
-            <x-filament::section>
-                <form method="get" action="{{ \Gplanchat\Durable\Filament\Pages\Runs::getUrl() }}" style="display: flex; gap: .75rem; align-items: end; flex-wrap: wrap">
-                    @if ($filters['workflowNameAvailable'])
-                        <label>
-                            <span>{{ $t('filter.workflow_name') }}</span>
-                            <x-filament::input.wrapper>
-                                <x-filament::input type="text" name="workflowName" value="{{ $filters['workflowName'] }}" />
-                            </x-filament::input.wrapper>
-                        </label>
-                    @endif
-                    @if ($filters['executionIdPrefixAvailable'])
-                        <label>
-                            <span>{{ $t('filter.execution_id_prefix') }}</span>
-                            <x-filament::input.wrapper>
-                                <x-filament::input type="text" name="executionIdPrefix" value="{{ $filters['executionIdPrefix'] }}" />
-                            </x-filament::input.wrapper>
-                        </label>
-                    @endif
-                    <x-filament::button type="submit">{{ $t('filter.submit') }}</x-filament::button>
-                </form>
-            </x-filament::section>
-        @endif
+        {{-- Every catalog filters by outcome; the two text filters show only where it can apply them. --}}
+        <x-filament::section>
+            <form method="get" action="{{ \Gplanchat\Durable\Filament\Pages\Runs::getUrl() }}" style="display: flex; gap: .75rem; align-items: end; flex-wrap: wrap">
+                <label>
+                    <span>{{ $t('filter.outcome') }}</span>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select name="status">
+                            @foreach (['' => 'all', 'running' => 'running', 'completed' => 'completed', 'failed' => 'failed', 'cancelled' => 'cancelled', 'continued_as_new' => 'continued_as_new'] as $value => $label)
+                                <option value="{{ $value }}" @selected($value === $selectedOutcome)>{{ $t('status.' . $label) }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                </label>
+                @if ($filters['workflowNameAvailable'])
+                    <label>
+                        <span>{{ $t('filter.workflow_name') }}</span>
+                        <x-filament::input.wrapper>
+                            <x-filament::input type="text" name="workflowName" value="{{ $filters['workflowName'] }}" />
+                        </x-filament::input.wrapper>
+                    </label>
+                @endif
+                @if ($filters['executionIdPrefixAvailable'])
+                    <label>
+                        <span>{{ $t('filter.execution_id_prefix') }}</span>
+                        <x-filament::input.wrapper>
+                            <x-filament::input type="text" name="executionIdPrefix" value="{{ $filters['executionIdPrefix'] }}" />
+                        </x-filament::input.wrapper>
+                    </label>
+                @endif
+                <x-filament::button type="submit">{{ $t('filter.submit') }}</x-filament::button>
+            </form>
+        </x-filament::section>
 
         {{-- The counters cover the page on screen and say so (DUR049): a "Total" above twenty
              teaches that an application with five hundred runs has twenty. --}}

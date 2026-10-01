@@ -33,9 +33,9 @@ $input = ['orderId' => 'ORD-' . $executionId, 'pauseSeconds' => $pauseSeconds];
 
 switch ($mode) {
     case 'here':
-        // The old path: the workflow runs in THIS process. Its activities go into the in-memory
-        // transport and die with it — that is what §5.3 had measured.
-        printf("%d runs %s right here (pause %ds)\n", getmypid(), $executionId, $pauseSeconds);
+        // Without a DSN, the workflow runs in THIS process and its activities die with it, as
+        // §5.3 had measured. With a DSN, run() starts on the cluster and waits (#765).
+        printf("%d runs %s through run(), on the configured backend (pause %ds)\n", getmypid(), $executionId, $pauseSeconds);
         printf("%d finishes -> %s\n", getmypid(), var_export(
             $factory->create()->run($workflow, $input, $executionId),
             true,

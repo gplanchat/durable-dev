@@ -23,6 +23,10 @@ final class Runs extends DurablePage
     #[Url]
     public string $cursor = '';
 
+    /** Named `status` in the URL, as on Sylius; not `$status`, which the view data already carries. */
+    #[Url(as: 'status')]
+    public string $outcome = '';
+
     #[Url]
     public string $workflowName = '';
 
@@ -52,7 +56,7 @@ final class Runs extends DurablePage
         $filter = new WorkflowRunFilter($this->workflowName, $this->executionIdPrefix);
 
         return app(RunDashboard::class)->listing(
-            'all',
+            '' === $this->outcome ? 'all' : $this->outcome,
             '' === $this->cursor ? null : $this->cursor,
             $filter->isEmpty() ? null : $filter,
         );

@@ -15,7 +15,7 @@ use Filament\Pages\Page;
  * override the getters, whose Filament 3 return types are a subset of Filament 4's. The rest of
  * the page API they use (`$slug`, `$shouldRegisterNavigation`, `getUrl()`, `getTitle()`,
  * `getNavigationLabel()`) and the Blade components their views use (`filament-panels::page`,
- * `filament::section`, `badge`, `link`, `button`, `input`) are the same on both.
+ * `filament::section`, `badge`, `link`, `button`, `input`, `input.select`) are the same on both.
  */
 abstract class DurablePage extends Page
 {

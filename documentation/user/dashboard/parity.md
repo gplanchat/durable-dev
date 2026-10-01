@@ -16,7 +16,7 @@ when a gap closes.
 | Runs listed | All | The 200 most recent | All | Those seen in one request, plus 20 named in `durable_execution` at most |
 | Backend state | 4 states, 3 of them dated | 3 states, the in-memory one undated | 4 states, 3 of them dated | None |
 | Counters | Per outcome, over the page | Per outcome, over the window | Per outcome, over the page | None |
-| Outcome filter | Yes | Yes | No | No |
+| Outcome filter | Yes | Yes | Yes | No |
 | Workflow name filter | Whole name, where the backend can | Whole name, within the window | Whole name, where the backend can | No |
 | Execution id filter | Prefix, where the backend can | Prefix, within the window | Prefix, where the backend can | No |
 | `waiting for a worker` | Line and counter | No | Line and counter | No |
@@ -52,7 +52,6 @@ Three things stay specific to a surface:
 ## Behaviours worth knowing
 
 - **Magento counters.** They cover the whole 200-run window and ignore the grid filters.
-- **Filament outcome.** The list reads every outcome.
 - **Sylius run page.** It does not show the `waiting on` line, which the list does.
 - **Blank cells.** The Sylius grid leaves the start date blank when a run has none, and the
   Filament Notes column leaves an empty note blank. Magento and the profiler print a dash.

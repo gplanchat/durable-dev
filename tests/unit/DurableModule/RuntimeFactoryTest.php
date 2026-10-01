@@ -260,8 +260,8 @@ final class RuntimeFactoryTest extends TestCase
     }
 
     /**
-     * And what it takes to start an execution **on the cluster** rather than in this process
-     * here: `MagentoRuntime::run()` executes here, so its activities never leave memory.
+     * And what it takes to start an execution **on the cluster** without waiting for it:
+     * `MagentoRuntime::run()` starts through the same client, then waits (#765).
      */
     public function testAWorkflowCanBeStartedOnTheClusterRatherThanInThisProcess(): void
     {

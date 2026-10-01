@@ -441,13 +441,14 @@ les régler :
 ```
 
 - `maxActivityRetries` est le plafond de tentatives des activités que `MagentoRuntime::run()`
-  exécute dans le processus appelant, l'équivalent du
+  exécute dans le processus appelant quand aucun DSN n'est configuré, l'équivalent du
   [`max_activity_retries`](../configuration/#max_activity_retries) du bundle Symfony. La valeur par
   défaut, `0`, ne fixe aucun plafond. Les workers Temporal ne le lisent jamais : là, le cluster
   relance d'après la `RetryLimit` propre à l'activité.
-- `budgetSeconds` borne `MagentoRuntime::run()`, qui mène un workflow à son terme dans le processus
-  appelant. Au-delà du budget, l'appel lève `WorkflowStuckException` au lieu d'attendre encore. La
-  valeur par défaut est `10`. Le budget existe à cause du plafond de tentatives : sans plafond, une
+- `budgetSeconds` borne `MagentoRuntime::run()`. Sans DSN, l'appel mène un workflow à son terme dans
+  le processus appelant ; avec un DSN, il attend aussi longtemps le résultat du cluster. Au-delà du
+  budget, l'appel lève `WorkflowStuckException` au lieu d'attendre encore. La valeur par défaut est
+  `10`. Dans le processus, le budget existe à cause du plafond de tentatives : sans plafond, une
   activité qui échoue sans cesse occuperait ce processus pour toujours. Les workers et
   `workflowClient()` ne lisent ni l'un ni l'autre.
 
@@ -464,6 +465,21 @@ d'Illuminate. Un DSN dans `app/etc/env.php` choisit le backend ; aucun autre ré
 
 Sans ce DSN, le journal vit dans le processus qui l'écrit et disparaît quand ce processus se
 termine. C'est acceptable pour une commande en ligne, inadapté à tout le reste.
+
+`MagentoRuntime::run()` suit le même choix. Sans DSN, il exécute le workflow dans le processus
+appelant. Avec un DSN, il démarre le workflow sur le cluster et attend son résultat, que produisent
+les workers ci-dessous. L'attente dure environ `budgetSeconds` et se termine par
+`WorkflowStuckException`.
+
+Un workflow qui échoue, expire ou est terminé arrive autrement chez l'appelant avec un DSN : sous la
+forme d'une `\RuntimeException` simple, dont le message commence par `Workflow "<execution id>"`,
+sans exception précédente. Un workflow qui attend un signal attend tout le budget au lieu d'échouer
+aussitôt.
+
+Le résultat revient décodé du JSON : un objet que le workflow renvoie arrive sous forme de tableau.
+
+Pour démarrer un workflow sans attendre, depuis une requête web par exemple, appelez
+`workflowClient()->startAsync()`.
 
 **Les workers sont des commandes `bin/magento`**, pas des consommateurs de file. Supervisez-les
 comme n'importe quel processus long :

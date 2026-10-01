@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
@@ -112,7 +113,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
      * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
-     * @throws \RuntimeException when no completion event is found within {@code $maxRefreshes} attempts.
+     * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
      */
     public function pollForCompletion(
         string $executionId,
@@ -150,13 +151,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
             };
         }
 
-        throw new \RuntimeException(\sprintf(
-            'Workflow "%s" did not complete within %d poll attempts (%d ms interval = ~%d s total).',
-            $executionId,
-            $maxRefreshes,
-            $refreshIntervalMs,
-            (int) ($maxRefreshes * $refreshIntervalMs / 1000),
-        ));
+        throw WorkflowStuckException::pollsExhausted($executionId, $maxRefreshes, $refreshIntervalMs);
     }
 
     /**

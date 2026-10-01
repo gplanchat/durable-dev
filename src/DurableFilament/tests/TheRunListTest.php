@@ -71,6 +71,41 @@ final class TheRunListTest extends PanelTestCase
         self::assertSame('order-', $filter->executionIdPrefix);
     }
 
+    public function testItFiltersByEachOutcome(): void
+    {
+        $this->catalog->runs = array_map(
+            static fn(WorkflowRunStatus $status): WorkflowRunDescription => new WorkflowRunDescription('run-' . $status->value, 'App\\OrderWorkflow', $status, executionId: 'id-' . $status->value),
+            WorkflowRunStatus::cases(),
+        );
+
+        foreach (WorkflowRunStatus::cases() as $asked) {
+            $response = $this->get('/admin/durable/runs?status=' . $asked->value)->assertOk();
+            self::assertSame($asked, $this->catalog->askedStatus);
+            foreach (WorkflowRunStatus::cases() as $status) {
+                $status === $asked
+                    ? $response->assertSee('executionId=id-' . $status->value, false)
+                    : $response->assertDontSee('executionId=id-' . $status->value, false);
+            }
+        }
+    }
+
+    public function testTheOutcomeFilterComposesWithTheOthersAndSurvivesPaging(): void
+    {
+        $this->catalog->nextCursor = 'cursor-2';
+
+        $next = $this->get('/admin/durable/runs?status=failed&workflowName=App%5CRefundWorkflow')->assertSee('<option value="failed" selected', false)->getContent();
+        self::assertSame(WorkflowRunStatus::Failed, $this->catalog->askedStatus);
+        self::assertSame('App\\RefundWorkflow', $this->catalog->askedFilter?->workflowName);
+        self::assertMatchesRegularExpression('/href="[^"]*cursor=cursor-2[^"]*"/', (string) $next);
+        preg_match('/href="([^"]*cursor=cursor-2[^"]*)"/', (string) $next, $link);
+        self::assertStringContainsString('status=failed', $link[1]);
+
+        $first = (string) $this->get('/admin/durable/runs?status=failed&cursor=cursor-2')->getContent();
+        self::assertSame(WorkflowRunStatus::Failed, $this->catalog->askedStatus);
+        // The first page link: the list without a cursor, with the outcome kept.
+        self::assertStringContainsString('/admin/durable/runs?status=failed"', $first);
+    }
+
     public function testItOffersNoFilterTheCatalogCannotApply(): void
     {
         $this->get('/admin/durable/runs')->assertSee('name="workflowName"', false);

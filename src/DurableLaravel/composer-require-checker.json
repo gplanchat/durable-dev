@@ -18,6 +18,7 @@
         "Gplanchat\\Bridge\\Temporal\\WorkflowClient",
         "Gplanchat\\Bridge\\Temporal\\WorkflowClientInterface",
         "Gplanchat\\Bridge\\Temporal\\WorkflowServiceClientFactory",
+        "Gplanchat\\Bridge\\Temporal\\WorkflowServiceClientInterface",
         "Illuminate\\Console\\Command"
     ]
 }
