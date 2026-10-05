@@ -119,6 +119,14 @@ final class CrashingContinueAsNewChain implements WorkflowMetadataStore, ChildWo
         $this->crashAt('save');
     }
 
+    public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+    {
+        $inserted = $this->metadata->insertIfAbsent($executionId, $workflowType, $payload);
+        $this->crashAt('save');
+
+        return $inserted;
+    }
+
     public function markCompleted(ExecutionId $executionId): void
     {
         $this->crashAt('before markCompleted');

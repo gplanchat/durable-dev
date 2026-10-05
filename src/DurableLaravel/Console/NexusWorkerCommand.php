@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 /**
  * Drains the Nexus operations the cluster routes to this application.
  *
- * The bridge exposes only a `pollOnce()` — one turn, and nothing more: the loop, its stop criterion
+ * The bridge exposes only a `pollOnce()`, one turn and nothing more. The loop, its stop criterion
  * and what it does with an error belong to the host. This one stops on `--max-time`, like
  * `durable:temporal-worker`, so that a supervisor can recycle it.
  */

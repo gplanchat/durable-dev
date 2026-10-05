@@ -59,6 +59,8 @@ final readonly class WorkflowTaskProcessor
                 $this->logger?->error('A workflow task payload cannot be read; the worker answers the task as failed.', [
                     'exception' => $e->getPrevious() ?? $e,
                     'event_id' => $e->eventId,
+                    'workflow_id' => $poll->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $poll->getWorkflowExecution()?->getRunId(),
                 ]);
             }
             $this->respondTaskFailed($poll->getTaskToken(), $e);

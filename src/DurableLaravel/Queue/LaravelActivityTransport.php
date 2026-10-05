@@ -14,7 +14,7 @@ use Illuminate\Contracts\Queue\Job;
  * The activity transport port, on Laravel's queue.
  *
  * The same adaptation as {@see \Gplanchat\Durable\Bundle\Transport\MessengerActivityTransport}:
- * `enqueue` pushes, `dequeue` pops and acknowledges. What changes is the vocabulary — `later()`
+ * `enqueue` pushes, `dequeue` pops and acknowledges. What changes is the vocabulary: `later()`
  * instead of a `DelayStamp`, `pop()` instead of a `ReceiverInterface`.
  *
  * **The deferral becomes the queue's, then disappears from the message.** That is the contract the
@@ -22,8 +22,8 @@ use Illuminate\Contracts\Queue\Job;
  * on the queue would be waited out twice.
  *
  * In production nobody calls the "pull" half of this port: `queue:work` pushes the job into
- * `handle()`. It is implemented all the same, because a synchronous drain — a test, a command that
- * empties the queue by hand — has the right to exist, and because an `isEmpty()` that lied would
+ * `handle()`. It is implemented all the same, because a synchronous drain (a test, a command that
+ * empties the queue by hand) has the right to exist, and because an `isEmpty()` that lied would
  * make a caller that still has work conclude "nothing left to do".
  */
 final class LaravelActivityTransport implements ActivityTransportInterface

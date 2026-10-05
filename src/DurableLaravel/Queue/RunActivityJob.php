@@ -20,7 +20,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  *
  * **No queue trait.** `Queueable` and `InteractsWithQueue` serve `dispatch()` and `release()`; this
  * job is pushed by the transport and never puts itself back on the queue. The resume job, for its
- * part, will need them — that is where the package will take `illuminate/queue`.
+ * part, will need them: that is where the package will take `illuminate/queue`.
  */
 final readonly class RunActivityJob implements ShouldQueue
 {

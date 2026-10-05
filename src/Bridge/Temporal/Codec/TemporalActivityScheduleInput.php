@@ -45,6 +45,7 @@ final class TemporalActivityScheduleInput
 
     /**
      * @throws \InvalidArgumentException
+     * @throws \JsonException            when the input is not JSON
      */
     public static function toActivityMessage(PollActivityTaskQueueResponse $poll): ActivityMessage
     {

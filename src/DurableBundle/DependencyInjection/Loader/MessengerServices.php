@@ -118,6 +118,8 @@ final class MessengerServices
                 '%durable.child_workflow_async_messenger%',
                 new Reference(WorkflowResumeDispatcher::class),
                 new Reference(ChildWorkflowParentLinkStoreInterface::class),
+                null,
+                new Reference(WorkflowMetadataStore::class),
             ])
             ->setPublic(false)
         ;

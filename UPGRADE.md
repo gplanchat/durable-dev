@@ -929,8 +929,9 @@ again through `WorkflowClient`.
 Before it answers a task as failed for a payload it cannot read, the Temporal worker now logs an
 `error` record. The record's `exception` is the original error: the codec's exception or the
 `\JsonException`, with its stack trace. Its `event_id` is the id of the history event that did not
-read, or `null` when none is known, as for an activity or Nexus task. The server still gets the
-message only.
+read, or `null` when none is known, as for an activity or Nexus task. The record names the task
+from its poll response: `workflow_id` and `run_id` for a workflow task, `activity_id` for an
+activity task (#939). The server still gets the message only.
 
 `PayloadDecodeFailure` gains a fourth constructor argument and a property, `?int $eventId`.
 `PayloadCodecWorkflowServiceClient` gains an optional third argument, `?LoggerInterface $logger`;
@@ -941,6 +942,83 @@ the Laravel provider and the Magento module need no change.
 
 **What to do:** nothing, unless you build `PayloadCodecWorkflowServiceClient` yourself: pass it a
 PSR-3 logger to get the record. No Rector rule applies.
+
+### Temporal: an unreadable activity input fails the task, and a Nexus handler failure is logged (#938)
+
+An activity task whose input is not JSON used to throw `\JsonException` out of
+`TemporalActivityWorker::pollOnce()`, and one whose input is JSON of the wrong shape (no input, not
+an object, no `executionId`, `activityId` or `activityName`) threw `\InvalidArgumentException`. The
+worker process stopped, and the next worker stopped on the same task. The worker now answers the
+task with `RespondActivityTaskFailed`, with the exception's class and message, no stack trace and
+the cause `ACTIVITY_WORKER_UNHANDLED_FAILURE`, then polls again. The failure is non-retryable,
+since the same input fails the same way on every attempt: the activity fails at once, whatever its
+retry policy. An undecodable payload (#775) stays retryable, since its key can come back.
+
+When a Nexus operation handler throws, a non-JSON input included, the Nexus worker still answers a
+retryable `INTERNAL` error with the message only. It now also logs it.
+
+Both log an `error` record whose `exception` is the original error, with its stack trace, and whose
+`event_id` is `null`. The activity record also carries `activity_id`.
+
+`TemporalActivityWorker` gains an optional sixth constructor argument, and `TemporalNexusWorker` an
+optional fourth one, `?LoggerInterface $logger`. The Symfony bundle, the Laravel provider and the
+Magento module pass theirs.
+
+**Who is affected:** a deployment that relied on an unreadable activity input stopping the worker.
+Nobody needs to change code: the arguments are optional.
+
+**What to do:** nothing, unless you build either worker yourself: pass it a PSR-3 logger to get the
+record. No Rector rule applies.
+
+### `dispatchNewWorkflowRun()` no longer rewrites an existing metadata row (#918)
+
+The Messenger, Laravel queue and Laravel in-process dispatchers now write a run's metadata row only
+when the run has none. They used to rewrite it, which set `completed` back to false. A late resume
+of a run that continued as new sends its next run again, and that rewrite could reopen the next run
+if it finished in between. The resume is still sent. The Temporal dispatcher does not change: the
+server owns its runs. `WorkflowMetadataStore::save()` does not change either.
+
+**Who is affected:** code that calls `dispatchNewWorkflowRun()` with an execution id that already
+has a row, to start that run again or with another type or payload. The row now keeps its type, its
+payload and its `completed` flag, and a completed run stays completed. Custom
+`WorkflowResumeDispatcher` implementations should follow the same rule, or a re-dispatch can reopen
+a finished run. An async child that reuses the id of a finished child, as the reuse policy allows
+(`AllowDuplicateFailedOnly` by default), is not affected: `ChildWorkflowRunner` clears the completed
+row before it starts the child. A `ChildWorkflowRunner` you build yourself in async mode needs its
+new `metadataStore` argument for that; the Symfony bundle passes it.
+
+**What to do:** start a new run under a new execution id. In a custom dispatcher, call `save()`
+only when `get()` returns `null`. No Rector rule: the change is in what the call does, not in its
+signature.
+
+### `WorkflowMetadataStore` gains `insertIfAbsent()` (#946)
+
+**Who is affected**: only whoever **implements** `WorkflowMetadataStore` (a custom store, or a test
+double). The bundled stores (in-memory, DBAL, Illuminate, `ProjectingWorkflowMetadataStore`) have
+it, and so does anything that extends or decorates one of them. The Magento adapter store follows
+with #750.
+
+**Why.** Two passes of the same run can both read the next run of a continue-as-new as having no
+row. Writing it with `save()` then resets a next run that completed in between, because `save()`
+sets `completed` back to false. The continue-as-new path and the three insert-only dispatchers
+(Messenger, Laravel queue, Laravel in-process) now call `insertIfAbsent()`, which writes the row
+only when there is none and leaves an existing row, a completed one included, as it is. `save()`
+is unchanged and still reactivates a row.
+
+**What to write.** Add the method. It must be atomic: a check followed by `save()` brings the race
+back. Return `true` when the row was written, `false` when one existed.
+
+```php
+public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+{
+    // SQL: INSERT and catch the unique violation, or INSERT ... ON CONFLICT DO NOTHING.
+    // In memory: if (isset($this->rows[$id])) { return false; } then store the row.
+}
+```
+
+A decorator forwards the call to the store it wraps. No Rector rule covers this: the body depends on
+the storage. Run `WorkflowMetadataStoreConformanceTestCase` against your store; the two new
+`testInsertingIfAbsent*` cases check the method.
 
 ## 0.1.0-beta1
 

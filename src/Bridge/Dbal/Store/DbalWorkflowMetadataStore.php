@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Dbal\Store;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -54,6 +55,27 @@ final readonly class DbalWorkflowMetadataStore implements WorkflowMetadataStore
         } else {
             $this->connection->insert($this->table, $row + ['execution_id' => $executionId->toString()], $types);
         }
+    }
+
+    public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+    {
+        $this->schema->ensure();
+
+        // The primary key is the arbiter: of two concurrent inserts, one wins and the other gets a
+        // unique violation. ponytail: on PostgreSQL a violation aborts an enclosing transaction;
+        // the callers do not hold one around this call.
+        try {
+            $this->connection->insert($this->table, [
+                'execution_id' => $executionId->toString(),
+                'workflow_type' => $workflowType,
+                'payload' => json_encode($payload, \JSON_THROW_ON_ERROR),
+                'completed' => false,
+            ], ['completed' => 'boolean']);
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
+
+        return true;
     }
 
     public function markCompleted(ExecutionId $executionId): void

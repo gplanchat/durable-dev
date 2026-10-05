@@ -423,7 +423,7 @@ class RuntimeFactory
     {
         $settings = $this->requireCluster('A Nexus worker');
 
-        return new TemporalNexusWorker($this->assembly($settings)->nexusRpc(), $settings, $this->nexusRegistry());
+        return new TemporalNexusWorker($this->assembly($settings)->nexusRpc(), $settings, $this->nexusRegistry(), $this->logger);
     }
 
     private function requireCluster(string $what): TemporalConnection

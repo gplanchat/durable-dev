@@ -15,6 +15,7 @@ use Gplanchat\Durable\Nexus\Serving\NexusOperationNotHandledException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationResponse;
 use Gplanchat\Durable\SearchAttributes;
+use Psr\Log\LoggerInterface;
 use Temporal\Api\Common\V1\Callback;
 use Temporal\Api\Common\V1\Callback\Nexus as NexusCallback;
 use Temporal\Api\Common\V1\Payloads;
@@ -61,6 +62,7 @@ final readonly class TemporalNexusWorker
         private WorkflowServiceNexusRpc $nexusRpc,
         private TemporalConnection $connection,
         private NexusOperationRegistry $registry,
+        private ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -113,7 +115,13 @@ final readonly class TemporalNexusWorker
             return;
         } catch (\Throwable $raised) {
             // §1b.3: an ordinary exception is worth INTERNAL, hence retryable — as in every
-            // other SDK. A handler that wants a definitive refusal says so with its type.
+            // other SDK. A handler that wants a definitive refusal says so with its type. The
+            // answer carries the message only; the log keeps the error and its trace (#938).
+            $this->logger?->error('A Nexus operation handler failed; the worker answers the task with a retryable INTERNAL error.', [
+                'exception' => $raised,
+                'event_id' => null,
+                'rpc' => 'RespondNexusTaskFailed',
+            ]);
             $this->respondFailed($taskToken, NexusHandlerErrorType::Internal, $raised->getMessage());
 
             return;

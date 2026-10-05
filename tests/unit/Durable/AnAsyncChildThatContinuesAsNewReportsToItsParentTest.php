@@ -220,6 +220,11 @@ final class MarkCompletedFailsOnce implements WorkflowMetadataStore
         $this->inner->save($executionId, $workflowType, $payload);
     }
 
+    public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+    {
+        return $this->inner->insertIfAbsent($executionId, $workflowType, $payload);
+    }
+
     public function markCompleted(ExecutionId $executionId): void
     {
         if (!$this->failed) {

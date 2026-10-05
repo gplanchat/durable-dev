@@ -80,7 +80,10 @@ final class InProcessWorkflowResumeDispatcher implements WorkflowResumeDispatche
     public function dispatchNewWorkflowRun(ExecutionId $executionId, string $workflowType, array $payload): void
     {
         // A caller passing `::class` gets the alias, as on the other dispatchers (#258).
-        $this->metadata->save($executionId, (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType), $payload);
+        // Insert-only (#918): a row that exists is left as it is. Rewriting it would set `completed`
+        // back to false and reopen a run that finished since the caller read it. The first send of a
+        // run finds no row, and a run without one cannot complete.
+        $this->metadata->insertIfAbsent($executionId, (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType), $payload);
         $this->resumes[] = new ResumeWorkflowMessage($executionId->toString());
     }
 

@@ -13,15 +13,15 @@ use Illuminate\Contracts\Container\Container;
  *
  * The work is the core's ({@see NexusHandlerDeclarations}), shared with Magento (#668); this class
  * hands it Laravel's container. It is the counterpart of `NexusHandlerPass` on the Symfony side, by
- * the same path — `NexusContractResolver` to read the contract, `NexusHandlerInvoker` to hold
+ * the same path: `NexusContractResolver` to read the contract, `NexusHandlerInvoker` to hold
  * between the handler's signature and what the registry calls. What changes is the source: Symfony
  * reads tags an autoconfiguration has set, Laravel reads `config/durable.php`, because its
- * container has no equivalent — the same reason for which the workflows are declared.
+ * container has no equivalent, the same reason for which the workflows are declared.
  *
  * **An operation without a body is not a missing operation.** A Nexus contract splits into two
  * interfaces because PHP cannot say "partially implements": what the handler does not serve, a
  * workflow fulfils, and it is `#[FulfilsNexusOperation]` that declares it. What is registered then
- * is the **type** of the workflow and not its class — that is the name the server knows and the
+ * is the **type** of the workflow and not its class: that is the name the server knows and the
  * journal records.
  */
 final readonly class DeclaredNexusOperations

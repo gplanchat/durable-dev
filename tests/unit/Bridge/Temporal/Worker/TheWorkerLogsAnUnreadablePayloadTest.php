@@ -39,6 +39,8 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedResponse;
  */
 final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
 {
+    private const WORKFLOW_TASK = ['workflow_id' => 'wf-1', 'run_id' => 'run-1'];
+
     /** @var list<array{string, string, array<string, mixed>}> */
     private array $records = [];
 
@@ -48,7 +50,7 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
 
         $this->processWorkflowTasks(new PayloadCodecWorkflowServiceClient($inner, self::failingCodec(), $this->logger()));
 
-        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', 7);
+        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', 7, self::WORKFLOW_TASK);
     }
 
     public function testAnUndecodablePayloadOnALaterPageIsLoggedWithItsEvent(): void
@@ -60,7 +62,7 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
 
         $this->processWorkflowTasks(new PayloadCodecWorkflowServiceClient($inner, self::failingCodec(), $this->logger()));
 
-        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', 7);
+        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', 7, self::WORKFLOW_TASK);
     }
 
     public function testAPayloadThatIsNotJsonOnALaterPageIsLoggedWithItsEvent(): void
@@ -72,7 +74,7 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
 
         $this->processWorkflowTasks($inner);
 
-        $this->assertOneRecord(\JsonException::class, 'Syntax error', 7);
+        $this->assertOneRecord(\JsonException::class, 'Syntax error', 7, self::WORKFLOW_TASK);
     }
 
     public function testAMalformedStartedMemoIsLoggedWithItsEvent(): void
@@ -84,7 +86,7 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
 
         $this->processWorkflowTasks($this->workflowPolls(self::poll([$started])));
 
-        $this->assertOneRecord(\JsonException::class, 'holds int', 1);
+        $this->assertOneRecord(\JsonException::class, 'holds int', 1, self::WORKFLOW_TASK);
     }
 
     /**
@@ -95,16 +97,20 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
         $inner = $this->createMock(WorkflowServiceClientInterface::class);
         $inner->method('PollActivityTaskQueue')->willReturn(new PollActivityTaskQueueResponse([
             'task_token' => 'act-token',
+            'activity_id' => 'act-1',
             'input' => new Payloads(['payloads' => [self::undecodable()]]),
         ]));
         $inner->expects(self::once())->method('RespondActivityTaskFailed')->willReturn(new RespondActivityTaskFailedResponse());
 
         (new PayloadCodecWorkflowServiceClient($inner, self::failingCodec(), $this->logger()))->PollActivityTaskQueue(new PollActivityTaskQueueRequest());
 
-        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', null);
+        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', null, ['activity_id' => 'act-1']);
     }
 
-    private function assertOneRecord(string $class, string $message, ?int $eventId): void
+    /**
+     * @param array<string, string> $task the keys that identify the task (#939)
+     */
+    private function assertOneRecord(string $class, string $message, ?int $eventId, array $task): void
     {
         self::assertCount(1, $this->records);
         [$level, , $context] = $this->records[0];
@@ -113,6 +119,9 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
         self::assertStringContainsString($message, $context['exception']->getMessage());
         self::assertArrayHasKey('event_id', $context);
         self::assertSame($eventId, $context['event_id']);
+        foreach ($task as $key => $value) {
+            self::assertSame($value, $context[$key] ?? null, $key);
+        }
     }
 
     private function processWorkflowTasks(WorkflowServiceClientInterface $client): void
