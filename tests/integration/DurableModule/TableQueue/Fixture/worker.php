@@ -54,7 +54,7 @@ switch ($mode) {
     case 'poll':
         for ($until = microtime(true) + (float) $argv[5]; microtime(true) < $until; usleep(100_000)) {
             if (null !== $message = $tableQueue->take($queue)) {
-                say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP(3)'));
+                say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
                 exit;
             }
             say('EMPTY');
