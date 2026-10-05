@@ -85,6 +85,6 @@ final readonly class MagentoWorkflowRunProjection implements WorkflowRunProjecti
 
     private function now(): string
     {
-        return gmdate('Y-m-d H:i:s');
+        return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.v');
     }
 }

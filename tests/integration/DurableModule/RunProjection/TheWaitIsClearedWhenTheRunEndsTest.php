@@ -64,8 +64,8 @@ final class TheWaitIsClearedWhenTheRunEndsTest extends TestCase
         $row = $this->row('twice');
 
         self::assertSame('App\\RenamedWorkflow', $row['workflow_type']);
-        self::assertSame('2020-01-01 00:00:00', $row['started_at']);
-        self::assertSame('2020-01-01 00:00:01', $row['picked_up_at']);
+        self::assertSame('2020-01-01 00:00:00.000', $row['started_at']);
+        self::assertSame('2020-01-01 00:00:01.000', $row['picked_up_at']);
     }
 
     /** @return array<string, string|null> */
