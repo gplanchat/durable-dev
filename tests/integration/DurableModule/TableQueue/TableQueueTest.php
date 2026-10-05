@@ -103,4 +103,21 @@ final class TableQueueTest extends TestCase
         self::assertSame(['STALE_ACK', 'refused'], [$events[0][0], $events[0][2]]);
         self::assertSame(['FRESH_ACK', 'deleted'], [$events[1][0], $events[1][2]]);
     }
+
+    #[Test]
+    public function aMessageDelayedByHalfASecondIsTakenAfterHalfASecondAndWithinASecond(): void
+    {
+        $enqueued = Harness::run(['enqueue', 'q', 'soon', '0.5'])[0];
+        $availableAt = (float) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
+
+        $events = Harness::run(['poll', 'q', '60', '30', '5']);
+
+        $taken = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
+        self::assertNotNull($taken, 'never taken');
+        self::assertSame('EMPTY', $events[0][0]);
+        self::assertGreaterThanOrEqual($availableAt, (float) $taken[3], 'taken before available_at');
+        $afterSeconds = (float) ((int) $taken[1] - (int) $enqueued[1]) / 1e9;
+        self::assertGreaterThan(0.4, $afterSeconds, 'a 0.5 s delay fired early');
+        self::assertLessThan(1.0, $afterSeconds, 'a 0.5 s delay was rounded up to a second');
+    }
 }

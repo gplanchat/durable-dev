@@ -13,11 +13,10 @@ use Magento\Framework\DB\Adapter\AdapterInterface;
  * worker killed mid-message leaves it to come back when the lease ends. The attempt claim and the
  * journal's guards make the second copy harmless.
  *
- * Every time comes from the database (`NOW()`), never from a worker's clock. MySQL 8.0 and MariaDB
+ * Every time comes from the database (`NOW(3)`), never from a worker's clock. MySQL 8.0 and MariaDB
  * 10.6 or later, for `SKIP LOCKED`.
  *
- * ponytail: second precision (the column is a DATETIME), bodies are strings the caller serializes.
- * Fractional seconds follow the column (#958).
+ * ponytail: millisecond precision (the columns are `DATETIME(3)`, #958), bodies are strings the caller serializes.
  */
 final class TableQueue
 {
@@ -58,11 +57,11 @@ final class TableQueue
         ];
     }
 
-    public function enqueue(string $queue, string $body, int $delaySeconds = 0): void
+    public function enqueue(string $queue, string $body, float $delaySeconds = 0.0): void
     {
         $this->connection->query(
-            'INSERT INTO ' . self::TABLE . ' (queue_name, body, available_at) VALUES (?, ?, NOW() + INTERVAL ? SECOND)',
-            [$queue, $body, max(0, $delaySeconds)],
+            'INSERT INTO ' . self::TABLE . ' (queue_name, body, available_at) VALUES (?, ?, NOW(3) + INTERVAL ? MICROSECOND)',
+            [$queue, $body, max(0, (int) round($delaySeconds * 1_000_000))],
         );
     }
 
@@ -80,7 +79,7 @@ final class TableQueue
 
         try {
             $row = $this->connection->fetchRow(
-                'SELECT id, body FROM ' . self::TABLE . ' WHERE queue_name = ? AND available_at <= NOW() AND (leased_until IS NULL OR leased_until < NOW()) ORDER BY available_at, id LIMIT 1 FOR UPDATE SKIP LOCKED',
+                'SELECT id, body FROM ' . self::TABLE . ' WHERE queue_name = ? AND available_at <= NOW(3) AND (leased_until IS NULL OR leased_until < NOW(3)) ORDER BY available_at, id LIMIT 1 FOR UPDATE SKIP LOCKED',
                 [$queue],
             );
             if (!\is_array($row)) {
@@ -88,7 +87,7 @@ final class TableQueue
 
                 return null;
             }
-            $this->connection->query('UPDATE ' . self::TABLE . ' SET leased_until = NOW() + INTERVAL ? SECOND WHERE id = ?', [$this->leaseSeconds, $row['id']]);
+            $this->connection->query('UPDATE ' . self::TABLE . ' SET leased_until = NOW(3) + INTERVAL ? SECOND WHERE id = ?', [$this->leaseSeconds, $row['id']]);
             $token = (string) $this->connection->fetchOne('SELECT leased_until FROM ' . self::TABLE . ' WHERE id = ?', [$row['id']]);
             $this->connection->commit();
         } catch (\Throwable $e) {

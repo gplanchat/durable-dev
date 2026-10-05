@@ -37,7 +37,7 @@ if ('setup' === $mode) {
 
 $queue = $argv[2];
 if ('enqueue' === $mode) {
-    (new TableQueue($connection, 2, 1))->enqueue($queue, $argv[3], (int) $argv[4]);
+    (new TableQueue($connection, 2, 1))->enqueue($queue, $argv[3], (float) $argv[4]);
     say('ENQUEUED');
     exit;
 }
@@ -54,7 +54,7 @@ switch ($mode) {
     case 'poll':
         for ($until = microtime(true) + (float) $argv[5]; microtime(true) < $until; usleep(100_000)) {
             if (null !== $message = $tableQueue->take($queue)) {
-                say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP()'));
+                say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP(3)'));
                 exit;
             }
             say('EMPTY');
