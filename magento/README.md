@@ -184,6 +184,10 @@ Declare the journal's connection on a second database in `app/etc/env.php`, and 
 'resource' => ['durable' => ['connection' => 'durable']],
 ```
 
+The shop's `default` connection must answer too: `createTable()` asks it for the SQL version. If the
+shop is not installed on the machine running the harness, point `default` at any reachable database
+of the same MySQL server (for example an empty `shop` database); the harness never writes to it.
+
 Create the database (`CREATE DATABASE durable_journal`, with the grant for the `magento` user), then:
 
 ```bash
