@@ -151,10 +151,22 @@ final class TheJournalSchemaIsCreatedBySetupOnlyTest extends TestCase
                 return (string) ($this->precision[$bind[0]][$bind[1]] ?? 0);
             }
 
-            public function modifyColumn(string $table, string $column, string $definition): void
+            public function quoteIdentifier(string $name): string
             {
-                preg_match('{DATETIME\\((\\d)\\)}', $definition, $m);
-                $this->precision[$table][$column] = (int) $m[1];
+                return '`' . $name . '`';
+            }
+
+            public function quote(string $value): string
+            {
+                return "'" . $value . "'";
+            }
+
+            public function resetDdlCache(string $table): void {}
+
+            public function query(string $sql): void
+            {
+                preg_match('{ALTER TABLE `(\\w+)` MODIFY COLUMN `(\\w+)` DATETIME\\((\\d)\\)}', $sql, $m);
+                $this->precision[$m[1]][$m[2]] = (int) $m[3];
             }
 
             /**
