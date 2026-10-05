@@ -63,13 +63,17 @@ function durable_test_connection(): AdapterInterface
         }
     };
 
-    // `createTable()` and `dropTable()` tell the setup's schema listener, which comes from the object manager.
+    // `createTable()`, `dropTable()`, `addColumn()` and `modifyColumn()` tell the setup's schema listener, which comes from the object manager.
     $silent = new class extends SchemaListener {
         public function __construct() {}
 
         public function createTable(Table $table): void {}
 
         public function dropTable($tableName): void {}
+
+        public function addColumn($tableName, $columnName, $definition, $primaryKeyName = 'PRIMARY', $onCreate = null): void {}
+
+        public function modifyColumn($tableName, $columnName, $definition): void {}
     };
 
     // DDL objects and the adapter ask the object manager for these two, and for nothing else.
