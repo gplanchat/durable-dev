@@ -92,4 +92,15 @@ final class TableQueueTest extends TestCase
         self::assertCount(60, array_unique($ids), 'a message was taken twice');
         self::assertGreaterThan(0, min($counts), 'one worker took everything: the take never contended');
     }
+
+    #[Test]
+    public function anAckAfterTheLeaseRanOutDoesNotDeleteTheRedeliveredCopy(): void
+    {
+        Harness::run(['enqueue', 'q', 'hello', '0']);
+
+        $events = Harness::run(['stale', 'q', '2', '1']);
+
+        self::assertSame(['STALE_ACK', 'refused'], [$events[0][0], $events[0][2]]);
+        self::assertSame(['FRESH_ACK', 'deleted'], [$events[1][0], $events[1][2]]);
+    }
 }

@@ -10,5 +10,6 @@ namespace Gplanchat\DurableModule\Runtime\TableQueue;
  */
 final readonly class QueuedMessage
 {
-    public function __construct(public int $id, public string $body) {}
+    /** @param string $leaseToken the end of this delivery's lease: {@see TableQueue::ack()} deletes the row only while it still carries it */
+    public function __construct(public int $id, public string $body, public string $leaseToken) {}
 }

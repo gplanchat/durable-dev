@@ -16,9 +16,8 @@ use Magento\Framework\DB\Adapter\AdapterInterface;
  * Every time comes from the database (`NOW()`), never from a worker's clock. MySQL 8.0 and MariaDB
  * 10.6 or later, for `SKIP LOCKED`.
  *
- * ponytail: second precision (the column is a DATETIME), bodies are strings the caller serializes,
- * and an `ack` after the lease ran out deletes the redelivered copy too. Fractional seconds and a
- * lease token if a delay below one second or a slow handler matters.
+ * ponytail: second precision (the column is a DATETIME), bodies are strings the caller serializes.
+ * Fractional seconds follow the column (#958).
  */
 final class TableQueue
 {
@@ -90,6 +89,7 @@ final class TableQueue
                 return null;
             }
             $this->connection->query('UPDATE ' . self::TABLE . ' SET leased_until = NOW() + INTERVAL ? SECOND WHERE id = ?', [$this->leaseSeconds, $row['id']]);
+            $token = (string) $this->connection->fetchOne('SELECT leased_until FROM ' . self::TABLE . ' WHERE id = ?', [$row['id']]);
             $this->connection->commit();
         } catch (\Throwable $e) {
             $this->connection->rollBack();
@@ -97,11 +97,15 @@ final class TableQueue
             throw $e;
         }
 
-        return new QueuedMessage((int) $row['id'], (string) $row['body']);
+        return new QueuedMessage((int) $row['id'], (string) $row['body'], $token);
     }
 
-    public function ack(int $id): void
+    /**
+     * Deletes the message if this delivery still owns it. A copy redelivered after the lease ran out
+     * has a later `leased_until`: the first worker's late ack deletes nothing and answers false.
+     */
+    public function ack(QueuedMessage $message): bool
     {
-        $this->connection->query('DELETE FROM ' . self::TABLE . ' WHERE id = ?', [$id]);
+        return 1 === $this->connection->query('DELETE FROM ' . self::TABLE . ' WHERE id = ? AND leased_until = ?', [$message->id, $message->leaseToken])->rowCount();
     }
 }
