@@ -67,6 +67,7 @@ final class WorkflowFailureCodec
                 WorkflowExecutionFailed::KIND_DEADLINE_EXCEEDED => new DeadlineExceededException(
                     Duration::seconds((float) ($details['context']['deadlineSeconds'] ?? 0)),
                     (string) ($details['context']['awaited'] ?? ''),
+                    self::previousException($details['cause'] ?? null),
                 ),
                 default => self::workflowException($details),
             };
@@ -100,6 +101,11 @@ final class WorkflowFailureCodec
                 'cancellationReason' => $reason->cancellationReason(),
             ],
             $reason instanceof DurableNexusOperationFailedException => ['envelope' => $reason->envelope()->toArray()],
+            $reason instanceof DeadlineExceededException => null === $reason->getPrevious() ? null : ['previous' => [
+                'class' => $reason->getPrevious()::class,
+                'message' => $reason->getPrevious()->getMessage(),
+                'code' => (int) $reason->getPrevious()->getCode(),
+            ]],
             $reason instanceof DeclaredActivityFailureInterface => ['envelope' => FailureEnvelope::fromThrowable($reason)->toArray()],
             default => null,
         };
@@ -157,6 +163,23 @@ final class WorkflowFailureCodec
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /** The exception a deadline wrapped, as {@see workflowException()} builds it; null when it cannot be rebuilt. */
+    private static function previousException(mixed $cause): ?\Throwable
+    {
+        $previous = \is_array($cause) && \is_array($cause['previous'] ?? null) ? $cause['previous'] : null;
+        if (null === $previous) {
+            return null;
+        }
+
+        try {
+            $rebuilt = self::workflowException(['failureClass' => $previous['class'] ?? '', 'failureMessage' => $previous['message'] ?? '', 'failureCode' => $previous['code'] ?? 0]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $rebuilt?->getMessage() === ($previous['message'] ?? null) ? $rebuilt : null;
     }
 
     /** @param array<string, mixed> $details */
