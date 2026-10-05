@@ -35,7 +35,7 @@ final class TableQueueTest extends TestCase
         $events = Harness::run(['drain', 'q', '60', '30']);
 
         self::assertSame(['ACKED'], array_column($events, 0));
-        self::assertSame('0', (string) $this->pdo->query('SELECT COUNT(*) FROM durable_queue')?->fetchColumn());
+        self::assertSame('0', (string) $this->pdo->query('SELECT COUNT(*) FROM durable_queue')->fetchColumn());
     }
 
     #[Test]
@@ -52,7 +52,7 @@ final class TableQueueTest extends TestCase
         $again = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($again, 'the message never came back');
         self::assertSame($taken[2], $again[2], 'the same message');
-        $afterSeconds = ((int) $again[1] - (int) $taken[1]) / 1e9;
+        $afterSeconds = (float) ((int) $again[1] - (int) $taken[1]) / 1e9;
         self::assertGreaterThan(3.0, $afterSeconds, 'delivered again while the lease held');
         self::assertLessThan(5.5, $afterSeconds);
         self::assertSame('EMPTY', $events[0][0], 'the second worker saw the message while the lease held');
@@ -62,7 +62,7 @@ final class TableQueueTest extends TestCase
     public function aDelayedMessageIsNotTakenBeforeItsAvailableAt(): void
     {
         Harness::run(['enqueue', 'q', 'later', '3']);
-        $availableAt = (int) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')?->fetchColumn();
+        $availableAt = (int) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
 
         $events = Harness::run(['poll', 'q', '60', '30', '8']);
 
