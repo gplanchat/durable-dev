@@ -39,6 +39,7 @@ foreach (glob($vendor . '/mage-os/zend-*/library') ?: [] as $library) {
     $loader->add('Zend_', $library);
 }
 $loader->addPsr4('Gplanchat\\DurableModule\\', $root . '/src/DurableModule/');
+$loader->addPsr4('Gplanchat\\Durable\\', $root . '/src/Durable/');
 $loader->register();
 
 function durable_test_connection(): AdapterInterface
