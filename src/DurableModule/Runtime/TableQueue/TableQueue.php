@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Runtime\TableQueue;
 
+use Magento\Framework\App\DeploymentConfig;
 use Magento\Framework\DB\Adapter\AdapterInterface;
 
 /**
@@ -22,6 +23,10 @@ use Magento\Framework\DB\Adapter\AdapterInterface;
 final class TableQueue
 {
     private const TABLE = 'durable_queue';
+    private const LEASE_CONFIG_PATH = 'durable/queue/lease_seconds';
+    private const CLAIM_TTL_CONFIG_PATH = 'durable/queue/attempt_claim_ttl_seconds';
+    private const DEFAULT_LEASE_SECONDS = 600;
+    private const DEFAULT_CLAIM_TTL_SECONDS = 300;
 
     /**
      * @param int $leaseSeconds           how long a taken message is invisible to the other workers
@@ -35,6 +40,23 @@ final class TableQueue
         if ($leaseSeconds <= $attemptClaimTtlSeconds) {
             throw new \InvalidArgumentException(\sprintf('The queue lease (%d s) must be longer than the activity attempt claim TTL (%d s): a copy delivered at the end of the lease would run while the first still holds the claim.', $leaseSeconds, $attemptClaimTtlSeconds));
         }
+    }
+
+    /** The lease and the claim TTL from `app/etc/env.php`: `durable/queue/lease_seconds` (600) and `durable/queue/attempt_claim_ttl_seconds` (300, the DBAL claim's default). */
+    public static function configured(AdapterInterface $connection, DeploymentConfig $config): self
+    {
+        [$lease, $claim] = self::configuredDurations($config);
+
+        return new self($connection, $lease, $claim);
+    }
+
+    /** @return array{int, int} lease, claim TTL */
+    public static function configuredDurations(DeploymentConfig $config): array
+    {
+        return [
+            (int) $config->get(self::LEASE_CONFIG_PATH, self::DEFAULT_LEASE_SECONDS),
+            (int) $config->get(self::CLAIM_TTL_CONFIG_PATH, self::DEFAULT_CLAIM_TTL_SECONDS),
+        ];
     }
 
     public function enqueue(string $queue, string $body, int $delaySeconds = 0): void
