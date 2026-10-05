@@ -26,6 +26,16 @@ abstract class PanelTestCase extends TestCase
     /** The durable-laravel backend the application runs on. */
     protected const BACKEND = 'memory';
 
+    /**
+     * The application's `config/durable.php`.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function durableConfig(): array
+    {
+        return ['backend' => static::BACKEND];
+    }
+
     public function createApplication(): Application
     {
         $vendor = \dirname((string) (new \ReflectionClass(ClassLoader::class))->getFileName(), 2);
@@ -36,7 +46,7 @@ abstract class PanelTestCase extends TestCase
         is_link("$base/vendor") || symlink($vendor, "$base/vendor");
         // Blade guesses component classes under the application's namespace, read from here.
         file_put_contents("$base/composer.json", '{"autoload": {"psr-4": {"App\\\\": "app/"}}}');
-        file_put_contents("$base/config/durable.php", '<?php return ' . var_export(['backend' => static::BACKEND], true) . ';');
+        file_put_contents("$base/config/durable.php", '<?php return ' . var_export(static::durableConfig(), true) . ';');
 
         foreach ([
             'APP_KEY' => 'base64:' . base64_encode(str_repeat('k', 32)),
