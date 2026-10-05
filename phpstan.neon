@@ -30,6 +30,8 @@ parameters:
         # The code the Rector rules migrate, written as a Temporal SDK user wrote it.
         - tests/unit/DurableRector/Source
         - tests/unit/DurableRector/Fixture
+        # Magento's adapter, loaded at run time from magento/vendor: absent from the root graph.
+        - tests/integration/DurableModule/ResumeLock/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends
