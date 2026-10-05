@@ -29,6 +29,8 @@
             <directory name="tests/unit/DurablePhpstan/Fixtures" />
             <directory name="tests/unit/DurableRector/Source" />
             <directory name="tests/unit/DurableRector/Fixture" />
+            <!-- See phpstan.neon: Magento's adapter, absent from the root graph. -->
+            <directory name="tests/integration/DurableModule/RunProjection/Fixture" />
             <!-- They include the module's templates, which need magento/framework, absent from the root
                  graph. PHPStan analyses these tests; Psalm does not, nor does psalm-magento.xml. -->
             <directory name="tests/unit/DurableModule" />
