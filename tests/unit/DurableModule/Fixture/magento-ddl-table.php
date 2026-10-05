@@ -20,6 +20,9 @@ if (!class_exists(Table::class)) {
         /** @var list<string> */
         public array $columns = [];
 
+        /** @var array<string, string> */
+        public array $types = [];
+
         public function __construct(public string $name = '') {}
 
         public function setComment(string $comment): static
@@ -33,6 +36,7 @@ if (!class_exists(Table::class)) {
         public function addColumn(string $name, string $type, int|string|null $size = null, array $options = [], ?string $comment = null): static
         {
             $this->columns[] = $name;
+            $this->types[$name] = $type;
 
             return $this;
         }

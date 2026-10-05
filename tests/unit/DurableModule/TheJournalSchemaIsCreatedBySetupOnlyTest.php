@@ -30,14 +30,33 @@ final class TheJournalSchemaIsCreatedBySetupOnlyTest extends TestCase
             ['durable_events', 'durable_execution_heads', 'durable_workflow_metadata', 'durable_child_workflow_parent_link', 'durable_workflow_runs', 'durable_queue'],
             array_keys($adapter->tables),
         );
-        self::assertCount(6, $first);
+        self::assertCount(6, array_filter($first, static fn(string $line): bool => str_starts_with($line, 'created ')));
         self::assertContains('waiting_on', $adapter->tables['durable_workflow_runs']);
         self::assertContains('picked_up_at', $adapter->tables['durable_workflow_runs']);
         self::assertContains('leased_until', $adapter->tables['durable_queue']);
 
+        self::assertSame(['durable_events', 'durable_workflow_runs', 'durable_queue'], array_keys($adapter->precision));
+        self::assertSame(['available_at', 'leased_until'], array_keys($adapter->precision['durable_queue']));
+        foreach ($adapter->precision as $table => $columns) {
+            foreach ($columns as $column => $precision) {
+                self::assertSame(3, $precision, $table . '.' . $column . ' is DATETIME(3)');
+            }
+        }
+
         self::assertSame([], $schema->setup());
         self::assertSame(6, $adapter->created);
         self::assertSame([], $adapter->added);
+    }
+
+    public function testAJournalCreatedAtWholeSecondsIsWidenedToMilliseconds(): void
+    {
+        $adapter = $this->adapter();
+        (new JournalSchema($adapter))->setup();
+        $adapter->precision['durable_queue']['leased_until'] = 0;
+
+        self::assertSame(['widened durable_queue.leased_until to DATETIME(3)'], (new JournalSchema($adapter))->setup());
+        self::assertSame(3, $adapter->precision['durable_queue']['leased_until']);
+        self::assertSame(6, $adapter->created, 'widening alters the column, it does not recreate the table');
     }
 
     public function testATableFromAnOlderVersionGetsOnlyItsMissingColumn(): void
@@ -88,6 +107,8 @@ final class TheJournalSchemaIsCreatedBySetupOnlyTest extends TestCase
             public array $tables = [];
             public int $level = 0;
             public int $created = 0;
+            /** @var array<string, array<string, int>> */
+            public array $precision = [];
             /** @var list<string> */
             public array $added = [];
 
@@ -114,7 +135,38 @@ final class TheJournalSchemaIsCreatedBySetupOnlyTest extends TestCase
             public function createTable(Table $table): void
             {
                 $this->tables[$table->name] = $table->columns;
+                foreach ($table->types as $column => $type) {
+                    if (Table::TYPE_DATETIME === $type) {
+                        $this->precision[$table->name][$column] = 0;
+                    }
+                }
                 ++$this->created;
+            }
+
+            /**
+             * @param list<string> $bind
+             */
+            public function fetchOne(string $sql, array $bind = []): string
+            {
+                return (string) ($this->precision[$bind[0]][$bind[1]] ?? 0);
+            }
+
+            public function quoteIdentifier(string $name): string
+            {
+                return '`' . $name . '`';
+            }
+
+            public function quote(string $value): string
+            {
+                return "'" . $value . "'";
+            }
+
+            public function resetDdlCache(string $table): void {}
+
+            public function query(string $sql): void
+            {
+                preg_match('{ALTER TABLE `(\\w+)` MODIFY COLUMN `(\\w+)` DATETIME\\((\\d)\\)}', $sql, $m);
+                $this->precision[$m[1]][$m[2]] = (int) $m[3];
             }
 
             /**

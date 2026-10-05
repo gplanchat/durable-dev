@@ -15,6 +15,12 @@ use Magento\Framework\DB\Ddl\Table;
  * column, and touches nothing else, so a later version appends a column or a table to
  * {@see TABLES} and the same command upgrades. It does not rename, retype or drop.
  *
+ * Every time column is DATETIME(3): the queue compares `available_at` and `leased_until` with the
+ * clock, and a lease of a few seconds needs more than whole seconds. `Ddl\Table` has no precision
+ * for DATETIME, so the column is created, then widened with a raw `ALTER TABLE ... MODIFY COLUMN` (`modifyColumn()` goes through Magento's schema listener, which rejects a string definition) when
+ * `information_schema` reports less than 3. The widening keeps the rows and runs on a table that
+ * already exists too, so a journal created at DATETIME(0) is upgraded by the next `durable:setup`.
+ *
  * ponytail: no `table_prefix` (the journal's connection is dedicated), and no locks table until
  * #732 measures the resume lock. Add the table here when it does.
  */
@@ -89,6 +95,8 @@ final class JournalSchema
         ],
     ];
 
+    private const TIME_PRECISION = 3;
+
     private bool $installed = false;
 
     public function __construct(private readonly AdapterInterface $connection) {}
@@ -133,7 +141,33 @@ final class JournalSchema
             }
         }
 
+        foreach (self::TABLES as $name => $definition) {
+            foreach ($definition['columns'] as $column) {
+                if (Table::TYPE_DATETIME === $column[1] && $this->precision($name, $column[0]) < self::TIME_PRECISION) {
+                    // A raw ALTER: `modifyColumn()` with a string definition fails in Magento's schema listener.
+                    $this->connection->query(\sprintf(
+                        'ALTER TABLE %s MODIFY COLUMN %s DATETIME(%d) %s COMMENT %s',
+                        $this->connection->quoteIdentifier($name),
+                        $this->connection->quoteIdentifier($column[0]),
+                        self::TIME_PRECISION,
+                        $column[3]['nullable'] ? 'NULL' : 'NOT NULL',
+                        $this->connection->quote(ucfirst($column[0])),
+                    ));
+                    $this->connection->resetDdlCache($name);
+                    $done[] = \sprintf('widened %s.%s to DATETIME(%d)', $name, $column[0], self::TIME_PRECISION);
+                }
+            }
+        }
+
         return $done;
+    }
+
+    private function precision(string $table, string $column): int
+    {
+        return (int) $this->connection->fetchOne(
+            'SELECT DATETIME_PRECISION FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            [$table, $column],
+        );
     }
 
     /**
