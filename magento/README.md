@@ -195,6 +195,10 @@ cd magento
 php ../vendor/bin/phpunit -c phpunit.xml.dist --fail-on-skipped
 ```
 
+If you recreate the journal database between runs, clear the bench's `var/cache`: Magento's DDL cache
+keeps saying the tables exist, `createTable()` is skipped, and the later `ALTER` fails with
+"Table doesn't exist".
+
 Without `resource/durable`, the run fails with the resolver's message; it never skips. The harness
 also refuses a `resource/durable` that names the shop's `default` connection, because it truncates
 the `durable_*` tables before each test.
