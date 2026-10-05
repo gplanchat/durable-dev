@@ -5,7 +5,7 @@ declare(strict_types=1);
 /*
  * One resume-lock worker, run by the tests and by measure.php as its own process.
  *
- *   php worker.php <getlock|ttl:SECONDS> <hold|watch|contend|race> <key> [argument]
+ *   php worker.php getlock <hold|watch|contend|race> <key> [argument]
  *
  * It prints one line per event, with `hrtime(true)` in nanoseconds: the monotonic clock is shared
  * by every process of the machine, so a parent and its workers compare their stamps directly.
@@ -13,16 +13,13 @@ declare(strict_types=1);
 
 use Gplanchat\DurableModule\Runtime\ResumeLock\GetLockResumeLock;
 use Gplanchat\DurableModule\Runtime\ResumeLock\ResumeLock;
-use Gplanchat\DurableModule\Runtime\ResumeLock\TtlRowResumeLock;
 
 require __DIR__ . '/bootstrap.php';
 
-[, $kind, $mode, $key] = $argv;
+[, , $mode, $key] = $argv;
 $argument = (int) ($argv[4] ?? 0);
 $connection = durable_test_connection();
-$lock = 'getlock' === $kind
-    ? new GetLockResumeLock($connection)
-    : new TtlRowResumeLock($connection, (int) substr($kind, 4));
+$lock = new GetLockResumeLock($connection);
 
 function say(string $event, int|string ...$values): void
 {
@@ -42,10 +39,6 @@ function acquire(ResumeLock $lock, string $key, float $seconds): bool
 }
 
 switch ($mode) {
-    case 'setup':
-        $connection->dropTable('durable_resume_lock');
-        $connection->createTable(TtlRowResumeLock::table($connection));
-        break;
     case 'hold':
     case 'watch':
         $lock->tryAcquire($key) || exit(1);

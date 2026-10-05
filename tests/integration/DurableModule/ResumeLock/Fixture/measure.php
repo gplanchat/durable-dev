@@ -29,7 +29,6 @@ function kill9(string $lock, int $n): array
 {
     $times = [];
     for ($i = 0; $i < $n; ++$i) {
-        Harness::run(['ttl:30', 'setup', 'x']);
         $holder = new Harness([$lock, 'hold', 'k' . $i]);
         $holder->waitFor('HELD');
         $contender = new Harness([$lock, 'contend', 'k' . $i, '60']);
@@ -41,13 +40,10 @@ function kill9(string $lock, int $n): array
     return $times;
 }
 
-foreach (['getlock' => $runs, 'ttl:2' => $runs, 'ttl:30' => 3] as $lock => $n) {
-    summary("kill -9 of the holder, then next resume ($lock)", kill9($lock, $n));
-}
+summary('kill -9 of the holder, then next resume', kill9('getlock', $runs));
 
 // Two workers, 200 slices each: overlapping slices are two holders at once.
-foreach (['getlock', 'ttl:2'] as $lock) {
-    Harness::run(['ttl:30', 'setup', 'x']);
+foreach (['getlock'] as $lock) {
     $workers = [new Harness([$lock, 'race', 'r', '200']), new Harness([$lock, 'race', 'r', '200'])];
     $slices = [];
     foreach ($workers as $worker) {
@@ -74,18 +70,8 @@ for ($i = 0; $i < $runs; ++$i) {
 }
 summary('KILL <connection> of the holder, until holds() says no', $times);
 
-// TTL row: a holder that outlives the TTL (no renewal) until holds() says no.
-$times = [];
-for ($i = 0; $i < $runs; ++$i) {
-    $holder = new Harness(['ttl:2', 'watch', 'e' . $i]);
-    $held = (int) $holder->waitFor('HELD')[1];
-    $times[] = ((int) $holder->waitFor('LOST', 10)[1] - $held) / 1e6;
-}
-summary('TTL 2 s, holder alive and unrenewed, until holds() says no', $times);
-
 // A frozen holder (SIGSTOP) keeps its connection open: the server sees no end of session.
-foreach (['getlock', 'ttl:2'] as $lock) {
-    Harness::run(['ttl:30', 'setup', 'x']);
+foreach (['getlock'] as $lock) {
     $holder = new Harness([$lock, 'hold', 'f']);
     $holder->waitFor('HELD');
     $contender = new Harness([$lock, 'contend', 'f', '8']);

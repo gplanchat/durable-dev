@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace integration\DurableModule\ResumeLock;
 
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Both resume locks (#732) against a real MySQL, with real processes: a lock tested inside one
+ * The resume lock (#732) against a real MySQL, with real processes: a lock tested inside one
  * process proves nothing, `GET_LOCK` being re-entrant per connection. Not run in CI yet (#738).
  *
  * @internal
@@ -21,21 +20,12 @@ final class ResumeLockTest extends TestCase
         if (null !== $reason = Harness::unavailable()) {
             self::markTestSkipped($reason);
         }
-        Harness::run(['ttl:30', 'setup', 'unused']);
-    }
-
-    /** @return iterable<string, array{string}> */
-    public static function locks(): iterable
-    {
-        yield 'GET_LOCK' => ['getlock'];
-        yield 'TTL row' => ['ttl:2'];
     }
 
     #[Test]
-    #[DataProvider('locks')]
-    public function twoWorkersNeverHoldTheLockAtTheSameTime(string $lock): void
+    public function twoWorkersNeverHoldTheLockAtTheSameTime(): void
     {
-        $workers = [new Harness([$lock, 'race', 'execution-1', '40']), new Harness([$lock, 'race', 'execution-1', '40'])];
+        $workers = [new Harness(['getlock', 'race', 'execution-1', '40']), new Harness(['getlock', 'race', 'execution-1', '40'])];
 
         $slices = [];
         foreach ($workers as $worker) {
@@ -52,20 +42,19 @@ final class ResumeLockTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('locks')]
-    public function aKilledHoldersLockIsTakenByTheNextResumeWithinTheBound(string $lock): void
+    public function aKilledHoldersLockIsTakenByTheNextResumeWithinTwoSeconds(): void
     {
-        $holder = new Harness([$lock, 'hold', 'execution-2']);
+        $holder = new Harness(['getlock', 'hold', 'execution-2']);
         self::assertNotNull($holder->waitFor('HELD'));
-        $contender = new Harness([$lock, 'contend', 'execution-2', '10']);
+        $contender = new Harness(['getlock', 'contend', 'execution-2', '10']);
         self::assertNotNull($contender->waitFor('BLOCKED'), 'the lock was free while the holder lived');
 
         $killedAt = $holder->kill9();
         $acquired = $contender->waitFor('ACQUIRED');
 
         self::assertNotNull($acquired);
-        // The bound: the server noticing the closed socket, or the TTL (2 s here) running out.
-        self::assertLessThan('getlock' === $lock ? 2_000 : 3_000, (float) ((int) $acquired[1] - $killedAt) / 1e6);
+        // The bound: the server noticing the closed socket.
+        self::assertLessThan(2_000, (float) ((int) $acquired[1] - $killedAt) / 1e6);
     }
 
     #[Test]
@@ -75,26 +64,10 @@ final class ResumeLockTest extends TestCase
         $held = $holder->waitFor('HELD');
         self::assertNotNull($held);
 
-        $this->pdo()->exec('KILL ' . (int) $held[2]);
+        $holder->pdo()->exec('KILL ' . (int) $held[2]);
 
         self::assertNotNull($holder->waitFor('LOST', 5), 'the adapter reconnected silently and holds() said yes');
         $contender = new Harness(['getlock', 'contend', 'execution-3', '5']);
         self::assertNotNull($contender->waitFor('ACQUIRED'));
-    }
-
-    #[Test]
-    public function aHolderThatOutlivesTheTtlFindsOutAndAnotherWorkerTakesTheLock(): void
-    {
-        $holder = new Harness(['ttl:1', 'watch', 'execution-4']);
-        self::assertNotNull($holder->waitFor('HELD'));
-
-        self::assertNotNull($holder->waitFor('LOST', 5));
-        $contender = new Harness(['ttl:1', 'contend', 'execution-4', '5']);
-        self::assertNotNull($contender->waitFor('ACQUIRED'));
-    }
-
-    private function pdo(): \PDO
-    {
-        return (new Harness(['ttl:1', 'setup', 'unused']))->pdo();
     }
 }
