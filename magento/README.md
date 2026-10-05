@@ -167,6 +167,51 @@ One process, one queue, one role — `RunWorkerCommand` says why a worker is a c
 consumer of Magento's queue. `demo/run.sh` starts the journal one for the Nexus demonstration; the
 workflow it advances has no activity, so no activity worker is started there.
 
+## The conformance harness
+
+`tests/` holds the PHPUnit harness that runs the shared SQL conformance cases of
+`src/Durable/Testing` against the Magento-adapter stores, inside a Magento bootstrap (#747,
+DUR056). It uses the repository's PHPUnit, so the bench installs nothing more: run `composer install`
+at the repository root once.
+
+Declare the journal's connection on a second database in `app/etc/env.php`, and remove
+`durable/temporal/dsn`, which excludes `resource/durable` (the resolver says so when both are set):
+
+```php
+'db' => ['connection' => [
+    'durable' => ['host' => '127.0.0.1:33306', 'dbname' => 'durable_journal', 'username' => 'magento', 'password' => 'magento', 'model' => 'mysql4', 'engine' => 'innodb', 'initStatements' => 'SET NAMES utf8;', 'active' => '1'],
+]],
+'resource' => ['durable' => ['connection' => 'durable']],
+```
+
+Create the database (`CREATE DATABASE durable_journal`, with the grant for the `magento` user), then:
+
+```bash
+cd magento
+php ../vendor/bin/phpunit -c phpunit.xml.dist --fail-on-skipped
+```
+
+Without `resource/durable`, the run fails with the resolver's message; it never skips. The harness
+also refuses a `resource/durable` that names the shop's `default` connection, because it truncates
+the `durable_*` tables before each test.
+
+A store ticket adds a subclass of one shared case in `tests/` and builds its store on
+`JournalHarness::adapter()`, which returns the journal's adapter with the schema installed and every
+table empty:
+
+```php
+final class MagentoEventStoreConformanceTest extends EventStoreConformanceTestCase
+{
+    protected function createEventStore(): EventStoreInterface
+    {
+        return new MagentoEventStore(JournalHarness::adapter());
+    }
+}
+```
+
+The module is read from `vendor/gplanchat/durable-magento`, a copy: refresh it as described in
+"When the module changes and the bench does not follow".
+
 ## The probes
 
 Five scripts, kept because they replay, and a probe module in `app/code` that carries the workflows
