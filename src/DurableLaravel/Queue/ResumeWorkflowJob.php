@@ -18,14 +18,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * commands it produces, and those commands go out twice. The journal does not prevent it: it
  * faithfully records what it is given, the two of them included.
  *
- * **This job does not put itself back on the queue, it dispatches another one — and that is
+ * **This job does not put itself back on the queue, it dispatches another one, and that is
  * deliberate.** `$this->release()` requires the `InteractsWithQueue` trait, hence
  * `illuminate/queue`, hence `symfony/process ^7.2`: the package would become irreconcilable with
  * the Symfony 6.4 line the repository's matrix still tests. But the argument is not only about
- * packaging — §1.2 measured that `release()` **consumes an attempt**, so much so that at
+ * packaging: §1.2 measured that `release()` **consumes an attempt**, so much so that at
  * `--tries=5`, fifteen resumes out of twenty ended up in `failed_jobs` without having run a single
  * time: contention there became indistinguishable from a bug. A fresh job starts again with a fresh
- * budget of attempts, and `tries` recovers its meaning — the number of times a crash is tolerated.
+ * budget of attempts, and `tries` recovers its meaning: the number of times a crash is tolerated.
  *
  * The price, and it is real: nothing bounds the deferral on the queue side any more. It is
  * `$deferrals` that bounds it here, and going over is noisy.

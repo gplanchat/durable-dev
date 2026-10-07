@@ -12,6 +12,7 @@ use Gplanchat\Durable\Event\ActivityCompleted;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
+use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
@@ -28,6 +29,7 @@ use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\VersionMarked;
 use Gplanchat\Durable\Event\WorkflowCancellationDelivered;
 use Gplanchat\Durable\Event\WorkflowCancellationRequested;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
@@ -37,6 +39,7 @@ use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Enums\V1\RetryState;
+use Temporal\Api\Enums\V1\TimeoutType;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\MarkerRecordedEventAttributes;
 
@@ -57,6 +60,12 @@ final class TemporalEventConverter
 
     /** @var array<int, string> startedEventId → timerId */
     private array $startedEventIdToTimerId = [];
+
+    /** @var array<int, int> startedEventId → attempt */
+    private array $activityStartedAttempts = [];
+
+    /** @var array<string, string> activityId → activity type */
+    private array $activityTypes = [];
 
     private int $sideEffectSlot = 0;
 
@@ -171,6 +180,7 @@ final class TemporalEventConverter
                 if (null !== $at) {
                     $activityType = (string) $at->getName();
                 }
+                $this->activityTypes[$activityId] = $activityType;
 
                 $input = [];
                 $inputPayloads = $attr->getInput();
@@ -231,6 +241,41 @@ final class TemporalEventConverter
                     \is_string($type) && '' !== $type ? $type : \RuntimeException::class,
                     $msg,
                     retryState: self::toActivityRetryState($attr->getRetryState()),
+                );
+
+            case EventType::EVENT_TYPE_ACTIVITY_TASK_STARTED:
+                $attr = $event->getActivityTaskStartedEventAttributes();
+                if (null !== $attr) {
+                    $this->activityStartedAttempts[$eventId] = $attr->getAttempt();
+                }
+
+                return null;
+
+            case EventType::EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+                $attr = $event->getActivityTaskTimedOutEventAttributes();
+                $activityId = null !== $attr ? $this->scheduledEventIdToActivityId[$attr->getScheduledEventId()] ?? null : null;
+                if (null === $attr || null === $activityId) {
+                    return null;
+                }
+
+                // Same message as TemporalExecutionHistory and the journal backends; a kind the
+                // server did not name is not guessed.
+                $kind = match ($attr->getFailure()?->getTimeoutFailureInfo()?->getTimeoutType()) {
+                    TimeoutType::TIMEOUT_TYPE_START_TO_CLOSE => 'start-to-close ',
+                    TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_START => 'schedule-to-start ',
+                    TimeoutType::TIMEOUT_TYPE_SCHEDULE_TO_CLOSE => 'schedule-to-close ',
+                    TimeoutType::TIMEOUT_TYPE_HEARTBEAT => 'heartbeat ',
+                    default => '',
+                };
+
+                return new ActivityFailed(
+                    $this->id,
+                    $activityId,
+                    \RuntimeException::class,
+                    \sprintf('Activity %stimeout exceeded.', $kind),
+                    activityName: $this->activityTypes[$activityId] ?? '',
+                    failureAttempt: max(1, $this->activityStartedAttempts[$attr->getStartedEventId()] ?? 1),
+                    retryState: ActivityRetryState::Timeout,
                 );
 
             case EventType::EVENT_TYPE_ACTIVITY_TASK_CANCELED:
@@ -411,6 +456,48 @@ final class TemporalEventConverter
 
                 return new ChildWorkflowCompleted($this->id, ExecutionId::fromString($childWorkflowId), $childResult);
 
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
+                $attr = $event->getChildWorkflowExecutionFailedEventAttributes();
+
+                return $this->childFailed($attr?->getWorkflowExecution()?->getWorkflowId(), 'failed', $attr?->getFailure());
+
+            case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
+                return $this->childFailed($event->getStartChildWorkflowExecutionFailedEventAttributes()?->getWorkflowId(), 'could not be started');
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
+                return $this->childFailed($event->getChildWorkflowExecutionTimedOutEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'timed out');
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
+                return $this->childFailed($event->getChildWorkflowExecutionCanceledEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'was cancelled');
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
+                return $this->childFailed($event->getChildWorkflowExecutionTerminatedEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'was terminated');
+
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
+                $attr = $event->getWorkflowExecutionContinuedAsNewEventAttributes();
+                if (null === $attr) {
+                    return null;
+                }
+                $nextPayload = [];
+                $ps = $attr->getInput()?->getPayloads();
+                if (null !== $ps && $ps->count() > 0) {
+                    $decoded = JsonPlainPayload::decode($ps[0]);
+                    $nextPayload = \is_array($decoded) ? $decoded : ['args' => $decoded];
+                }
+                $metadata = [];
+                if (null !== $attr->getTaskQueue() && '' !== $attr->getTaskQueue()->getName()) {
+                    $metadata['task_queue'] = $attr->getTaskQueue()->getName();
+                }
+                foreach (['workflow_run_timeout_seconds' => $attr->getWorkflowRunTimeout(), 'workflow_task_timeout_seconds' => $attr->getWorkflowTaskTimeout()] as $key => $timeout) {
+                    if (null !== $timeout && ($timeout->getSeconds() > 0 || $timeout->getNanos() > 0)) {
+                        $metadata[$key] = (float) $timeout->getSeconds() + ((float) $timeout->getNanos() / 1_000_000_000.0);
+                    }
+                }
+
+                // No newExecutionId: the server's run id is not a Durable execution id, and the
+                // successor keeps this one through the memo (#560).
+                return new WorkflowContinuedAsNew($this->id, $attr->getWorkflowType()?->getName() ?? '', $nextPayload, $metadata);
+
             default:
                 return null;
         }
@@ -453,10 +540,38 @@ final class TemporalEventConverter
     }
 
     /**
+     * The kind and class come from the child's failure when it carries the stored payload the worker
+     * writes into the ApplicationFailureInfo details; they stay empty otherwise.
+     */
+    private function childFailed(?string $childWorkflowId, string $ending, ?\Temporal\Api\Failure\V1\Failure $failure = null): ?ChildWorkflowFailed
+    {
+        if (null === $childWorkflowId || '' === $childWorkflowId) {
+            return null;
+        }
+
+        $stored = self::decodeApplicationFailureDetails($failure);
+
+        return new ChildWorkflowFailed(
+            $this->id,
+            ExecutionId::fromString($childWorkflowId),
+            \sprintf('Child workflow %s %s.', $childWorkflowId, $ending),
+            (int) ($stored['failureCode'] ?? 0),
+            isset($stored['kind']) ? (string) $stored['kind'] : null,
+            isset($stored['failureClass']) ? (string) $stored['failureClass'] : null,
+            \is_array($stored['context'] ?? null) ? $stored['context'] : [],
+        );
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private static function decodeApplicationFailureDetails(?\Temporal\Api\Failure\V1\Failure $failure): ?array
     {
+        // The server wraps a child's failure (ChildWorkflowExecutionFailureInfo): the stored payload
+        // sits in the ApplicationFailureInfo of a nested cause, so walk down until one carries it.
+        while (null !== $failure && null === $failure->getApplicationFailureInfo()) {
+            $failure = $failure->getCause();
+        }
         $details = $failure?->getApplicationFailureInfo()?->getDetails();
         if (null === $details) {
             return null;
