@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\DurableModule\Console\Command;
 
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Runtime\TableQueue\Queues;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -54,13 +55,13 @@ class RunWorkerCommand extends Command
     protected function configure(): void
     {
         $this->setName('durable:worker')
-            ->setDescription('Polls a Temporal task queue and advances durable executions')
+            ->setDescription('Polls a Temporal task queue, or drains the database queues, and advances durable executions')
             ->addOption(
                 self::OPTION_ROLE,
                 null,
                 InputOption::VALUE_REQUIRED,
-                sprintf('Which queue to drain: %s, %s or %s.', self::ROLE_JOURNAL, self::ROLE_ACTIVITY, self::ROLE_NEXUS),
-                self::ROLE_JOURNAL,
+                sprintf('Which queue to drain: %s, %s or %s. On the database backend (resource/durable): %s drains resumes and timers, %s drains activities, and no role drains all three; there is no %s.', self::ROLE_JOURNAL, self::ROLE_ACTIVITY, self::ROLE_NEXUS, self::ROLE_JOURNAL, self::ROLE_ACTIVITY, self::ROLE_NEXUS),
+                null,
             )
             ->addOption(
                 self::OPTION_MAX_TASKS,
@@ -85,7 +86,11 @@ class RunWorkerCommand extends Command
 
         // The refusal falls here rather than at the first iteration: a worker with no cluster
         // would run, would never find anything, and would look perfectly healthy.
-        $role = (string) $input->getOption(self::OPTION_ROLE);
+        $role = $input->getOption(self::OPTION_ROLE);
+        if ($this->runtimeFactory->usesDatabase()) {
+            return $this->drainDatabase(null === $role ? null : (string) $role, $maxTasks, $timeLimit, $output);
+        }
+        $role = null === $role ? self::ROLE_JOURNAL : (string) $role;
         // The bridge's two workers do not name their turn the same way — `processOne()` for the
         // journal, `pollOnce()` for activities — and it is not for this command to impose a common
         // name on them. It takes a turn, whatever it is called.
@@ -123,6 +128,53 @@ class RunWorkerCommand extends Command
         }
 
         $output->writeln(sprintf('<info>%d task(s) processed.</info>', $processed));
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * The SQL backend: one turn takes a message from the table queues. Not a Temporal poll, so no
+     * long hold on a task; `SIGTERM` and `SIGINT` end the loop between two messages, never inside one.
+     */
+    private function drainDatabase(?string $role, int $maxTasks, int $timeLimit, OutputInterface $output): int
+    {
+        $queues = match ($role) {
+            null => [Queues::RESUME, Queues::TIMER, Queues::ACTIVITY],
+            self::ROLE_JOURNAL => [Queues::RESUME, Queues::TIMER],
+            self::ROLE_ACTIVITY => [Queues::ACTIVITY],
+            self::ROLE_NEXUS => throw new \InvalidArgumentException('The database backend has no Nexus role: Nexus operations need a Temporal cluster. Run durable:worker with --role=journal or --role=activity, or without --role to serve both.'),
+            default => throw new \InvalidArgumentException(sprintf('Unknown worker role "%s". On the database backend a worker serves journal or activity, or both without --role.', $role)),
+        };
+        $worker = $this->runtimeFactory->databaseWorker();
+        $deadline = $timeLimit > 0 ? microtime(true) + (float) $timeLimit : null;
+
+        $stop = false;
+        if (function_exists('pcntl_async_signals')) {
+            pcntl_async_signals(true);
+            $handler = static function () use (&$stop): void {
+                $stop = true;
+            };
+            pcntl_signal(SIGTERM, $handler);
+            pcntl_signal(SIGINT, $handler);
+        }
+
+        $output->writeln(sprintf(
+            '<info>durable:worker</info> draining the database queues (%s)%s%s',
+            implode(', ', $queues),
+            $maxTasks > 0 ? sprintf(', %d task(s) max', $maxTasks) : '',
+            $deadline !== null ? sprintf(', %ds max', $timeLimit) : '',
+        ));
+
+        $processed = 0;
+        while (!$stop && ($maxTasks === 0 || $processed < $maxTasks) && ($deadline === null || microtime(true) < $deadline)) {
+            if ($worker->tick($queues)) {
+                ++$processed;
+            } else {
+                usleep(50_000);
+            }
+        }
+
+        $output->writeln(sprintf('<info>%d task(s) processed%s.</info>', $processed, $stop ? ', stopped by a signal' : ''));
 
         return Command::SUCCESS;
     }

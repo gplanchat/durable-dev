@@ -384,6 +384,18 @@ class RuntimeFactory
         return null !== $this->journalConnection && null !== $this->deploymentConfig?->get(self::JOURNAL_CONNECTION_CONFIG_PATH);
     }
 
+    /** Whether `resource/durable` selects the database backend: `durable:worker` then drains the table queues. */
+    public function usesDatabase(): bool
+    {
+        return $this->databaseDeclared();
+    }
+
+    /** The worker of the database backend (#736): one turn of `durable:worker`. */
+    public function databaseWorker(): DatabaseWorker
+    {
+        return new DatabaseWorker($this->database(), $this->logger);
+    }
+
     /**
      * The Magento-adapter stores, the table queue and the handlers, on the connection
      * `resource/durable` names. One per factory.
