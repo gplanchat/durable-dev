@@ -287,7 +287,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Chaque option omise garde sa valeur par défaut
   d'`ActivityOptions` ; sans aucune, le stub est celui qu'`activityStub()` construit sans options. Sous Temporal, un stub
-  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative.
+  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative. `heartbeat`
+  exige Temporal : un backend à journal lève `UnsupportedByBackendException` quand le stub planifie
+  une activité avec cette option (voir [Options et objets valeur](../options/)).
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
   bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
   contrat introuvable, un contrat qui ne déclare aucun `#[AsActivityMethod]`, ou une option
