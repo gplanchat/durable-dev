@@ -131,6 +131,7 @@ final class TemporalRuntimeAssembly
             new ActivityMessageProcessor($scratch, new NoopActivityTransport(), $executor, new NullWorkflowResumeDispatcher(), $sender),
             $scratch,
             $sender,
+            $this->logger,
         );
     }
 }

@@ -14,7 +14,7 @@ use Illuminate\Console\Command;
  * The Temporal workers, one role per process: workflow tasks, or activity tasks.
  *
  * Under `illuminate`, everything goes through `php artisan queue:work` and this package adds no
- * command: that is the rule §3.2 gave itself. Temporal breaks it for a reason of its own — its
+ * command: that is the rule §3.2 gave itself. Temporal breaks it for a reason of its own: its
  * workflow and activity tasks are not in the application's queue, they are in the cluster, and
  * nobody else can take them out of it. Run both roles: without `--role=activity`, a run advances
  * up to its first activity and stops there (#355).
