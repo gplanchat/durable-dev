@@ -84,6 +84,9 @@ class ProcessListing extends AbstractDataProvider
                 'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
                 // What a suspended run last waited on (#324), as the catalogue recorded it.
                 'waiting_on' => $run->waitingOn ?? self::ABSENT,
+                // Since when a running run waits for a worker to pick it up (#816, #818): no column
+                // yet, the field is on the row for the one that paints it.
+                'waiting_for_worker_since' => $run->waitingForWorkerSince?->format('Y-m-d H:i:s') ?? self::ABSENT,
             ], $window),
         ];
     }
