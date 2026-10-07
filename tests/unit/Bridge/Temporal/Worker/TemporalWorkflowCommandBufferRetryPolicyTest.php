@@ -11,6 +11,7 @@ use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\TaskQueue;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
 
@@ -83,5 +84,14 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
         $buffer->scheduleActivity('act-1', 'delete_user', [], null);
 
         self::assertNull($this->scheduledAttrs($buffer)->getRetryPolicy());
+    }
+
+    public function testANamedActivityTaskQueueIsSentToTheServer(): void
+    {
+        // Temporal is the one backend that routes by task queue (#977): it keeps sending it.
+        $buffer = $this->buffer();
+        $buffer->scheduleActivity('act-1', 'delete_user', [], new ActivityOptions(taskQueue: TaskQueue::named('payments')));
+
+        self::assertSame('payments', $this->scheduledAttrs($buffer)->getTaskQueue()?->getName());
     }
 }
