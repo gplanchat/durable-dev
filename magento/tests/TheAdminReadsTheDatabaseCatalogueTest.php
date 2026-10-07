@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\MagentoBench;
 
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\MagentoBench\Fixture\GreetThenWait;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Gplanchat\DurableModule\Block\Adminhtml\ProcessDetail;
+use Gplanchat\DurableModule\Block\Adminhtml\ProcessHistory;
 use Gplanchat\DurableModule\Schema\JournalSchema;
 use Gplanchat\DurableModule\Store\MagentoWorkflowRunProjection;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\State;
+use Magento\Framework\Escaper;
 use Magento\Framework\ObjectManager\ConfigLoaderInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\View\Element\UiComponentFactory;
@@ -18,7 +22,8 @@ use Magento\Framework\View\Element\UiComponentInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * #737: with `resource/durable` declared, the admin grid reads the runs table of the Magento-adapter backend.
+ * #737: with `resource/durable` declared, the admin grid and the run page read the runs table and
+ * the journal of the Magento-adapter backend.
  *
  * The grid goes through Magento's own UI component pipeline, as `mui/index/render` builds it: a
  * double of `Filter` once hid what the framework does to a filter value before the data provider
@@ -92,6 +97,50 @@ final class TheAdminReadsTheDatabaseCatalogueTest extends TestCase
         self::assertCount(20, $this->grid(page: 1, size: 20)['items']);
     }
 
+    public function testTheRunPageShowsTheJournalOfACompletedRun(): void
+    {
+        $runtime = BenchRuntime::factory()->create();
+        $worker = $this->startWorker();
+
+        try {
+            $runtime->run(GreetThenWait::class, ['name' => 'Ada'], 'bench-greet');
+        } finally {
+            $this->stopWorker($worker);
+        }
+
+        $page = $this->runPage('bench-greet');
+
+        self::assertStringContainsString('bench.greet-then-wait', $page);
+        self::assertStringContainsString('Completed', $page);
+        // The journal's own rows: the activity, then the one second timer the worker carried.
+        self::assertStringContainsString('title="bench.greet"', $page);
+        self::assertStringContainsString('durable-frieze-bar other', $page);
+        self::assertStringNotContainsString('No execution named', $page);
+    }
+
+    public function testTheBannerNamesTheJournalDatabaseAndCountsItsRuns(): void
+    {
+        $this->seed('a-1', 'App\\Order');
+        $this->seed('a-2', 'App\\Order', outcome: WorkflowRunStatus::Failed);
+
+        $objects = self::$objects;
+        self::assertNotNull($objects);
+        $block = $objects->create(ProcessHistory::class, ['data' => ['template' => 'Gplanchat_DurableModule::process/notice.phtml']]);
+        self::assertInstanceOf(ProcessHistory::class, $block);
+        $block->setData('escaper', $objects->get(Escaper::class));
+        $html = $block->toHtml();
+
+        self::assertStringContainsString('Magento journal database answers', $html);
+        self::assertStringNotContainsString('No Temporal DSN', $html);
+        self::assertStringNotContainsString('worker has polled', $html);
+        self::assertSame(['total' => 2, 'running' => 1, 'failed' => 1], array_intersect_key($block->getCounters(), ['total' => 0, 'running' => 0, 'failed' => 0]));
+    }
+
+    public function testTheRunPageSaysWhenNoRunHasThatId(): void
+    {
+        self::assertStringContainsString('No execution named', $this->runPage('nobody'));
+    }
+
     /**
      * @param array<string, mixed> $filters
      *
@@ -160,5 +209,38 @@ final class TheAdminReadsTheDatabaseCatalogueTest extends TestCase
         if (null !== $outcome) {
             $this->projection->recordOutcome($id, $outcome);
         }
+    }
+
+    private function runPage(string $runId): string
+    {
+        $objects = self::$objects;
+        self::assertNotNull($objects);
+        $objects->get(RequestInterface::class)->setParams(['run_id' => $runId]);
+        $block = $objects->create(ProcessDetail::class, ['data' => ['template' => 'Gplanchat_DurableModule::process/detail.phtml']]);
+        self::assertInstanceOf(ProcessDetail::class, $block);
+        $block->setData('escaper', $objects->get(Escaper::class));
+
+        return $block->toHtml();
+    }
+
+    /** @return array{resource, string} */
+    private function startWorker(): array
+    {
+        $dir = sys_get_temp_dir() . '/durable-drain-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        $worker = proc_open([\PHP_BINARY, __DIR__ . '/drain.php', $dir], [1 => ['file', '/dev/null', 'w'], 2 => ['file', $dir . '/stderr', 'w']], $pipes);
+        self::assertIsResource($worker);
+
+        return [$worker, $dir];
+    }
+
+    /** @param array{resource, string} $worker */
+    private function stopWorker(array $worker): void
+    {
+        [$process, $dir] = $worker;
+        touch($dir . '/stop');
+        proc_close($process);
+        array_map('unlink', glob($dir . '/*') ?: []);
+        rmdir($dir);
     }
 }
