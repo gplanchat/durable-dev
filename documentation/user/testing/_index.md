@@ -8,12 +8,13 @@ weight: 40
 Durable ships a **testing toolkit** for your workflows and activities, built on standard PHPUnit.
 A workflow describes the steps of an execution, and an activity is one of those steps that has a
 side effect, such as an HTTP call; see the [glossary](../glossary/). Pick the entry point that
-matches your tests, framework-agnostic or Symfony bundle integration:
+matches your tests, framework-agnostic, Symfony bundle or Laravel integration:
 
 | Utility | Package | When to use |
 |---|---|---|
 | `DurableTestCase` + `ActivitySpy` + `WorkflowTestEnvironment` | `gplanchat/durable` | Pure unit / functional tests, no Symfony container. |
 | `DurableBundleTestTrait` | `gplanchat/durable-bundle` | Symfony `KernelTestCase`-based integration tests. |
+| `DurableLaravelTestTrait` | `gplanchat/durable-laravel` | Laravel integration tests, on the application's configured backend. |
 
 ---
 
@@ -277,6 +278,62 @@ protected function setUp(): void
 | `assertWorkflowFailed($executionId, $class?)` | Asserts the workflow failed, optionally matching the exception class. |
 | `getEventStoreService()` | Returns the `EventStoreInterface` from the test container for low-level inspection. |
 | `getDataCollector()` | Returns the `DurableDataCollector` when the profiler is enabled (debug kernel). |
+
+---
+
+## Laravel integration tests with `DurableLaravelTestTrait` {#laravel-integration-tests--durablelaraveltesttrait}
+
+Use `DurableLaravelTestTrait` in a test class that extends Laravel's
+`Illuminate\Foundation\Testing\TestCase` (or Testbench's), which provides `$this->app`. The trait
+offers the same four operations as the Symfony one, against the backend the application configures.
+Declare the workflow in the `workflows` key of `config/durable.php`, as in production.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Workflow\OrderWorkflow;
+use Gplanchat\Durable\Laravel\Testing\DurableLaravelTestTrait;
+use Tests\TestCase;
+
+final class OrderWorkflowTest extends TestCase
+{
+    use DurableLaravelTestTrait;
+
+    public function testOrderWorkflowCompletesSuccessfully(): void
+    {
+        $executionId = $this->dispatchWorkflow(OrderWorkflow::class, [
+            'orderId' => 'ORD-123',
+            'amount'  => 99.90,
+        ]);
+
+        $this->drainUntilSettled($executionId);
+
+        $this->assertWorkflowResultEquals($executionId, ['status' => 'charged', 'orderId' => 'ORD-123']);
+    }
+}
+```
+
+`drainUntilSettled()` depends on the backend. On `memory`, it drives the runs the process has
+queued, as `durable:drain` does, and throws a `\RuntimeException` if the run is still open when the
+drain ends, for instance when it waits on a signal. On `illuminate`, it runs
+`queue:work --stop-when-empty` until the run completes or fails, within 30 seconds. A workflow that
+fails ends the drain without throwing: assert on it with `assertWorkflowFailed()`.
+
+### The Symfony and Laravel helpers side by side {#the-three-hosts-side-by-side}
+
+| Operation | Symfony (`DurableBundleTestTrait`) | Laravel (`DurableLaravelTestTrait`) |
+|---|---|---|
+| Start | `dispatchWorkflow($class, $input, $executionId?)` | `dispatchWorkflow($class, $input, $executionId?)` |
+| Drain | `drainMessengerUntilSettled($executionId)` | `drainUntilSettled($executionId)` |
+| Read the result | `assertWorkflowResultEquals($executionId, $expected)` | `assertWorkflowResultEquals($executionId, $expected)` |
+| Assert on the journal | `assertWorkflowFailed($executionId, $class?)` | `assertWorkflowFailed($executionId, $class?)` |
+| Event store | `getEventStoreService()` | `getEventStoreService()` |
+
+The Symfony trait also offers `getDataCollector()`, for the profiler. Magento has no helper yet.
 
 ---
 
