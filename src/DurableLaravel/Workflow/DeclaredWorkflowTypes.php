@@ -11,8 +11,8 @@ use Gplanchat\Durable\WorkflowRegistry;
  * The workflow registry, plus the one thing the core cannot say in its place.
  *
  * `WorkflowRegistry::getHandler()` fails on "Unknown workflow type: X", which names the type and
- * stops there. Under Laravel, the reader's next question has an answer — *where* does one declare
- * a type? — and it is this package that knows it, not the core, which does not even know that a
+ * stops there. Under Laravel, the reader's next question has an answer (*where* does one declare
+ * a type?), and it is this package that knows it, not the core, which does not even know that a
  * `config/durable.php` exists.
  *
  * A message that names the failure without naming the remedy makes someone open the code of an

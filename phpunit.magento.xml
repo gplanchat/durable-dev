@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnRisky="true"
+         failOnWarning="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         displayDetailsOnSkippedTests="true"
+>
+    <php>
+        <!-- A CLI php.ini often says -1: a runaway test then eats the machine until the OOM killer
+             takes the IDE down with it. See tests/unit/TheSuiteHasAMemoryCeilingTest.php. -->
+        <ini name="memory_limit" value="2G"/>
+    </php>
+    <testsuites>
+        <testsuite name="magento-integration">
+            <directory>tests/integration/DurableModule</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src/Durable</directory>
+            <directory>src/DurableBundle</directory>
+            <directory>src/Bridge/Temporal</directory>
+            <directory>src/Bridge/Dbal</directory>
+            <directory>src/DurablePlugin</directory>
+            <directory>src/Bridge/Illuminate</directory>
+            <directory>src/DurableLaravel</directory>
+            <directory>src/DurableModule</directory>
+            <directory>src/DurablePhpstan</directory>
+        </include>
+    </source>
+</phpunit>

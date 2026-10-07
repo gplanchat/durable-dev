@@ -41,6 +41,8 @@ final class JournalHarness
             throw new \RuntimeException("The harness truncates the journal's tables: it will not run on the shop's connection. Declare db/connection/durable on a second database.");
         }
 
+        // Magento caches "table exists" across processes; a recreated database must not be believed stale.
+        $adapter->resetDdlCache();
         (new JournalSchema($adapter))->setup();
         foreach ($adapter->getTables('durable\_%') as $table) {
             $adapter->truncateTable($table);
