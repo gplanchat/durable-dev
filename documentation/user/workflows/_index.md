@@ -279,7 +279,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Each one left out keeps its `ActivityOptions` default; with none,
   the stub is the one `activityStub()` builds without options. On Temporal, a stub with no `startToClose` or
-  `scheduleToClose` gets a 30-second bound per attempt.
+  `scheduleToClose` gets a 30-second bound per attempt. `heartbeat` needs Temporal: a journal backend
+  throws `UnsupportedByBackendException` when the stub schedules an activity with it (see
+  [Options and value objects](../options/)).
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
   `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
   exist, one that declares no `#[AsActivityMethod]`, or an impossible option (zero attempts, a

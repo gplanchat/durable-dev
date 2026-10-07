@@ -23,12 +23,12 @@ final class RecordingWorkflowClient implements WorkflowClientInterface
      */
     public bool $loseNextAnswer = false;
 
-    public function startAsync(string $workflowType, array $payload, ExecutionId $executionId): ExecutionId
+    public function startAsync(string $workflowType, array $payload, ExecutionId $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): ExecutionId
     {
         throw new \LogicException('not expected');
     }
 
-    public function startSync(string $workflowType, array $payload, ExecutionId $executionId): mixed
+    public function startSync(string $workflowType, array $payload, ExecutionId $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): mixed
     {
         throw new \LogicException('not expected');
     }

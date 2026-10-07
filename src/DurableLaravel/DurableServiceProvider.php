@@ -77,7 +77,7 @@ use Psr\Log\LoggerInterface;
  * Binds the four storage ports from a single configuration file.
  *
  * **One choice of backend binds all four ports together.** A journal on one backend and metadata on
- * another is not a configuration, it is a fault — hence a single `match` rather than four
+ * another is not a configuration, it is a fault, hence a single `match` rather than four
  * independent settings.
  *
  * This provider is the **integration** package's. The bridge's own,
@@ -140,8 +140,8 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         // §1.3: `null` never locks, in any deployment. The refusal is therefore risk-free at
-        // boot, where `array` — correct inside a single process, and the default cache of the test
-        // environment — can only be judged by the worker command.
+        // boot, where `array` (correct inside a single process, and the default cache of the test
+        // environment) can only be judged by the worker command.
         if ($this->app->bound('cache')) {
             $this->refuseALockStoreThatCannotLock();
         }
@@ -265,7 +265,7 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * The Temporal backend: the journal and the catalog live in the cluster.
      *
-     * The metadata and the parent links stay in memory, as on the Symfony side — Temporal holds the
+     * The metadata and the parent links stay in memory, as on the Symfony side: Temporal holds the
      * durable state, those two are nothing but process cache.
      *
      * Both task queues are the cluster's, and only a worker polling them can take their tasks:
@@ -299,7 +299,7 @@ final class DurableServiceProvider extends ServiceProvider
 
         if (!\is_string($dsn) || '' === $dsn) {
             throw new \InvalidArgumentException(
-                'Durable: the "temporal" backend needs durable.temporal.dsn — the address of the '
+                'Durable: the "temporal" backend needs durable.temporal.dsn: the address of the '
                 . 'cluster, its namespace and its two task queues. Nothing else can supply it.',
             );
         }
@@ -307,7 +307,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (!class_exists(TemporalConnection::class)) {
             throw new \InvalidArgumentException(
                 'Durable: the "temporal" backend needs gplanchat/durable-bridge-temporal, which is '
-                . 'suggested rather than required — it installs a gRPC client and five Symfony '
+                . 'suggested rather than required: it installs a gRPC client and five Symfony '
                 . 'components a Laravel application never loads. Run: composer require '
                 . 'gplanchat/durable-bridge-temporal',
             );
@@ -365,7 +365,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
             // Named by a string, and not by `::class`: the class extends
             // `Illuminate\Console\Command`, which cannot enter the root's graph without making
-            // the Symfony 6.4 line unresolvable — see phpstan.neon. A `::class` reference would
+            // the Symfony 6.4 line unresolvable (see phpstan.neon). A `::class` reference would
             // make the analyser follow it into a class it cannot read.
             $this->commands([
                 'Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand',
@@ -486,7 +486,7 @@ final class DurableServiceProvider extends ServiceProvider
      *
      * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
      * could provide it: this package therefore only has to assemble it, not to rewrite it. A timer,
-     * for its part, is a deferred timer firing — the queue carries the delay, like Messenger's
+     * for its part, is a deferred timer firing: the queue carries the delay, like Messenger's
      * `DelayStamp`.
      *
      * @param array<string, mixed> $config
@@ -594,7 +594,7 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * Nexus: the registry always exists, and it knows how to say why it cannot route.
      *
-     * `routedBy('temporal')` under Temporal, `unavailableOn($backend)` elsewhere — and the second
+     * `routedBy('temporal')` under Temporal, `unavailableOn($backend)` elsewhere, and the second
      * refuses **at registration**, not on the first call. It is the core that carries this refusal,
      * precisely because Symfony's compiler pass only catches Symfony: a host that declares a
      * handler on a backend that does not route must be told the reason, wherever it is.
@@ -628,6 +628,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowServiceNexusRpc::class),
             $app->make(TemporalConnection::class),
             $app->make(NexusOperationRegistry::class),
+            $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
         ));
     }
 
@@ -659,7 +660,7 @@ final class DurableServiceProvider extends ServiceProvider
         $name = $queue['connection'] ?? null;
 
         // The **driver name**, not the connection class: `SyncQueue` lives in `illuminate/queue`,
-        // from which Laravel 11+ pulls `symfony/process ^7.2` — requiring it would make this
+        // from which Laravel 11+ pulls `symfony/process ^7.2`, and requiring it would make this
         // package irreconcilable with the Symfony 6.4 line the repository's matrix still tests.
         // Reading the configuration says the same thing, without the dependency, and without
         // having to resolve the connection in order to judge it.
@@ -667,7 +668,7 @@ final class DurableServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
                 . 'another resume recurses in the same process until the stack ends. Use a real '
-                . 'queue connection — database, redis, sqs, beanstalkd.',
+                . 'queue connection: database, redis, sqs, beanstalkd.',
                 $name ?? 'default',
             ));
         }
@@ -704,7 +705,7 @@ final class DurableServiceProvider extends ServiceProvider
         if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
-                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'in a worker separate from whatever dispatched it, so two workers would replay the '
                 . 'same execution. Use database, redis, memcached, dynamodb or file.',
                 $name ?? 'default',
             ));
