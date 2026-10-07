@@ -61,7 +61,7 @@ final class TableQueue
     {
         $this->connection->query(
             'INSERT INTO ' . self::TABLE . ' (queue_name, body, available_at) VALUES (?, ?, NOW(3) + INTERVAL ? MICROSECOND)',
-            [$queue, $body, max(0, (int) round($delaySeconds * 1_000_000))],
+            [$queue, $body, max(0, (int) round($delaySeconds * 1_000_000.0))],
         );
     }
 
