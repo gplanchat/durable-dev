@@ -26,6 +26,12 @@ final readonly class TemporalChildWorkflowRunner implements ChildWorkflowRunnerI
         return true;
     }
 
+    /** The server owns the workflow ids and refuses a start under a running one itself. */
+    public function isChildRunning(ExecutionId $childExecutionId): bool
+    {
+        return false;
+    }
+
     public function runChild(ExecutionId $childExecutionId, string $workflowType, array $input, ?ExecutionId $parentExecutionId = null): mixed
     {
         // The start command is already in the buffer; the awaitable stays unsettled until the
