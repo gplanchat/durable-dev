@@ -31,8 +31,10 @@ use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
@@ -59,6 +61,9 @@ final class TemporalEventConverter
     private array $startedEventIdToTimerId = [];
 
     private int $sideEffectSlot = 0;
+
+    /** @var array<int, array{updateId: string, name: string, arguments: array<string, mixed>}> acceptedEventId → accepted update awaiting its completion */
+    private array $acceptedUpdates = [];
 
     /** @var array<string, true> operations the delivered-cancellation marker targets */
     private array $cancellationDeliveredTargets = [];
@@ -359,6 +364,72 @@ final class TemporalEventConverter
                 }
 
                 return new WorkflowSignalReceived($this->id, $signalName, $signalInput);
+
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
+                $attr = $event->getWorkflowExecutionUpdateAcceptedEventAttributes();
+                $request = $attr?->getAcceptedRequest();
+                if (null === $request) {
+                    return null;
+                }
+                $input = $request->getInput();
+                $arguments = [];
+                $args = $input?->getArgs()?->getPayloads();
+                if (null !== $args && $args->count() > 0) {
+                    $decoded = JsonPlainPayload::decode($args[0]);
+                    $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
+                }
+                // Kept until the completion arrives: only that event carries the outcome.
+                $this->acceptedUpdates[$eventId] = [
+                    'updateId' => (string) $request->getMeta()?->getUpdateId(),
+                    'name' => null !== $input ? (string) $input->getName() : '',
+                    'arguments' => $arguments,
+                ];
+
+                return null;
+
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
+                $attr = $event->getWorkflowExecutionUpdateCompletedEventAttributes();
+                $outcome = $attr?->getOutcome();
+                if (null === $attr || null === $outcome) {
+                    return null;
+                }
+                // Same pairing as TemporalExecutionHistory: by update id, else by accepted event id,
+                // never by position (#803).
+                $updateId = (string) $attr->getMeta()?->getUpdateId();
+                $acceptedId = null;
+                foreach ($this->acceptedUpdates as $id => $accepted) {
+                    if ('' !== $updateId && $accepted['updateId'] === $updateId) {
+                        $acceptedId = $id;
+                        break;
+                    }
+                }
+                $acceptedId ??= isset($this->acceptedUpdates[(int) $attr->getAcceptedEventId()]) ? (int) $attr->getAcceptedEventId() : null;
+                if (null === $acceptedId) {
+                    return null;
+                }
+                $accepted = $this->acceptedUpdates[$acceptedId];
+                unset($this->acceptedUpdates[$acceptedId]);
+
+                $failure = $outcome->getFailure();
+                if (null !== $failure) {
+                    $type = $failure->getApplicationFailureInfo()?->getType();
+
+                    return new WorkflowUpdateHandled(
+                        $this->id,
+                        $accepted['name'],
+                        $accepted['arguments'],
+                        null,
+                        new FailureEnvelope(\is_string($type) && '' !== $type ? $type : \RuntimeException::class, $failure->getMessage()),
+                    );
+                }
+                $payloads = $outcome->getSuccess()?->getPayloads();
+
+                return new WorkflowUpdateHandled(
+                    $this->id,
+                    $accepted['name'],
+                    $accepted['arguments'],
+                    null !== $payloads && $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null,
+                );
 
             case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
