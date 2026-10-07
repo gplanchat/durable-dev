@@ -148,7 +148,7 @@ switch ($step) {
             new ExecutionEngine(
                 $killing,
                 $runtime,
-                new ChildWorkflowRunner($killing, $runtime, $registry, $executor, 0, true, $queues, $links),
+                new ChildWorkflowRunner($killing, $runtime, $registry, $executor, 0, true, $queues, $links, metadataStore: $metadata),
                 new ParentChildWorkflowCoordinator($killing, $queues),
             ),
             $registry,
