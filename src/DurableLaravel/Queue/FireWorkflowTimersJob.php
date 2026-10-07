@@ -23,7 +23,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
  * dispatched, find nothing left to fire, and leave the run asleep for good.
  *
  * ponytail: a taken turn puts the firing back after `durable.lock.backoff`, without the resume's
- * `max_deferrals` cap — the lock's TTL bounds a dead holder. Count deferrals here if a hot timer
+ * `max_deferrals` cap: the lock's TTL bounds a dead holder. Count deferrals here if a hot timer
  * ever needs that cap.
  */
 final readonly class FireWorkflowTimersJob implements ShouldQueue

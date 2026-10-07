@@ -117,11 +117,22 @@ ActivityTimeouts::attempt(Duration::seconds(30))
 A heartbeat longer than `startToClose` is rejected: the attempt would end before the first missed
 heartbeat, so the heartbeat bound would never apply.
 
+The heartbeat bound is Temporal only. A journal backend (InMemory, DBAL, Illuminate, Magento
+Database) throws `UnsupportedByBackendException` when you schedule an activity with a heartbeat bound.
+
 Outside Temporal, `startToClose` is checked when the attempt returns; nothing enforces it while
 the attempt runs. An attempt that overran fails with a timeout, its result is discarded, and the
 retry policy determines what comes next. Nothing interrupts an attempt that never returns. Stopping
 a hung worker is the job of whatever supervises the process. `messenger:consume --time-limit` only
 checks between two messages, so it cannot stop one.
+
+`scheduleToClose` is the budget for the whole activity, retries included. On Temporal and on the
+journal backends, a failed attempt whose backoff would end past it is not retried: the activity
+fails with that attempt's own failure and the `Timeout` retry state. On the journal backends, the
+bound is also checked when a worker takes a message, and fails with "Activity schedule-to-close
+timeout exceeded." `scheduleToStart` applies to a message waiting in the queue. On Temporal, it
+applies to every attempt. On the journal backends, it applies to the first attempt only, and a
+retry waiting for its delay is not bounded by it, only by `scheduleToClose`.
 
 Temporal requires a closing bound. When none is set, the bridge supplies a default. That fallback
 has its own name, `executionBoundOr()`.
@@ -151,7 +162,7 @@ $options = new ActivityOptions(
     RetryLimit::ofAttempts(3),
     initialInterval: Duration::seconds(1),
     nonRetryableExceptions: [PaymentRefusedException::class],
-    taskQueue: TaskQueue::named('payments'),
+    taskQueue: TaskQueue::named('payments'), // Temporal only; on a journal backend, this option throws
     timeouts: ActivityTimeouts::attempt(Duration::seconds(30)),
 );
 
@@ -280,7 +291,8 @@ $client->startAsync('CheckoutWorkflow', $input, ExecutionId::fromString($executi
 
 > [!NOTE]
 > `$client` is the Temporal `WorkflowClientInterface`, and `startAsync()` exists only on Temporal,
-> like the start options it takes. On every backend, a run starts with
+> like the start options it takes. `WorkflowClientInterface::startAsync()` and `startSync()` declare
+> the `?WorkflowStartOptions $options` argument, so code typed against the interface can pass it. On every backend, a run starts with
 > `WorkflowResumeDispatcher::dispatchNewWorkflowRun()` ([Getting started](../getting-started/#4--dispatch-from-a-controller-or-service)),
 > which takes no start options.
 
@@ -323,7 +335,9 @@ previous one has finished, and a missed occurrence is **skipped**, never caught 
 Child workflows accept the same schedule through `ChildWorkflowOptions`.
 
 > [!NOTE]
-> Cron is a Temporal capability. The in-memory backend has no scheduler and does not support it.
+> Cron is a Temporal capability. The journal backends (in-memory, DBAL, Illuminate, Magento Database) have
+> no scheduler: a child workflow's `cronSchedule`, `namespace` or `taskQueue` fails with
+> `UnsupportedByBackendException` there.
 
 ---
 
@@ -375,7 +389,7 @@ with an error.
 | `scheduleToStartTimeoutSeconds`, `scheduleToCloseTimeoutSeconds`, `heartbeatTimeoutSeconds` | named arguments of `ActivityTimeouts` |
 | `workflowRunTimeoutSeconds: 600.0` | `timeouts: WorkflowTimeouts::run(Duration::minutes(10))` |
 | `workflowExecutionTimeoutSeconds`, `workflowTaskTimeoutSeconds` | named arguments of `WorkflowTimeouts` |
-| `taskQueue: 'payments'` | `taskQueue: TaskQueue::named('payments')` |
+| `taskQueue: 'payments'` | `taskQueue: TaskQueue::named('payments')` (on activity options: Temporal only; on a journal backend, this option throws) |
 | `namespace: 'billing'` | `namespace: WorkflowNamespace::named('billing')` |
 | `cronSchedule: '0 9 * * *'` | `cronSchedule: CronSchedule::parse('0 9 * * *')` |
 | `searchAttributes: ['OrderId' => 'x']` | `SearchAttributes::none()->keyword('OrderId', 'x')` |
