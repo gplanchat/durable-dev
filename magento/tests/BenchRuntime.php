@@ -6,6 +6,8 @@ namespace Gplanchat\Durable\MagentoBench;
 
 use Gplanchat\Durable\MagentoBench\Fixture\CallsNexus;
 use Gplanchat\Durable\MagentoBench\Fixture\GreeterActivities;
+use Gplanchat\Durable\MagentoBench\Fixture\GreetSlowly;
+use Gplanchat\Durable\MagentoBench\Fixture\SlowGreeterActivities;
 use Gplanchat\Durable\MagentoBench\Fixture\GreetThenWait;
 use Gplanchat\DurableModule\Runtime\JournalConnectionResolver;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
@@ -26,8 +28,8 @@ final class BenchRuntime
         $objects = self::objectManager();
 
         return new RuntimeFactory(
-            workflowClasses: [GreetThenWait::class, CallsNexus::class],
-            activityHandlers: [new GreeterActivities()],
+            workflowClasses: [GreetThenWait::class, CallsNexus::class, GreetSlowly::class],
+            activityHandlers: [new GreeterActivities(), new SlowGreeterActivities()],
             deploymentConfig: $objects->get(DeploymentConfig::class),
             budgetSeconds: $budgetSeconds,
             journalConnection: $objects->get(JournalConnectionResolver::class),
