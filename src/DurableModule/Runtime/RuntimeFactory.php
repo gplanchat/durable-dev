@@ -18,9 +18,14 @@ use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\ActivityContractResolver;
+use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerDeclarations;
@@ -77,6 +82,7 @@ class RuntimeFactory
      *                                              finishes" reachable without an error.
      */
     private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
+    private const JOURNAL_CONNECTION_CONFIG_PATH = 'resource/durable/connection';
     private const TEMPORAL_SEARCH_ATTRIBUTES_CONFIG_PATH = 'durable/temporal/search_attributes';
 
     /**
@@ -167,6 +173,12 @@ class RuntimeFactory
          * value throws here, when the factory is built, not at the first `create()` (#900).
          */
         private readonly int $maxContinuations = InMemoryWorkflowRunner::DEFAULT_MAX_CONTINUATIONS,
+        /**
+         * Resolves the journal's own connection from `resource/durable` (DUR056). Optional, so not
+         * autowired: `di.xml` names it. Absent, or without `resource/durable` in `env.php`, the
+         * factory serves the memory or the Temporal backend as before.
+         */
+        private readonly ?JournalConnectionResolver $journalConnection = null,
     ) {
         if ($maxContinuations < 0) {
             throw new \InvalidArgumentException(\sprintf('maxContinuations must be 0 or more, %d given.', $maxContinuations));
@@ -178,6 +190,8 @@ class RuntimeFactory
 
     private ?TemporalRuntimeAssembly $assembly = null;
 
+    private ?DatabaseBackend $database = null;
+
     private function clock(): ClockInterface
     {
         return $this->clock ?? new SystemClock();
@@ -185,7 +199,8 @@ class RuntimeFactory
 
     public function create(): MagentoRuntime
     {
-        $eventStore = $this->eventStore();
+        $database = $this->databaseDeclared() ? $this->database() : null;
+        $eventStore = $database->eventStore ?? $this->eventStore();
         $transport = new InMemoryActivityTransport($this->clock());
         $activities = new RegistryActivityExecutor();
         $workflows = new WorkflowRegistry();
@@ -204,7 +219,7 @@ class RuntimeFactory
                 $this->clock(),
                 maxContinuations: $this->maxContinuations,
             ),
-            null === $this->temporalSettings() ? null : $this->runOnCluster(...),
+            null !== $database ? $this->runOnDatabase(...) : (null === $this->temporalSettings() ? null : $this->runOnCluster(...)),
         );
 
         foreach ($this->workflowClasses as $workflowClass) {
@@ -252,6 +267,10 @@ class RuntimeFactory
      */
     public function catalog(): WorkflowRunCatalogInterface
     {
+        if ($this->databaseDeclared()) {
+            return $this->database()->catalog;
+        }
+
         $settings = $this->temporalSettings();
 
         if ($settings === null) {
@@ -356,6 +375,73 @@ class RuntimeFactory
         return $client->pollForCompletion($executionId, 500, max(1, (int) ceil($this->budgetSeconds * 2.0)));
     }
 
+    /**
+     * `resource/durable` in `env.php` selects the database backend (DUR056 decision 2), the way a
+     * DSN selects Temporal. Both together fail in {@see JournalConnectionResolver} (decision 4).
+     */
+    private function databaseDeclared(): bool
+    {
+        return null !== $this->journalConnection && null !== $this->deploymentConfig?->get(self::JOURNAL_CONNECTION_CONFIG_PATH);
+    }
+
+    /**
+     * The Magento-adapter stores, the table queue and the handlers, on the connection
+     * `resource/durable` names. One per factory.
+     */
+    public function database(): DatabaseBackend
+    {
+        if (!$this->databaseDeclared() || null === $this->journalConnection || null === $this->deploymentConfig) {
+            throw new \RuntimeException('The database backend needs resource/durable in app/etc/env.php, naming a connection of db/connection.');
+        }
+
+        $registry = new WorkflowRegistry();
+        foreach ($this->workflowClasses as $workflowClass) {
+            $registry->registerClass($workflowClass);
+        }
+
+        return $this->database ??= new DatabaseBackend(
+            $this->journalConnection->resolve(),
+            $this->deploymentConfig,
+            $this->clock(),
+            $registry,
+            $this->activityExecutor(),
+            $this->heartbeat ?? new NullActivityHeartbeatSender(),
+            $this->maxActivityRetries,
+        );
+    }
+
+    /**
+     * What `MagentoRuntime::run()` does with `resource/durable`: record the run's start, then poll
+     * the journal for its close, as it polls the cluster. A worker (`durable:worker`) carries the
+     * run; without one this ends with `WorkflowStuckException` at the budget.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function runOnDatabase(string $workflowClass, array $input, string $executionId): mixed
+    {
+        $database = $this->database();
+        $id = ExecutionId::fromString($executionId);
+        $database->resumes->dispatchNewWorkflowRun($id, $workflowClass, $input);
+
+        $polls = max(1, (int) ceil($this->budgetSeconds * 10.0));
+        for ($poll = 0; $poll < $polls; $poll++) {
+            foreach ($database->eventStore->readStream($id) as $event) {
+                if ($event instanceof ExecutionCompleted) {
+                    return $event->result();
+                }
+                if ($event instanceof WorkflowExecutionFailed) {
+                    throw new \RuntimeException(\sprintf('Workflow "%s" failed: %s: %s', $executionId, $event->failureClass(), $event->failureMessage()));
+                }
+                if ($event instanceof WorkflowExecutionCancelled) {
+                    throw new \RuntimeException(\sprintf('Workflow "%s" was cancelled.', $executionId));
+                }
+            }
+            usleep(100_000);
+        }
+
+        throw WorkflowStuckException::pollsExhausted($executionId, $polls, 100);
+    }
+
     private function client(TemporalConnection $settings): WorkflowServiceClientInterface
     {
         if (null !== $this->jsonGateway && !$this->jsonGateway instanceof Psr18Http) {
@@ -389,7 +475,11 @@ class RuntimeFactory
      */
     public function nexusRegistry(): NexusOperationRegistry
     {
-        $registry = null === $this->temporalSettings() ? NexusOperationRegistry::unavailableOn('memory') : NexusOperationRegistry::routedBy('temporal');
+        $registry = match (true) {
+            $this->databaseDeclared() => NexusOperationRegistry::unavailableOn('database'),
+            null === $this->temporalSettings() => NexusOperationRegistry::unavailableOn('memory'),
+            default => NexusOperationRegistry::routedBy('temporal'),
+        };
         $handlers = [];
         $contracts = [];
         foreach ($this->nexusHandlers as $handler) {
