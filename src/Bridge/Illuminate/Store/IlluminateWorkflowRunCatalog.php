@@ -111,7 +111,7 @@ final readonly class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogI
 
         $this->connection->table($this->table)
             ->where('execution_id', $executionId->toString())
-            ->update(['status' => $status->value, 'ended_at' => self::now()]);
+            ->update(['status' => $status->value, 'ended_at' => self::now()] + ($this->schema->runsTableTracksWait() ? ['waiting_on' => null] : []));
     }
 
     /**

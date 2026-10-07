@@ -38,9 +38,10 @@ final class ScheduleToCloseBoundsRetriesInMemoryTest extends TestCase
             ))->flaky()));
             self::fail('the activity never succeeds');
         } catch (\Throwable $e) {
-            self::assertStringContainsString('schedule-to-close', $e->getMessage());
+            // The attempt's own failure ends the activity, as on Temporal (#978).
+            self::assertStringContainsString('boom', $e->getMessage());
         }
-        self::assertSame(2, $attempts, 'the third attempt starts past the 0.3 s bound');
+        self::assertSame(2, $attempts, 'the third attempt would start past the 0.3 s bound');
     }
 
     /**

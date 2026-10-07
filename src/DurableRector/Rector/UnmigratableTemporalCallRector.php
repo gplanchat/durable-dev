@@ -145,7 +145,7 @@ AFTER,
 
         if ($node instanceof Class_ && null !== $node->name && null !== $node->extends) {
             // A class reports only the failure it extends; its members report for themselves. An
-            // anonymous class is not marked; the README lists it.
+            // anonymous class is marked above the statement that encloses it.
             $findings = array_filter([self::failureFinding($node->extends)]);
         } elseif ($node instanceof ClassLike || $node instanceof Catch_ || $node instanceof Finally_) {
             // Containers: their statements report for themselves, and marking both would say it twice.
@@ -214,6 +214,16 @@ AFTER,
         }
 
         $this->traverseNodesWithCallable($statement, static function (Node $node) use ($statement, &$findings): ?int {
+            if ($node instanceof New_ && $node->class instanceof Class_) {
+                // An anonymous class: the enclosing statement reports its `extends`; its members, being
+                // statements, report for themselves.
+                if (null !== $node->class->extends) {
+                    $findings[] = self::failureFinding($node->class->extends);
+                }
+
+                return null;
+            }
+
             if ($node instanceof Stmt && $node !== $statement) {
                 // A nested statement reports on its own line; stopping here is what keeps the
                 // marker on the innermost statement rather than on every block above it.

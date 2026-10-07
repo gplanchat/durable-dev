@@ -8,6 +8,9 @@ use Gplanchat\Durable\Activity\ActivityStub;
 use Gplanchat\Durable\Attribute\Activities;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\Serving\NexusFulfilmentParameterNames;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
@@ -38,7 +41,22 @@ final class GreetWithOptionsWorkflow
     #[AsWorkflowMethod]
     public function run(
         string $name,
-        #[Activities(SuiteActivities::class, attempts: 3, startToClose: 120.0, taskQueue: 'greetings')]
+        #[Activities(SuiteActivities::class, attempts: 3, startToClose: 120.0)]
+        ActivityStub $greeting,
+        WorkflowEnvironment $env,
+    ): string {
+        return $env->await($greeting->greet($name));
+    }
+}
+
+#[AsWorkflow('greet-on-a-queue')]
+final class GreetOnAQueueWorkflow
+{
+    /** @param ActivityStub<SuiteActivities> $greeting */
+    #[AsWorkflowMethod]
+    public function run(
+        string $name,
+        #[Activities(SuiteActivities::class, taskQueue: 'greetings')]
         ActivityStub $greeting,
         WorkflowEnvironment $env,
     ): string {
@@ -208,7 +226,36 @@ final class WorkflowMethodArgumentsTest extends TestCase
         $options = \Gplanchat\Durable\Activity\ActivityOptions::fromMetadata($scheduled[0]->metadata());
         self::assertSame(3, $options?->retryLimit->maxAttempts());
         self::assertSame(120.0, $options->timeouts->startToClose?->toSeconds());
-        self::assertSame('greetings', $options->taskQueue?->name());
+    }
+
+    public function testTheAttributeTaskQueueReachesTheActivityOptions(): void
+    {
+        $loaded = (new WorkflowDefinitionLoader())->load(GreetOnAQueueWorkflow::class);
+        $attribute = (new \ReflectionMethod(GreetOnAQueueWorkflow::class, 'run'))->getParameters()[1]->getAttributes(Activities::class)[0]->newInstance();
+
+        self::assertNotNull($loaded);
+        self::assertSame('greetings', $attribute->options()?->taskQueue?->name());
+    }
+
+    public function testTheAttributeTaskQueueIsRefusedWhenTheActivityIsScheduledOnAJournalBackend(): void
+    {
+        $env = WorkflowTestEnvironment::inMemory(['greet' => static fn(array $p): string => 'Hello, ' . $p['name'] . '!']);
+
+        try {
+            $env->runWorkflowClass(GreetOnAQueueWorkflow::class, ['name' => 'Ada'], 'exec-queue');
+            self::fail('The attribute task queue should be refused.');
+        } catch (UnsupportedByBackendException $e) {
+            self::assertStringContainsString('#[Activities(taskQueue:)]', $e->getMessage());
+            self::assertStringContainsString('"greetings"', $e->getMessage());
+        }
+
+        // The refusal ends the run: the failure is journalled, no activity was scheduled, and a
+        // redelivery finds the execution completed instead of retrying the task.
+        $kinds = array_map(
+            static fn(object $e): string => $e::class,
+            iterator_to_array($env->getEventStore()->readStream(ExecutionId::fromString('exec-queue')), false),
+        );
+        self::assertSame([ExecutionStarted::class, WorkflowExecutionFailed::class], $kinds);
     }
 
     public function testAnImpossibleOptionFailsAtRegistrationAndSaysWhere(): void

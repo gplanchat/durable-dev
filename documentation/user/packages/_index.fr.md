@@ -133,8 +133,10 @@ temporal server start-dev --namespace durable-test --port 7233
 
 > [!NOTE]
 > Les planifications cron et les attributs de recherche sont des capacités de Temporal sans
-> équivalent en processus. Le backend en mémoire les rejette avec une erreur explicite au lieu de
-> les ignorer en silence.
+> équivalent en processus. Les backends à journal ne les exécutent pas. Le `cronSchedule` d'un
+> workflow enfant y échoue avec `UnsupportedByBackendException`, de même que son `namespace` et son
+> `taskQueue`. Ses attributs de recherche sont écrits au journal et rien n'agit dessus, et les
+> options de démarrage d'un workflow racine n'existent que sur le client Temporal.
 
 ---
 
@@ -497,8 +499,13 @@ aussitôt.
 
 Le résultat revient décodé du JSON : un objet que le workflow renvoie arrive sous forme de tableau.
 
-Pour démarrer un workflow sans attendre, depuis une requête web par exemple, appelez
-`workflowClient()->startAsync()`.
+Pour démarrer un workflow depuis un observateur, appelez
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()`. Avec un DSN, il démarre le workflow
+sur le cluster et rend la main aussitôt. Sans DSN, il exécute le workflow dans le processus
+appelant, dans la limite de `budgetSeconds`, et la requête l'attend : il bloque comme `run()`. Un
+workflow qui échoue ne lève pas d'exception depuis l'appel, comme sur le cluster ; l'échec part dans
+le logger que la fabrique détient. Un workflow non déclaré, lui, lève une exception. Pour démarrer
+uniquement sur le cluster, appelez `workflowClient()->startAsync()`.
 
 **Les workers sont des commandes `bin/magento`**, pas des consommateurs de file. Supervisez-les
 comme n'importe quel processus long :
@@ -538,11 +545,33 @@ tentatives d'une activité qu'un worker écoute ou non. Une exécution dont l'ac
 > ne passe par `MessageQueue`. Réglez-les pour vos propres consommateurs.
 
 > [!NOTE]
-> Démarrez les exécutions **sur le cluster**, hors de la requête qui les déclenche. Un observateur
-> sur `sales_order_place_after` qui appelle `RuntimeFactory::workflowClient()->startAsync()` confie
-> l'exécution à Temporal et rend la main. `workflowClient()` exige le cluster, car `startAsync()`
-> n'existe que sur Temporal. Une exécution démarrée dans la requête s'arrêterait avec elle, ce qui
-> est précisément la panne que cette intégration existe pour supprimer.
+> Démarrez les exécutions **sur le cluster**, hors de la requête qui les déclenche. Avec un DSN, un
+> observateur sur `sales_order_place_after` confie l'exécution à Temporal et rend la main. Un
+> démarrage peut encore lever une exception (un workflow non déclaré) : interceptez-la, car une
+> exception qui sort de l'observateur interrompt le flux propre de la boutique.
+>
+> ```php
+> public function execute(Observer $observer): void
+> {
+>     $incrementId = $observer->getEvent()->getData('order')->getIncrementId();
+>
+>     try {
+>         $this->runtimeFactory->resumeDispatcher()->dispatchNewWorkflowRun(
+>             ExecutionId::fromString('order-' . $incrementId),
+>             PlaceOrder::class,
+>             ['orderId' => $incrementId],
+>         );
+>     } catch (\Throwable $exception) {
+>         $this->logger->error('Le workflow n\'a pas démarré : ' . $exception->getMessage());
+>     }
+> }
+> ```
+>
+> Le même observateur fonctionne sans cluster, avec une différence : le workflow s'exécute dans la
+> requête, qui l'attend, pendant `budgetSeconds` au plus (10 par défaut). Un workflow qui attend un
+> signal ou un long minuteur retient la requête pendant tout le budget. Le journal en mémoire
+> disparaît avec la requête : une exécution non terminée à ce moment est perdue. C'est acceptable en
+> développement ; en production, configurez le DSN.
 
 ---
 
@@ -607,8 +636,10 @@ activités**. Un workflow que vous avez testé en mémoire se comporte de la mê
 contre Temporal, y compris pour le décompte des réessais, la classification des échecs,
 l'annulation et la compensation.
 
-Quand une capacité n'a pas d'équivalent sur un backend, ce backend **échoue avec un message
-explicite**. [Backends](../backends/#capability-matrix) liste les différences.
+Certaines capacités n'ont pas d'équivalent sur un backend. Nexus y échoue avec un message explicite ;
+le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant échouent avec
+`UnsupportedByBackendException`, et ses attributs de recherche sont enregistrés sans être
+exécutés. [Backends](../backends/#capability-matrix) liste les différences.
 
 ---
 

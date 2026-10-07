@@ -144,8 +144,8 @@ is then empty, **and that is the right answer**: an administration request opens
 The page says so itself rather than letting one believe in a failure.
 
 With it, the grid reads the cluster, and lists what was **started on the cluster**:
-`RuntimeFactory::workflowClient()->startAsync()`, which the probe module's order observer and
-`durable:demo:start` call. Each run shows under its own workflow name:
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()`, which the probe module's order
+observer calls, and `workflowClient()->startAsync()`, which `durable:demo:start` calls. Each run shows under its own workflow name:
 
 ```
 Run                                   | Workflow                 | Status  | Started
