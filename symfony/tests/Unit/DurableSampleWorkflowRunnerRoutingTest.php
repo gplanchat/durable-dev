@@ -42,12 +42,12 @@ final class DurableSampleWorkflowRunnerRoutingTest extends TestCase
         $fakeClient = new class ($polledExecutionId) implements WorkflowClientInterface {
             public function __construct(private ?string &$polledExecutionId) {}
 
-            public function startAsync(string $workflowType, array $payload, ExecutionId $executionId): ExecutionId
+            public function startAsync(string $workflowType, array $payload, ExecutionId $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): ExecutionId
             {
                 return $executionId;
             }
 
-            public function startSync(string $workflowType, array $payload, ExecutionId $executionId): mixed
+            public function startSync(string $workflowType, array $payload, ExecutionId $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): mixed
             {
                 return null;
             }

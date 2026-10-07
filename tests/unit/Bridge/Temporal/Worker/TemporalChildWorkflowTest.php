@@ -10,9 +10,12 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalChildWorkflowRunner;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ChildWorkflowOptions;
+use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\TaskQueue;
+use Gplanchat\Durable\WorkflowNamespace;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Common\V1\WorkflowExecution;
@@ -72,6 +75,23 @@ final class TemporalChildWorkflowTest extends TestCase
             }
             self::assertSame([], $buffer->peek(), 'no start command for a refused memo');
         }
+    }
+
+    public function testNamespaceTaskQueueAndCronAreAppliedToTheStartCommand(): void
+    {
+        $buffer = $this->buffer();
+        $context = $this->context(TemporalExecutionHistory::fromEvents([]), $buffer);
+
+        $context->executeChildWorkflow('ChildType', [], new ChildWorkflowOptions(
+            namespace: WorkflowNamespace::named('billing'),
+            taskQueue: TaskQueue::named('billing-queue'),
+            cronSchedule: CronSchedule::hourly(),
+        ));
+
+        $attrs = $buffer->peek()[0]->getStartChildWorkflowExecutionCommandAttributes();
+        self::assertSame('billing', $attrs->getNamespace());
+        self::assertSame('billing-queue', $attrs->getTaskQueue()->getName());
+        self::assertSame(CronSchedule::hourly()->toExpression(), $attrs->getCronSchedule());
     }
 
     // -------------------------------------------------------------------------
