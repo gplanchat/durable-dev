@@ -81,6 +81,20 @@ final class TheDatabaseWorkerTest extends TestCase
         self::assertSame(1, $this->queued(Queues::ACTIVITY));
     }
 
+    public function testAnUnreadableBodyAndAnUnknownWorkflowAreAcknowledgedAndJournalled(): void
+    {
+        $this->backend->queue->enqueue(Queues::RESUME, 'not a serialized message');
+        self::assertTrue($this->worker->tick([Queues::RESUME]));
+        self::assertSame(0, $this->queued(), 'a body nobody can read is not delivered again');
+
+        $id = ExecutionId::fromString('w-unknown');
+        $this->backend->resumes->dispatchNewWorkflowRun($id, 'bench.no-such-workflow', []);
+        self::assertTrue($this->worker->tick([Queues::RESUME]));
+
+        self::assertSame(0, $this->queued());
+        self::assertCount(1, $this->failuresOf($id), 'the run says why it stopped');
+    }
+
     public function testAnIdleWorkerSaysSo(): void
     {
         self::assertFalse($this->worker->tick());

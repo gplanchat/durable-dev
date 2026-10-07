@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Runtime;
 
+use Gplanchat\Durable\Event\ExecutionCompleted;
+use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\ActivityAttemptDeferred;
 use Gplanchat\Durable\Exception\ResumeArrivedBeforeItsOutcome;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
@@ -102,7 +106,8 @@ final class DatabaseWorker
         } catch (\Throwable $e) {
             $handled = false;
             if (!self::isTransient($e)) {
-                throw $e;
+                $this->logger->error('A durable message cannot be handled and is dropped.', ['queue' => $queue, 'executionId' => $executionId, 'exception' => $e]);
+                $handled = $this->journalFailure($executionId, $e);
             } else {
                 $this->logger->warning('A durable message is given back to the queue.', ['queue' => $queue, 'executionId' => $executionId, 'exception' => $e]);
             }
@@ -144,6 +149,36 @@ final class DatabaseWorker
             return false;
         } finally {
             $lock->release($body->executionId);
+        }
+
+        return true;
+    }
+
+    /**
+     * Says in the run's journal that it stopped, unless it already says so (the handlers journal a
+     * workflow's own failure before they rethrow it). A body that names no run only logs.
+     *
+     * @return bool whether the message can be acknowledged: false when the journal could not be written
+     */
+    private function journalFailure(?string $executionId, \Throwable $cause): bool
+    {
+        if (null === $executionId) {
+            return true;
+        }
+
+        try {
+            $id = ExecutionId::fromString($executionId);
+            foreach ($this->backend->eventStore->readStream($id) as $event) {
+                if ($event instanceof WorkflowExecutionFailed || $event instanceof ExecutionCompleted || $event instanceof WorkflowExecutionCancelled) {
+                    return true;
+                }
+            }
+            $this->backend->eventStore->append(WorkflowExecutionFailed::workflowHandlerFailure($id, $cause));
+            $this->backend->metadata->markCompleted($id);
+        } catch (\Throwable $e) {
+            $this->logger->error('A durable failure could not be journalled: the message stays in the queue.', ['executionId' => $executionId, 'exception' => $e]);
+
+            return false;
         }
 
         return true;
