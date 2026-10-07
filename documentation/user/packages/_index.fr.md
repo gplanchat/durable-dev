@@ -513,6 +513,15 @@ Temporal distinctes, et vous réglez leur parallélisme séparément. Rien ne pa
 Temporal, une activité est une commande Temporal et une reprise une tâche de workflow, donc un topic
 Magento ne ferait qu'ajouter une seconde file à superviser.
 
+**Avec `resource/durable` dans `env.php`**, la même commande vide les files de la base au lieu
+d'interroger Temporal. Sans `--role`, un processus sert les files de reprise, de minuteur et
+d'activité ; `--role=journal` sert les reprises et les minuteurs, `--role=activity` sert les
+activités. Ce backend n'a pas de `--role=nexus`, et la commande le refuse. Un message est acquitté
+une fois traité. Quand un autre worker tient l'exécution, quand une reprise arrive avant le
+résultat de son activité, ou quand MySQL répond par un délai d'attente de verrou ou un
+interblocage, le message reste dans la file et est livré de nouveau peu après. `SIGTERM` et
+`SIGINT` arrêtent le worker entre deux messages.
+
 **Une boutique qui sert des [opérations Nexus](../nexus/#servir-une-opération)** liste ses
 gestionnaires dans un tableau de plus de la même fabrique, `nexusHandlers` : un objet par
 gestionnaire, dont le `#[AsNexusServiceHandler]` nomme le contrat servi. Une opération pour laquelle

@@ -488,6 +488,15 @@ queues, and you tune their concurrency separately. Nothing goes through Magento'
 an activity is a Temporal command and a resume is a workflow task, so a Magento topic would only
 add a second queue for an operator to supervise.
 
+**With `resource/durable` in `env.php`**, the same command drains the database queues instead of
+polling Temporal. Without `--role`, one process serves the resume, timer and activity queues;
+`--role=journal` serves resumes and timers, `--role=activity` serves activities. There is no
+`--role=nexus` on this backend, and the command refuses it. A message is acknowledged once it is
+handled. When another worker holds the execution, when a resume arrives before its activity's
+result, or when MySQL answers with a lock wait timeout or a deadlock, the message stays in the
+queue and is delivered again a moment later. `SIGTERM` and `SIGINT` stop the worker between two
+messages.
+
 **A shop that serves [Nexus operations](../nexus/#serving-an-operation)** lists its handlers in
 one more array of the same factory, `nexusHandlers`: one object per handler, whose
 `#[AsNexusServiceHandler]` names the contract it serves. An operation the handler has no method for

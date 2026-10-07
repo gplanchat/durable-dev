@@ -173,6 +173,11 @@ One process, one role: these are distinct Temporal task queues, and their concur
 apart. An operator supervises them with whatever already supervises every other long-running Magento
 process.
 
+With `resource/durable` in `env.php`, the command drains the database queues: no `--role` serves
+resumes, timers and activities, `--role=journal` resumes and timers, `--role=activity` activities,
+and `--role=nexus` is refused. A message is acknowledged once handled; a held execution, an early
+resume, a lock wait timeout or a deadlock leaves it in the queue to be delivered again.
+
 ## Start executions on the cluster, not in the request
 
 An observer that hands the execution to Temporal and returns:
