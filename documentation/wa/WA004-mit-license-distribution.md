@@ -57,16 +57,18 @@ The root **README** (and package READMEs where relevant) **should** state that t
 
 ### The documented exception: third-party marks
 
-`hugo-docs/assets/logos/` holds eighteen SVG files, and every one reproduces a mark belonging to
-somebody else. They are used nominatively — naming the projects Durable integrates with — which is
+`hugo-docs/assets/logos/` holds eleven SVG files. Nine reproduce a mark belonging to somebody
+else; the other two, `api-platform` and `illuminate`, are glyphs drawn for this repository. The
+nine are used nominatively, to name the projects Durable integrates with, which is
 ordinary. Shipping them under a grant that says *do what you like with this* is not, and this
 working agreement would otherwise say exactly that by omission.
 
 [`hugo-docs/assets/logos/README.md`](../../hugo-docs/assets/logos/README.md) is that exception: it
 records each mark's provenance, states that the MIT grant does not extend to them, and lists what
-each project's published policy says. **It also records one that a notice cannot settle** — API
-Platform's policy names its "Webby" design as requiring prior approval, which has not been asked
-for. That is a decision, not an attribution.
+each project's published policy says. It also records one that a notice cannot settle: API
+Platform's policy names its "Webby" design as requiring prior approval. The request left on
+2026-09-28 and the answer is pending; until it comes, the chip shows braces drawn here, not Webby.
+That is a decision, not an attribution.
 
 ## Consequences
 

@@ -24,8 +24,10 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Nexus\V1\Failure as NexusFailure;
 use Temporal\Api\Nexus\V1\HandlerError;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
@@ -135,6 +137,15 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
             'exception' => $error,
             'event_id' => $this->eventId,
             'rpc' => $rpc,
+            // What identifies the task, from the poll response: none of it is sensitive (#939).
+            ...match (true) {
+                $response instanceof PollWorkflowTaskQueueResponse => [
+                    'workflow_id' => $response->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $response->getWorkflowExecution()?->getRunId(),
+                ],
+                $response instanceof PollActivityTaskQueueResponse => ['activity_id' => $response->getActivityId()],
+                default => [],
+            },
         ]);
 
         if (!$failed instanceof RespondNexusTaskFailedRequest) {

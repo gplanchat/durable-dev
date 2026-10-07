@@ -99,8 +99,7 @@ l'application. Chaque surface dit lequel, parce que cela dépend de la façon do
   est pleine.
 
 Un intitulé « Total » sous lequel on lit vingt vous apprendrait qu'une application ayant enregistré
-cinq cents exécutions en a vingt. Les compteurs Magento portent une colonne `Total` : elle compte la
-fenêtre, pas l'historique. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
+cinq cents exécutions en a vingt. Les compteurs Magento intitulent leur première colonne `In the window`, et l'intitulé au-dessus d'eux dit que les filtres de la grille ne les changent pas. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
 d'une requête.
 
 ### 4. L'historique d'une exécution, une ligne par **action** {#4-lhistorique-dune-exécution--une-ligne-par-action}
