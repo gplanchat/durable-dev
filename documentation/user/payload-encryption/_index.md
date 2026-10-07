@@ -182,8 +182,9 @@ trace, which could quote the key or the plaintext.
 
 Before it answers, the worker logs the error at the `error` level through the PSR-3 logger of your
 framework: the exception itself, stack trace included, under `exception`, and the id of the history
-event that did not decode under `event_id`, when the payload belongs to one. Keep that log where
-only operators read it, since the trace may quote what the server must not see.
+event that did not decode under `event_id`, when the payload belongs to one. The task is named
+too: `workflow_id` and `run_id` for a workflow task, `activity_id` for an activity task. Keep that
+log where only operators read it, since the trace may quote what the server must not see.
 
 For a worker that uses a codec, set
 [`zend.exception_ignore_args`](https://www.php.net/manual/en/ini.core.php#ini.zend.exception-ignore-args)
@@ -191,7 +192,8 @@ to `On` in its `php.ini`. The setting is `Off` by default and in `php.ini-develo
 `Off`, each frame of the trace as text lists the arguments of the call, and each string argument
 shows its first
 [`zend.exception_string_param_max_len`](https://www.php.net/manual/en/ini.core.php#ini.zend.exception-string-param-max-len)
-characters, 15 by default. Those characters can come from a key or a ciphertext. With `On`, as in
+characters, 15 by default. Those characters can come from a key or a ciphertext. A handler that
+reads the frames through `getTrace()` gets each argument in full. With `On`, as in
 `php.ini-production`, the trace leaves the arguments out.
 
 Neither a worker nor a dashboard shows ciphertext as if it were data.
