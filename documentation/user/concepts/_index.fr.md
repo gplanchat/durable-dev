@@ -32,7 +32,7 @@ mêmes décisions à chaque passage, d'où la
 
 Dans votre code, cela se lit comme du PHP séquentiel ordinaire : vous faites `await` sur une
 activité, vous recevez le résultat, vous continuez. Le moteur prend en charge la tolérance aux
-pannes, et votre code n'a pas à s'en occuper.
+pannes.
 
 ---
 

@@ -173,17 +173,30 @@ whatever starts or signals workflows, and the dashboard.
 
 A payload that cannot be decoded, under an unknown key for instance, throws from the call that read
 it. A dashboard shows a read failure. A worker answers the task it received as failed, with the
-decode error as the cause, and polls again. A workflow task goes back to the server, which hands it
-out again: once the key is available, the task goes through. An activity task counts as a failed
-attempt under its retry policy. The failure carries the error's class and message, never its stack
+decode error as the cause, and polls again. This holds on every page of a long history, which the
+worker reads in several calls while it replays. A workflow task goes back to the server, which
+hands it out again: once the key is available, the task goes through. An activity task counts as a
+failed attempt under its retry policy. A Nexus task gets a retryable `INTERNAL` error, and the
+server delivers it again. The failure carries the error's class and message, never its stack
 trace, which could quote the key or the plaintext.
 
-Two cases still stop the worker. A long history arrives in several pages, and the worker reads the
-pages after the first one while it replays: a payload that cannot be decoded in one of those pages
-stops it. A Nexus worker stops on any payload it cannot decode. [#824](https://github.com/gplanchat/durable-dev/issues/824)
-tracks both. Run
-workers under a supervisor that restarts them (systemd, Supervisor, Kubernetes), and alert on
-repeated exits. Neither a worker nor a dashboard shows ciphertext as if it were data.
+Before it answers, the worker logs the error at the `error` level through the PSR-3 logger of your
+framework: the exception itself, stack trace included, under `exception`, and the id of the history
+event that did not decode under `event_id`, when the payload belongs to one. The task is named
+too: `workflow_id` and `run_id` for a workflow task, `activity_id` for an activity task. Keep that
+log where only operators read it, since the trace may quote what the server must not see.
+
+For a worker that uses a codec, set
+[`zend.exception_ignore_args`](https://www.php.net/manual/en/ini.core.php#ini.zend.exception-ignore-args)
+to `On` in its `php.ini`. The setting is `Off` by default and in `php.ini-development`. When it is
+`Off`, each frame of the trace as text lists the arguments of the call, and each string argument
+shows its first
+[`zend.exception_string_param_max_len`](https://www.php.net/manual/en/ini.core.php#ini.zend.exception-string-param-max-len)
+characters, 15 by default. Those characters can come from a key or a ciphertext. A handler that
+reads the frames through `getTrace()` gets each argument in full. With `On`, as in
+`php.ini-production`, the trace leaves the arguments out.
+
+Neither a worker nor a dashboard shows ciphertext as if it were data.
 
 ---
 

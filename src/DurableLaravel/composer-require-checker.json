@@ -18,6 +18,8 @@
         "Gplanchat\\Bridge\\Temporal\\WorkflowClient",
         "Gplanchat\\Bridge\\Temporal\\WorkflowClientInterface",
         "Gplanchat\\Bridge\\Temporal\\WorkflowServiceClientFactory",
-        "Illuminate\\Console\\Command"
+        "Gplanchat\\Bridge\\Temporal\\WorkflowServiceClientInterface",
+        "Illuminate\\Console\\Command",
+        "PHPUnit\\Framework\\Assert"
     ]
 }

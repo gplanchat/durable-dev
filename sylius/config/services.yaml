@@ -34,11 +34,15 @@ services:
         exclude:
             - '../src/Entity/'
             - '../src/Kernel.php'
+            # Registered under `when@demo_caller` only, below.
+            - '../src/Command/DemoNexusBillingCommand.php'
+            - '../src/Durable/Workflow/OrderWorkflow.php'
 
     # Workflows are declared by a tag and not by an attribute: the tag is what WorkflowPass reads.
     # Without it, an #[AsWorkflow] is a class that nobody registers.
     App\Durable\Workflow\:
         resource: '../src/Durable/Workflow/'
+        exclude: '../src/Durable/Workflow/OrderWorkflow.php'
         tags: [durable.workflow]
 
     # Controllers are imported separately to make sure services can be injected
@@ -65,3 +69,15 @@ when@demo:
             tags:
                 - name: durable.nexus_handler
                   contract: 'Gplanchat\Durable\Demo\Contracts\Stock\StockServed'
+
+# `OrderWorkflow` calls a Nexus operation, and only a workflow whose journal is the cluster can
+# schedule one (DUR036). The workflow and the command that starts it exist in `demo_caller` only:
+# on the SQL journal, the run could only fail.
+when@demo_caller:
+    services:
+        App\Durable\Workflow\OrderWorkflow:
+            autowire: true
+            tags: [durable.workflow]
+        App\Command\DemoNexusBillingCommand:
+            autowire: true
+            autoconfigure: true

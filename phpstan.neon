@@ -112,3 +112,10 @@ parameters:
         # DurableBundleTestTrait is consumed by application tests, not by library code
         - identifier: trait.unused
           path: src/DurableBundle/Testing/DurableBundleTestTrait.php
+        # Same for the Laravel helper: applications use it, the library does not.
+        - identifier: trait.unused
+          path: src/DurableLaravel/Testing/DurableLaravelTestTrait.php
+        # Test workflows build their stubs with activityStub() on purpose: that form stays
+        # supported, and these tests are what cover it.
+        - identifier: durable.activityStubCouldBeParameter
+          path: tests/*

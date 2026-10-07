@@ -46,7 +46,7 @@ final class WorkflowServiceClientFactory
     {
         $client = self::createClient($settings, $logger, $guzzle, $jsonGateway);
 
-        return null === $codec ? $client : new PayloadCodecWorkflowServiceClient($client, $codec);
+        return null === $codec ? $client : new PayloadCodecWorkflowServiceClient($client, $codec, $logger);
     }
 
     private static function createClient(TemporalConnection $settings, ?LoggerInterface $logger, ?GuzzleClientInterface $guzzle, ?Psr18Http $jsonGateway): WorkflowServiceClientInterface

@@ -72,6 +72,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR053 | A superseded pass cannot write: one fencing epoch per pass (proposed) | [adr/DUR053-a-superseded-pass-cannot-write.md](adr/DUR053-a-superseded-pass-cannot-write.md) |
 | DUR054 | The journal does not share the application's connection | [adr/DUR054-the-journal-does-not-share-the-applications-connection.md](adr/DUR054-the-journal-does-not-share-the-applications-connection.md) |
 | DUR055 | A payload codec at the client boundary | [adr/DUR055-a-payload-codec-at-the-client-boundary.md](adr/DUR055-a-payload-codec-at-the-client-boundary.md) |
+| DUR056 | Magento journals through its own DB layer on a dedicated connection, with no Nexus (proposed) | [adr/DUR056-magento-journals-through-its-own-db-layer.md](adr/DUR056-magento-journals-through-its-own-db-layer.md) |
 
 ## Working agreements (WA)
 

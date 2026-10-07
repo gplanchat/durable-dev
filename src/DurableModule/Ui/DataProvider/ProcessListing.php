@@ -18,8 +18,8 @@ use Magento\Ui\DataProvider\AbstractDataProvider;
  * table whose state would only be a stale copy of the cluster.
  *
  * ⚠ **Paging is the point of friction, and it is bounded rather than hidden.** The grid pages by
- * offset (`setLimit($offset, $size)`); the cluster pages by **continuation cursor**. The two do not
- * translate into one another without state. So this provider reads a bounded **window** and pages
+ * page number (`setLimit($offset, $size)`, where Magento's `$offset` is the page, #848); the cluster
+ * pages by **continuation cursor**. The two do not translate into one another without state. So this provider reads a bounded **window** and pages
  * inside it.
  *
  * The size of that window lives on {@see RuntimeFactory::OBSERVATION_WINDOW}, and not here: the
@@ -41,7 +41,7 @@ class ProcessListing extends AbstractDataProvider
     /** @var array<string, list<string>|string> */
     private array $filters = [];
 
-    private int $offset = 0;
+    private int $page = 1;
 
     private int $size = 20;
 
@@ -63,7 +63,7 @@ class ProcessListing extends AbstractDataProvider
         $runs = $this->applyFilters($runs);
 
         $total = \count($runs);
-        $window = \array_slice($runs, $this->offset, $this->size);
+        $window = \array_slice($runs, ($this->page - 1) * $this->size, $this->size);
 
         return [
             'totalRecords' => $total,
@@ -114,22 +114,21 @@ class ProcessListing extends AbstractDataProvider
      */
     private function applyFilters(array $runs): array
     {
+        // The rule of the Sylius and Filament lists (#815): the whole workflow name, the start of an
+        // id, both as typed. `%` and `_` are ordinary characters here, as they are there.
         foreach ($this->filters as $field => $value) {
             $runs = match ($field) {
                 'workflow_name' => array_values(array_filter(
                     $runs,
-                    static fn(WorkflowRunDescription $run): bool => str_contains(
-                        mb_strtolower($run->workflowName),
-                        mb_strtolower((string) $value),
-                    ),
+                    static fn(WorkflowRunDescription $run): bool => $run->workflowName === (string) $value,
                 )),
                 'run_id' => array_values(array_filter(
                     $runs,
-                    static fn(WorkflowRunDescription $run): bool => str_contains($run->runId, (string) $value),
+                    static fn(WorkflowRunDescription $run): bool => str_starts_with($run->runId, (string) $value),
                 )),
                 'execution_id' => array_values(array_filter(
                     $runs,
-                    static fn(WorkflowRunDescription $run): bool => str_contains($run->executionId, (string) $value),
+                    static fn(WorkflowRunDescription $run): bool => str_starts_with($run->executionId, (string) $value),
                 )),
                 'status' => array_values(array_filter(
                     $runs,
@@ -153,9 +152,13 @@ class ProcessListing extends AbstractDataProvider
         // would lie as soon as the window is smaller than the total.
     }
 
+    /**
+     * Magento's paging component passes the number of the page here, 1 for the first, under the name
+     * its interface gives an offset (#848).
+     */
     public function setLimit($offset, $size): void
     {
-        $this->offset = max(0, (int) $offset);
+        $this->page = max(1, (int) $offset);
         $this->size = (int) $size > 0 ? (int) $size : 20;
     }
 }

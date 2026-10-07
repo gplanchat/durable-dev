@@ -403,7 +403,7 @@ transports **et** un magasin durable. Configurez les deux : avec un vrai transpo
 reçoit une entrée de file pour un workflow dont il ne peut pas lire le journal.
 
 Ce profil demande des paquets que la prise en main ci-dessus n'installe pas : le journal DBAL,
-DoctrineBundle pour le service `doctrine.dbal.default_connection` qu'utilise le journal, et le
+DoctrineBundle pour la connexion Doctrine qu'utilise le journal, et le
 transport Doctrine de Messenger pour les files `doctrine://` plus bas. La recette de DoctrineBundle
 configure aussi l'ORM, d'où la présence de `doctrine/orm`. Si vous n'utilisez pas l'ORM, retirez
 plutôt la section `orm:` de `config/packages/doctrine.yaml`.
@@ -413,11 +413,40 @@ composer config prefer-stable true
 composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle doctrine/orm symfony/doctrine-messenger
 ```
 
+Donnez au journal une connexion Doctrine à lui, `durable`, à côté de la connexion `default` de
+l'application. Sur une connexion partagée, les écritures du journal s'imbriquent dans les transactions
+métier : quand l'une est annulée, ce que le journal a écrit l'est aussi, et une exécution en échec
+disparaît. La page du
+[backend DBAL](../backends/#le-backend-dbal) explique ce choix (DUR054). Dans `config/packages/doctrine.yaml`, remplacez la section `dbal:`
+écrite par la recette par celle-ci :
+
+```yaml
+# config/packages/doctrine.yaml : le journal sur une connexion à lui
+doctrine:
+    dbal:
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+            durable:
+                url: '%env(resolve:DURABLE_DATABASE_URL)%'
+```
+
+La ligne ci-dessous fait pointer `durable` vers la même base que `DATABASE_URL`. Deux connexions
+sont deux sessions : les transactions du journal restent séparées de celles de l'application. Une
+base et un utilisateur SQL propres à Durable tiennent en plus le code métier à l'écart des tables du
+journal.
+
+```yaml
+# .env.local
+DURABLE_DATABASE_URL=${DATABASE_URL}
+```
+
 ```yaml
 durable:
     backend: dbal
     dbal:
-        connection: doctrine.dbal.default_connection
+        connection: doctrine.dbal.durable_connection
 ```
 
 
@@ -429,6 +458,9 @@ framework:
             durable_workflows:  'doctrine://default?queue_name=durable_workflows'
             durable_activities: 'doctrine://default?queue_name=durable_activities'
 ```
+
+Sur PostgreSQL, ajoutez `use_notify: false` aux deux transports ; la
+[page du backend DBAL](../backends/#doctrine-transport-on-postgresql) montre comment et explique pourquoi.
 
 
 **Avec un cluster Temporal : le DSN seulement.** Un environnement dont `durable.temporal.dsn` est

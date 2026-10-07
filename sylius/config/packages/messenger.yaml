@@ -15,8 +15,18 @@ when@dev: &durable_messages
     framework:
         messenger:
             transports:
-                durable_workflows:  'doctrine://default?queue_name=durable_workflows'
-                durable_activities: 'doctrine://default?queue_name=durable_activities'
+                # use_notify: false, #851. On PostgreSQL the Doctrine transport LISTENs only once
+                # a queue has been found empty, and one worker process shares one connection
+                # between both queues: the resume an activity sends before that LISTEN, or a
+                # notification the other queue reads first, is lost, and the queue is read again
+                # only after check_delayed_interval (60 s). Polling reads each queue on every
+                # loop, --sleep apart. MySQL has no LISTEN and ignores the option.
+                durable_workflows:
+                    dsn: 'doctrine://default?queue_name=durable_workflows'
+                    options: { use_notify: false }
+                durable_activities:
+                    dsn: 'doctrine://default?queue_name=durable_activities'
+                    options: { use_notify: false }
             routing:
                 Gplanchat\Durable\Transport\ResumeWorkflowMessage:        durable_workflows
                 Gplanchat\Durable\Transport\FireWorkflowTimersMessage:    durable_workflows

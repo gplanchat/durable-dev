@@ -240,7 +240,7 @@ final class NexusServedOperationTest extends TestCase
         $this->started[] = $callerId;
 
         $task = $this->pollWorkflowTask();
-        $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer($this->connection, ExecutionId::fromString('exec-1'));
         $buffer->scheduleNexusOperation(
             'op-' . bin2hex(random_bytes(4)),
             NexusEndpoint::named($this->endpointName),

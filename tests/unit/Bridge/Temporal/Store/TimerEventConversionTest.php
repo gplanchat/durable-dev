@@ -8,6 +8,7 @@ use Google\Protobuf\Duration;
 use Google\Protobuf\Timestamp;
 use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -32,7 +33,7 @@ final class TimerEventConversionTest extends TestCase
         $event->setEventTime(new Timestamp(['seconds' => 1_790_000_000, 'nanos' => 250_000_000]));
         $event->setTimerStartedEventAttributes($attrs);
 
-        $converted = (new TemporalEventConverter('exec-1'))->convert($event);
+        $converted = (new TemporalEventConverter(ExecutionId::fromString('exec-1')))->convert($event);
 
         self::assertInstanceOf(TimerScheduled::class, $converted);
         self::assertSame('nap', $converted->timerId());

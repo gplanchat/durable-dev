@@ -10,6 +10,7 @@ use Gplanchat\Durable\Awaitable\Awaitable;
 use Gplanchat\Durable\Awaitable\NexusOperationAwaitable;
 use Gplanchat\Durable\Awaitable\TimerAwaitable;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
+use Gplanchat\Durable\Exception\ChildWorkflowIdInUseException;
 use Gplanchat\Durable\Exception\ChildWorkflowStartDeferred;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
@@ -73,7 +74,7 @@ final class ExecutionContext
     private bool $cancellationRaised = false;
 
     public function __construct(
-        private readonly string $executionId,
+        private readonly ExecutionId $executionId,
         private readonly WorkflowHistorySourceInterface $historySource,
         private readonly WorkflowCommandBufferInterface $commandBuffer,
         private readonly ?ChildWorkflowRunnerInterface $childWorkflowRunner = null,
@@ -100,7 +101,7 @@ final class ExecutionContext
         return $this->queryHandlers ??= new QueryHandlerRegistry();
     }
 
-    public function executionId(): string
+    public function executionId(): ExecutionId
     {
         return $this->executionId;
     }
@@ -601,9 +602,7 @@ final class ExecutionContext
         }
 
         $scheduledId = $this->historySource->findScheduledChildExecutionId($slotIndex);
-        $childExecutionId = $scheduledId?->toString() ?? ($options->workflowId ?? $this->uuid());
-
-        $childId = $scheduledId ?? ExecutionId::fromString($childExecutionId);
+        $childId = $scheduledId ?? ExecutionId::fromString($options->workflowId ?? $this->uuid());
 
         if (null === $scheduledId && null !== $options->workflowId) {
             $this->assertChildWorkflowIdAllowed($options, $childId);
@@ -618,7 +617,7 @@ final class ExecutionContext
         }
 
         try {
-            $result = $this->childWorkflowRunner->runChild($childId, $childWorkflowType, $input, ExecutionId::fromString($this->executionId));
+            $result = $this->childWorkflowRunner->runChild($childId, $childWorkflowType, $input, $this->executionId);
             // The CHILD's outcome, not the current run's: completeWorkflow() here closed the
             // parent's log with the child's result, and never wrote the ChildWorkflowCompleted
             // that findChildWorkflowForSlot() looks for on replay — so the child was re-run on
@@ -636,7 +635,7 @@ final class ExecutionContext
             // Read back from the journal when it holds the failure already, so the pass rejects
             // with the exception the replay will build: same kind, class, and no previous (#318).
             $deferred->reject($this->historySource->findChildWorkflowForSlot($slotIndex)->failed ?? new DurableChildWorkflowFailedException(
-                $childExecutionId,
+                $childId->toString(),
                 $e->getMessage(),
                 (int) $e->getCode(),
                 $e,
@@ -763,7 +762,7 @@ final class ExecutionContext
 
         $this->buffer()->cancelActivity($activityId, $reason);
         $this->rejectActivity($activityId, ActivityCancellationReason::WORKFLOW_CANCELLED === $reason
-            ? new WorkflowCancelledFailure($this->executionId, $reason)
+            ? new WorkflowCancelledFailure($this->executionId->toString(), $reason)
             : new ActivitySupersededException($activityId, $reason));
 
         return true;
@@ -788,7 +787,7 @@ final class ExecutionContext
         $this->buffer()->cancelNexusOperation($operationId, $reason);
 
         if (ActivityCancellationReason::WORKFLOW_CANCELLED === $reason) {
-            $deferred->reject(new WorkflowCancelledFailure($this->executionId, $reason));
+            $deferred->reject(new WorkflowCancelledFailure($this->executionId->toString(), $reason));
         }
 
         return true;
@@ -814,7 +813,7 @@ final class ExecutionContext
         // A race loser is simply left unsettled; a workflow cancellation must on the contrary
         // throw, so that the workflow can compensate.
         if (ActivityCancellationReason::WORKFLOW_CANCELLED === $reason) {
-            $deferred->reject(new WorkflowCancelledFailure($this->executionId, $reason));
+            $deferred->reject(new WorkflowCancelledFailure($this->executionId->toString(), $reason));
         }
 
         return true;
@@ -894,6 +893,12 @@ final class ExecutionContext
 
     private function assertChildWorkflowIdAllowed(ChildWorkflowOptions $options, ExecutionId $childExecutionId): void
     {
+        // Before the policy, which only judges a finished run, and on the runner, which sees every
+        // parent's children: the parent's own journal does not (#950).
+        if ($this->childWorkflowRunner?->isChildRunning($childExecutionId)) {
+            throw ChildWorkflowIdInUseException::forId($childExecutionId->toString());
+        }
+
         if (WorkflowIdReusePolicy::AllowDuplicate === $options->workflowIdReusePolicy) {
             return;
         }

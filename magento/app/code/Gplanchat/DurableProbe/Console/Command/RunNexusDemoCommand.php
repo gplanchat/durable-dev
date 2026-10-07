@@ -16,9 +16,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * `bin/magento durable:demo:nexus <order> <amount> REF=qty …` — Magento calls the three others.
  *
- * **On the cluster, and not here.** `MagentoRuntime::run()` would execute the workflow in this
- * process, which is not what the demonstration shows: a Nexus operation is served by another
- * application, and the execution awaiting it has to outlive the command that started it.
+ * **On the cluster, and not here.** Without a DSN, `MagentoRuntime::run()` would execute the
+ * workflow in this process, which is not what the demonstration shows: a Nexus operation is
+ * served by another application, and the execution awaiting it has to outlive the command that
+ * started it.
  * `workflowClient()->startAsync()` hands it to the cluster; the bench's journal worker advances it,
  * and this command does nothing but wait for the result and print it.
  *

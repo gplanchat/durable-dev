@@ -127,6 +127,15 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('durable-frieze', $page);
     }
 
+    public function testALongActionNameWrapsInsteadOfBeingCut(): void
+    {
+        // #850: as on Sylius and Filament, the frieze names an action in full.
+        $page = $this->renderDetail();
+
+        self::assertStringContainsString('overflow-wrap: anywhere', $page);
+        self::assertStringNotContainsString('text-overflow: ellipsis', $page);
+    }
+
     public function testTheRunPageUsesTheVocabularyOfTheOtherSurfaces(): void
     {
         // #821: Execution, Outcome and History, and the outcome as a label, not the enum's value.

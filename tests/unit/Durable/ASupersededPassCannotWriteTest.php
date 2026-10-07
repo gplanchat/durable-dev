@@ -79,7 +79,7 @@ final class ASupersededPassCannotWriteTest extends TestCase
         $activities = new InMemoryActivityTransport();
         $engine = new ExecutionEngine($store, new ExecutionRuntime($store, $activities, new RegistryActivityExecutor(), 0, null, true));
         $handler = static function (WorkflowEnvironment $env) use ($store): string {
-            PassEventStore::open($store, 'exec-1'); // a second resume takes the execution over
+            PassEventStore::open($store, ExecutionId::fromString('exec-1')); // a second resume takes the execution over
 
             try {
                 $env->activityStub(SuiteActivities::class)->echoValue('late');
@@ -90,7 +90,7 @@ final class ASupersededPassCannotWriteTest extends TestCase
         };
 
         try {
-            $engine->start('exec-1', $handler);
+            $engine->start(ExecutionId::fromString('exec-1'), $handler);
             self::fail('the superseded pass must not complete the run');
         } catch (SupersededPassException) {
         }
@@ -132,7 +132,7 @@ final class OvertakenWorkflow
     #[AsWorkflowMethod]
     public function run(): string
     {
-        PassEventStore::open(self::$store, 'exec-2'); // a second resume takes the execution over
+        PassEventStore::open(self::$store, ExecutionId::fromString('exec-2')); // a second resume takes the execution over
 
         return 'done';
     }

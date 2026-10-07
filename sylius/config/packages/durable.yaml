@@ -4,7 +4,8 @@
 durable:
     backend: dbal
     dbal:
-        connection: doctrine.dbal.default_connection
+        # Not the shop's connection: see config/packages/doctrine.yaml (DUR054).
+        connection: doctrine.dbal.durable_connection
         lock_factory: lock.factory
 
 # Activities ride the `durable_activities` transport messenger.yaml declares for these three

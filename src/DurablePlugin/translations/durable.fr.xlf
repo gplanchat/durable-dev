@@ -9,6 +9,7 @@
             <trans-unit id="dashboard.worker_polling"><source>dashboard.worker_polling</source><target>Le worker %role% est à l'écoute.</target></trans-unit>
             <trans-unit id="dashboard.worker_missing"><source>dashboard.worker_missing</source><target>Aucun worker %role% n'a interrogé le backend depuis %seconds% secondes : les exécutions s'arrêtent à leur première tâche %role%. Démarrez bin/console durable:worker --role=%role%.</target></trans-unit>
             <trans-unit id="dashboard.worker_unknown"><source>dashboard.worker_unknown</source><target>Impossible de demander au backend si un worker %role% est en écoute : %error%</target></trans-unit>
+            <trans-unit id="dashboard.workers_unlisted"><source>dashboard.workers_unlisted</source><target>Messenger ne tient aucune liste des processus qui lancent bin/console durable:worker.</target></trans-unit>
             <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Issues des %count% exécutions de cette page</target></trans-unit>
             <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>Sur cette page</target></trans-unit>
             <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>En attente d'un worker</target></trans-unit>

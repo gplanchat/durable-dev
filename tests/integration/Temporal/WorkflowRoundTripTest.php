@@ -20,6 +20,12 @@ final class WorkflowRoundTripTest extends TemporalServerTestCase
         self::assertSame(['doubled' => 42], $this->runWorkflow('Doubler', ['value' => 21]));
     }
 
+    public function testAWholeValuedFloatComesBackFromAnActivityAsAFloat(): void
+    {
+        // Plain json_encode() writes 30.0 as 30, which the workflow then reads as an int (#826).
+        self::assertSame(['price' => 30.0], $this->runWorkflow('Priced', ['value' => 30]));
+    }
+
     public function testTwoSequentialActivitiesReplayInOrder(): void
     {
         self::assertSame(['text' => '42!'], $this->runWorkflow('TwoActivities', ['value' => 21]));

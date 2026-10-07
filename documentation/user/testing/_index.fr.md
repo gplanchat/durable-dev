@@ -5,16 +5,17 @@ weight: 40
 
 # Tester des workflows
 
-Durable fournit une **boîte à outils de test** pour tester vos workflows et vos activités avec
-PHPUnit tel quel. Un workflow décrit les étapes d'une exécution, et une activité est l'une de ces
+Durable fournit une **boîte à outils de test** pour vos workflows et vos activités, fondée sur
+PHPUnit standard. Un workflow décrit les étapes d'une exécution, et une activité est l'une de ces
 étapes qui a un effet de bord, comme un appel HTTP ; voir le [glossaire](../glossary/). Choisissez
-le point d'entrée qui correspond à vos tests, indépendants du framework ou d'intégration du bundle
-Symfony :
+le point d'entrée qui correspond à vos tests, indépendants du framework, d'intégration du bundle
+Symfony ou d'intégration Laravel :
 
 | Outil | Paquet | Quand l'employer |
 |---|---|---|
 | `DurableTestCase` + `ActivitySpy` + `WorkflowTestEnvironment` | `gplanchat/durable` | Tests unitaires ou fonctionnels purs, sans conteneur Symfony. |
 | `DurableBundleTestTrait` | `gplanchat/durable-bundle` | Tests d'intégration Symfony fondés sur `KernelTestCase`. |
+| `DurableLaravelTestTrait` | `gplanchat/durable-laravel` | Tests d'intégration Laravel, sur le backend configuré de l'application. |
 
 ---
 
@@ -261,7 +262,7 @@ when@test:
 
 ### Adapter la liste des transports ou le délai de vidange
 
-Pour les changer, redéfinissez les propriétés statiques avant chaque test :
+Pour changer la liste des transports ou le délai de vidange, redéfinissez les propriétés statiques avant chaque test :
 
 ```php
 protected function setUp(): void
@@ -284,6 +285,64 @@ protected function setUp(): void
 | `assertWorkflowFailed($executionId, $class?)` | Vérifie que le workflow a échoué, avec éventuellement la classe d'exception. |
 | `getEventStoreService()` | Renvoie l'`EventStoreInterface` du conteneur de test, pour une inspection de bas niveau. |
 | `getDataCollector()` | Renvoie le `DurableDataCollector` quand le profileur est actif (noyau de débogage). |
+
+---
+
+## Tests d'intégration Laravel avec `DurableLaravelTestTrait` {#tests-dintégration-laravel--durablelaraveltesttrait}
+
+Employez `DurableLaravelTestTrait` dans une classe de test qui étend le `TestCase` de Laravel
+(`Illuminate\Foundation\Testing\TestCase`, ou celui de Testbench), qui fournit `$this->app`. Le
+trait offre les mêmes quatre opérations que celui de Symfony, sur le backend que configure
+l'application. Déclarez le workflow dans la clé `workflows` de `config/durable.php`, comme en
+production.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Workflow\OrderWorkflow;
+use Gplanchat\Durable\Laravel\Testing\DurableLaravelTestTrait;
+use Tests\TestCase;
+
+final class OrderWorkflowTest extends TestCase
+{
+    use DurableLaravelTestTrait;
+
+    public function testOrderWorkflowCompletesSuccessfully(): void
+    {
+        $executionId = $this->dispatchWorkflow(OrderWorkflow::class, [
+            'orderId' => 'ORD-123',
+            'amount'  => 99.90,
+        ]);
+
+        $this->drainUntilSettled($executionId);
+
+        $this->assertWorkflowResultEquals($executionId, ['status' => 'charged', 'orderId' => 'ORD-123']);
+    }
+}
+```
+
+`drainUntilSettled()` dépend du backend. Sur `memory`, il exécute les runs que le processus a mis en
+file, comme `durable:drain`, et lève une `\RuntimeException` si le run est encore ouvert à la fin de
+la vidange, par exemple quand il attend un signal. Sur `illuminate`, il lance
+`queue:work --stop-when-empty` jusqu'à ce que le run se termine ou échoue, dans la limite de 30
+secondes. Un workflow qui échoue termine la vidange sans lever : vérifiez-le avec
+`assertWorkflowFailed()`.
+
+### Les helpers Symfony et Laravel côte à côte {#les-trois-hôtes-côte-à-côte}
+
+| Opération | Symfony (`DurableBundleTestTrait`) | Laravel (`DurableLaravelTestTrait`) |
+|---|---|---|
+| Démarrer | `dispatchWorkflow($class, $input, $executionId?)` | `dispatchWorkflow($class, $input, $executionId?)` |
+| Vidanger | `drainMessengerUntilSettled($executionId)` | `drainUntilSettled($executionId)` |
+| Lire le résultat | `assertWorkflowResultEquals($executionId, $expected)` | `assertWorkflowResultEquals($executionId, $expected)` |
+| Vérifier le journal | `assertWorkflowFailed($executionId, $class?)` | `assertWorkflowFailed($executionId, $class?)` |
+| Magasin d'événements | `getEventStoreService()` | `getEventStoreService()` |
+
+Le trait Symfony offre aussi `getDataCollector()`, pour le profileur. Magento n'a pas encore d'aide.
 
 ---
 
@@ -331,13 +390,14 @@ documente en tête :
 ```bash
 temporal operator search-attribute create --name DurableOrderId --type Keyword
 temporal operator search-attribute create --name DurableAmount  --type Int
+temporal operator search-attribute create --name DurablePrice   --type Double
 ```
 
 ---
 
 ## Les minuteurs tournent sur une horloge virtuelle en test {#time-is-skipped-not-waited-for}
 
-Un workflow qui dort s'exécute en quelques millisecondes sous test. Le harnais emploie une
+Dans les tests, un workflow qui dort s'exécute en quelques millisecondes. Le harnais emploie une
 **horloge virtuelle** et l'avance jusqu'au prochain minuteur échu : `sleep(Duration::hours(24))` ne
 prend donc aucun temps réel.
 
@@ -361,16 +421,11 @@ L'horloge n'avance que lorsque **rien d'autre ne peut progresser**. L'avancer pl
 gagner le minuteur à chaque course `any(activité, minuteur)` que l'activité était sur le point de
 gagner. Comme l'horloge attend, une course a ici la même issue qu'en production.
 
-Le recul entre réessais consomme du temps réel, parce qu'un réessai est mis en file sur le
-transport au lieu d'être enregistré comme un minuteur. Passez `initialInterval: Duration::zero()`
-pour garder ces tests rapides.
-
 ---
 
-## Exécutions bloquées et réessais sans fin dans le moteur en mémoire {#deux-pièges-du-moteur-en-mémoire}
+## Exécutions bloquées, réessais et chaînes sans fin dans le moteur en mémoire {#deux-pièges-du-moteur-en-mémoire}
 
-**Une exécution qui ne peut plus progresser échoue au lieu de se figer.** Un workflow qui attend un
-signal que le test ne livre jamais lève `WorkflowStuckException` au lieu de tourner à vide.
+**Une exécution bloquée échoue.** Un workflow qui attend un signal que le test ne livre jamais lève `WorkflowStuckException`.
 
 **Les tentatives sont illimitées par défaut.** Une activité qui échoue systématiquement réessaie
 indéfiniment : le moteur impose donc un budget global. Quand le budget est épuisé, il indique
@@ -389,9 +444,46 @@ $env = WorkflowTestEnvironment::inMemory(
 );
 ```
 
-Le recul entre réessais prend du temps réel : une activité configurée avec l'intervalle par défaut
+Le recul entre réessais prend du temps réel, parce qu'un réessai est mis en file sur le transport au
+lieu d'être enregistré comme un minuteur : une activité configurée avec l'intervalle par défaut
 d'une seconde fait donc attendre le test. Passez `initialInterval: Duration::zero()` pour garder
 les tests rapides.
+
+**Une chaîne de continue-as-new s'arrête après 10 continuations.** Une exécution qui appelle
+`continueAsNew()` referme son journal et passe la main à une exécution neuve (continue-as-new ; voir
+le [glossaire](../glossary/)). Le moteur en mémoire suit la chaîne et renvoie le résultat de la
+dernière exécution. Chaque exécution de la chaîne a son propre budget, qui n'arrête donc pas un
+workflow appelant `continueAsNew()` à chaque fois. Au-delà de 10 continuations, le moteur lève
+`ContinuationCapReachedException`, une `WorkflowStuckException`, où `x` est l'identifiant de
+l'exécution que vous avez démarrée :
+
+```
+Workflow x continued as new more often than maxContinuations (10) allows. Give the workflow a run
+that returns, or raise the runner's maxContinuations.
+```
+
+Pour tester une chaîne plus longue, relevez le plafond :
+
+```php
+$env = WorkflowTestEnvironment::inMemory(maxContinuations: 50);
+```
+
+Un workflow enfant exécuté dans le processus garde le plafond par défaut de 10, comme il garde le
+budget par défaut, quel que soit le plafond de l'environnement de son parent.
+
+Dans un `DurableTestCase`, `createWorkflowTestEnvironment()` et `createWorkflowRunner()` prennent
+les deux mêmes arguments, `budgetSeconds` et `maxContinuations`, et les transmettent au moteur :
+
+```php
+$env = $this->createWorkflowTestEnvironment(
+    ['charge' => $spy],
+    budgetSeconds: 3.0,
+    maxContinuations: 50,
+);
+```
+
+Sous Magento sans DSN Temporal, réglez
+l'argument `maxContinuations` de `RuntimeFactory` dans `di.xml`, comme pour `budgetSeconds`.
 
 ---
 

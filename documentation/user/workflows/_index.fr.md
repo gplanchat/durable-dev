@@ -48,7 +48,7 @@ final class OrderWorkflow
 }
 ```
 
-`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, **`async`**, les minuteurs, les workflows enfants, les signaux, et le reste. L'API complète figure dans la classe elle-même, dans le dépôt.
+`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, les minuteurs, les workflows enfants, les signaux, et le reste. L'API complète figure dans la classe elle-même, dans le dépôt.
 
 ### Attendre ou assembler {#waiting-versus-assembling}
 
@@ -81,8 +81,7 @@ $quotes = $env->await($env->some(3, ...$providers), deadline: Duration::seconds(
 ```
 
 `some()` ne compte que les membres qui **réussissent**. Un fournisseur qui échoue ne rapproche pas
-du quorum, et dès qu'il ne reste plus assez de membres pour l'atteindre, l'attente échoue ; elle ne
-reste pas en suspens indéfiniment. `all()` est le quorum complet : un seul membre en échec fait
+du quorum, et dès qu'il ne reste plus assez de membres pour l'atteindre, l'attente échoue. `all()` est le quorum complet : un seul membre en échec fait
 échouer tout l'assemblage. `any()` est une course : le premier membre à se résoudre gagne, même
 s'il se résout en échouant.
 
@@ -135,7 +134,7 @@ try {
 }
 ```
 
-Cet exemple attend une approbation et renonce au bout d'une heure, la forme canonique de la saga.
+Cet exemple attend une approbation et renonce au bout d'une heure.
 
 Pour décrire en mots **ce qu'une condition attend**, passez un `label`. Sur les backends qui
 enregistrent l'attente (en mémoire, DBAL, Illuminate, Temporal), la liste des exécutions affiche
@@ -152,7 +151,7 @@ l'échéance expire et que rien n'attrape l'exception, le libellé figure dans l
 garde le journal, écrit une seule fois. Le rejeu (la réexécution du code du workflow depuis sa
 première ligne, où chaque étape enregistrée renvoie son résultat) ne le compare jamais : vous pouvez
 ajouter, changer ou retirer un libellé sans risque. Un minuteur ou une activité se nomment déjà
-eux-mêmes : passer un libellé à `await()` avec l'un d'eux est une erreur.
+eux-mêmes : passer un libellé à `await()` avec l'un d'eux lève une `InvalidArgumentException`.
 
 #### Déclarer le gestionnaire et l'attente comme des méthodes {#le-gestionnaire-est-une-méthode-lattente-aussi}
 
@@ -230,7 +229,7 @@ non-déterminisme. Servez-vous de `sideEffect()` à la place.
 
 Une condition qui ne peut jamais tenir, parce que rien de ce qui est en attente ne peut changer
 l'état qu'elle lit, est signalée comme une exécution qui ne peut plus avancer, avec la condition
-nommée par son fichier et sa ligne. L'exécution ne tourne pas à vide.
+nommée par son fichier et sa ligne.
 
 La branche perdante, quelle qu'elle soit, est annulée. Une échéance qui s'écoule annule le travail
 qu'elle bornait, et un travail qui se résout annule l'échéance, si bien qu'aucun minuteur mort ne
@@ -288,7 +287,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Chaque option omise garde sa valeur par défaut
   d'`ActivityOptions` ; sans aucune, le stub est celui qu'`activityStub()` construit sans options. Sous Temporal, un stub
-  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative.
+  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative. `heartbeat`
+  exige Temporal : un backend à journal lève `UnsupportedByBackendException` quand le stub planifie
+  une activité avec cette option (voir [Options et objets valeur](../options/)).
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
   bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
   contrat introuvable, un contrat qui ne déclare aucun `#[AsActivityMethod]`, ou une option
@@ -407,6 +408,8 @@ Quand vous enregistrez une classe de workflow, le moteur l'indexe sous **deux** 
   - **`#[AsSignalMethod]`** porte une entrée externe qui met à jour l'état du workflow de façon déterministe ;
   - **`#[AsQueryMethod]`** donne une vue en lecture seule de l'état (aucun effet de bord durable depuis le gestionnaire) ;
   - **`#[AsUpdateMethod]`** porte des mises à jour validées, avec sémantique de réponse quand elle est prise en charge.
+    Sur Temporal, les mises à jour demandent un serveur 1.21 ou plus récent, et un réglage du
+    serveur avant la 1.25 : voir les [prérequis de Temporal](../backends/#prérequis) sur la page Backends.
 
 Paramètres et types de retour doivent être **sérialisables** (voir l'ADR de sérialisation **DUR007**).
 
@@ -423,15 +426,18 @@ opérations que le moteur garde pour lui n'y figurent pas.
 | `any(...$awaitables)` | Se résout au premier membre qui se résout ; les perdants sont annulés. |
 | `some($count, ...$awaitables)` | Se résout quand `$count` membres ont **réussi**, indexés par position de déclaration. Les autres sont annulés. |
 | `timer($duration, $summary = '')` | Un awaitable qui se résout à l'échéance de la durée. Se compose comme n'importe quel autre. |
-| `sleep($duration, $summary = '')` | Attend, et fait l'attente pour vous, comme son nom l'indique. |
+| `sleep($duration, $summary = '')` | Attend la durée, comme `await(timer($duration, $summary))`. |
 | `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur, ou déclarez-le en [argument `#[Activities]`](#arguments-durable-supplies), options comprises ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
+| `nexusStub($contract, $endpoint, $timeouts = null)` | Un proxy typé sur un contrat Nexus servi à `$endpoint`. Ses appels renvoient des awaitables. Voir [Opérations Nexus](../nexus/#appeler-une-opération). |
+| `nexusOperation($endpoint, $service, $operation, $payload = [], $timeouts = null)` | Appelle une opération Nexus par les noms de son endpoint, de son service et de l'opération, et renvoie un awaitable. Lève `NexusUnsupportedByBackendException` sur un backend qui ne peut pas acheminer l'appel. |
 | `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe donne une erreur de type au lieu d'une attente qui ne se résout jamais. |
 | `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
 | `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Indique si un gestionnaire est enregistré sous ce nom, pour le code qui n'en enregistre un qu'une fois. |
 | `sideEffect($closure)` | Exécute une fois un travail local non déterministe et en journalise le résultat, pour que le rejeu le reproduise. |
+| `version($changeId, $minSupported, $maxSupported)` | Déclare un point de changement et renvoie la version que suit cette exécution, entre `$minSupported` et `$maxSupported`. La réponse est fixée à la première rencontre, puis relue dans le journal. Voir [Modifier un workflow déjà en cours d'exécution](../deploying/#ou-déclarer-un-point-de-changement). |
 | `continueAsNew($type, $payload = [], $options = null)` | Termine cette exécution et démarre la suivante avec un historique neuf. |
-| `executionId()` | L'identifiant de cette exécution. |
+| `executionId()` | L'identifiant de cette exécution, un `ExecutionId`. Appelez `toString()` pour le mettre dans une charge utile ou un contexte de log : en JSON, l'objet devient `{}`. |
 
 Les activités ne sont joignables **qu'**à travers un stub. Cette surface n'offre aucun moyen d'en
 désigner une par une chaîne, avec une charge utile libre. Une faute de frappe y produirait une
@@ -446,8 +452,8 @@ l'attribut, qu'un lecteur voit sans rien exécuter.
 
 **Les requêtes n'ont pas de forme impérative.** Elles sont lues par le worker, hors de la fibre du
 workflow : leurs gestionnaires vivent côté moteur et `#[AsQueryMethod]` est le seul moyen d'en
-déclarer un. Un workflow en forme de fermeture ne peut pas répondre à une requête. Un workflow qui
-doit y répondre doit être une classe.
+déclarer un. Un workflow en forme de fermeture ne peut pas répondre à une requête. Pour répondre à une
+requête, un workflow doit être une classe.
 
 `WorkflowEnvironment::wrap($context, $runtime)` construit un environnement sur un `ExecutionContext`
 sans les résolveurs de contrats. Servez-vous-en dans un exécuteur ou un harnais de test à vous. Le
@@ -468,7 +474,7 @@ Vous n'instanciez jamais d'implémentation d'activité dans le corps du workflow
 
 ## `finally` s'exécute à chaque passe qui se suspend
 
-Durable ne garde pas en mémoire un workflow qui attend, d'une passe à l'autre. Chaque passe le
+D'une passe à l'autre, Durable ne garde pas en mémoire un workflow qui attend. Chaque passe le
 rejoue jusqu'à la prochaine attente, puis l'abandonne, et PHP exécute ses blocs `finally` à ce
 moment-là.
 Les SDK Java et Go de Temporal font de même quand ils évincent un workflow de leur cache.
@@ -492,7 +498,7 @@ try {
   le `finally` s'exécute normalement, et le travail qu'il lance est enregistré.
 
 Placez un nettoyage qui doit avoir lieu une seule fois dans un `catch`, ou après le `try`, là où le
-workflow n'arrive que lorsqu'il y arrive vraiment. Une compensation s'écrit ainsi ; voyez
+workflow n'arrive que lorsqu'il y arrive vraiment. Une compensation s'écrit ainsi ; voir
 [Annulation](../cancellation/).
 
 ## Voir aussi

@@ -44,7 +44,7 @@ final class ASignalIsJournalledWithItsRequestIdTest extends TestCase
         $journal = new InMemoryEventStore();
         $journal->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-1'), 'approve', [], 'req-1'));
 
-        self::assertTrue(AwaitedFact::signal('req-1')->isJournalledIn($journal, 'exec-1'));
-        self::assertFalse(AwaitedFact::signal('req-2')->isJournalledIn($journal, 'exec-1'));
+        self::assertTrue(AwaitedFact::signal('req-1')->isJournalledIn($journal, ExecutionId::fromString('exec-1')));
+        self::assertFalse(AwaitedFact::signal('req-2')->isJournalledIn($journal, ExecutionId::fromString('exec-1')));
     }
 }

@@ -51,7 +51,7 @@ final class OrderActivitiesHandler implements OrderActivities
 }
 ```
 
-Register **`OrderActivitiesHandler`** with your activity worker or your container, so that the worker, the process that runs activities, can execute **`charge-order`** when the workflow schedules it.
+Register **`OrderActivitiesHandler`** with your container or your activity worker (the process that runs activities), so the worker can execute **`charge-order`** when the workflow schedules it.
 
 ## Example: calling an activity from a workflow
 
@@ -84,6 +84,9 @@ public function run(
 
 Some workflows build the stub themselves with `$env->activityStub(OrderActivities::class)`: see
 [When to build the stub yourself](../workflows/#when-to-build-the-stub-yourself).
+[`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) reports a built stub
+that could be an `#[Activities]` parameter, with the attribute to write, under the identifier
+`durable.activityStubCouldBeParameter`.
 
 The **`ActivityStub`** type resolves method names by reflection on **`OrderActivities`** and builds the **`#[AsActivityMethod]`** payloads. [Creating a workflow](../workflows/) explains the **ActivityInvoker** name.
 
@@ -248,7 +251,7 @@ On **`WorkflowEnvironment`** (see [Creating a workflow](../workflows/)), call **
 A stub that needs no **`ActivityOptions`** can also be declared as an argument of the workflow method: a parameter typed **`ActivityStub`** and marked **`#[Activities(YourActivityInterface::class)]`** receives the same stub. See [Arguments Durable supplies](../workflows/#arguments-durable-supplies).
 
 - For each **`#[AsActivityMethod]`** on the interface, the stub exposes the **same method name and parameters**; each call returns an **`Awaitable`** you pass to **`$environment->await(...)`** (the synchronous return type **`T`** on the interface is what you get after **`await`**).
-- The invoker **does not** run I/O inside the workflow process. It **schedules** a durable step and ties its result to the history and to replay.
+- The invoker **does not** run I/O inside the workflow process. It **schedules** a durable step and ties its result to the history and to replay (the re-execution of the workflow method from its first line, where recorded steps return their result).
 
 This separation keeps the workflow code deterministic, while the activities do the non-deterministic work.
 

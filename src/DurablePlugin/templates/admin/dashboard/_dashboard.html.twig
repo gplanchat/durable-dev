@@ -21,7 +21,7 @@
         .durable-events li { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .5rem .65rem; background: var(--tblr-bg-surface); }
         .durable-frieze { margin-bottom: 1.25rem; }
         .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
-        .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: .82rem; line-height: 1.2; overflow-wrap: anywhere; }
         .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; background: var(--tblr-bg-surface-secondary); border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); }
         /* One `min-width` for both, and that is what holds the rule: four milliseconds of queue
            must not draw wider than six milliseconds of work. A minimum applied to both makes them
@@ -78,12 +78,13 @@
                 </div>
 
                 {# A missing worker fails nothing: executions stop at their first task of its kind.
-                   Named by its `durable:worker` role, and blamed only when the backend answered. #}
+                   Named by its `durable:worker` role, and blamed only when the backend answered.
+                   An unlisted row comes from a backend that keeps no list of its workers. #}
                 {% for worker in workers|default([]) %}
                     {% if worker.polling %}
                         <div class="alert alert-success" role="status">{{ 'dashboard.worker_polling'|trans({'%role%': worker.role}, 'durable') }}</div>
-                    {% elseif worker.error is not null %}
-                        <div class="alert alert-warning" role="status">{{ 'dashboard.worker_unknown'|trans({'%role%': worker.role, '%error%': worker.error}, 'durable') }}</div>
+                    {% elseif worker.error is not null or worker.unlisted|default(false) %}
+                        <div class="alert alert-warning" role="status">{{ 'dashboard.worker_unknown'|trans({'%role%': worker.role, '%error%': worker.error ?? 'dashboard.workers_unlisted'|trans({}, 'durable')}, 'durable') }}</div>
                     {% else %}
                         <div class="alert alert-danger" role="alert">{{ 'dashboard.worker_missing'|trans({'%role%': worker.role, '%seconds%': worker.seconds}, 'durable') }}</div>
                     {% endif %}
@@ -176,9 +177,9 @@
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
                                                     {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
-                                                    {% if run.waitingForWorker is defined %}<span class="text-orange">{{ run.waitingForWorker }}</span>{% endif %}
+                                                    {% if run.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ run.waitingForWorker }}</span>{% endif %}
                                                     {# What a suspended run last waited on, worded by the core (#324). #}
-                                                    {% if run.waitingOn is defined %}<span class="text-secondary">{{ run.waitingOn }}</span>{% endif %}
+                                                    {% if run.waitingOn is defined %}<span class="text-secondary-emphasis">{{ run.waitingOn }}</span>{% endif %}
                                                 </div>
                                             </a>
                                         {% endfor %}

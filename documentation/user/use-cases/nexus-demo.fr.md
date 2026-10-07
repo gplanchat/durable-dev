@@ -94,22 +94,22 @@ une machine à états qui tient l'attente.
 
 ## Ce qu'il n'apporte pas
 
-**La compensation n'est pas fournie.** Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. La
+**Durable ne fournit pas la compensation.** Aucun des trois contrats n'a d'opération qui rende ce qu'il a pris. La
 seule protection est **l'ordre des appels** : `OrderNexusWorkflow` demande d'abord tout ce qui
 peut dire non (vérifier la facture, planifier la tournée, retenir le stock) et n'engage
 qu'ensuite. Les deux ordres inverses ont été écrits d'abord et mesurés : une commande en USD
 retenait le stock avant de se faire refuser la facture, et une commande de six colis était
 **encaissée** avant que la logistique ne refuse de la porter.
 
-**L'idempotence n'est pas fournie.** Une tâche Nexus est redélivrée, et le gestionnaire doit le supporter. Celui
+**Durable ne fournit pas l'idempotence.** Une tâche Nexus est redélivrée, et le gestionnaire doit le supporter. Celui
 de `stock` écrit son verdict dans `app_durable_stock_reservation`, clé par identifiant de commande :
 rejouer la même commande rend le même verdict et ne retient pas de stock une seconde fois. Cette
-table est écrite à la main ; Durable ne la fournit pas.
+table est écrite à la main.
 
-**La couche anticorruption n'est pas fournie.** Vous l'écrivez vous-même, et la boutique en a désormais une.
-`OrderWorkflow` invoque un cas d'usage `PlaceOrder` à travers un port `Payments`, et
-`NexusPayments` est la seule classe de `sylius/` qui lise le champ `accepted`
-d'une charge. Les trois bancs qui appellent sans cette couche montrent ce que coûte de s'en passer : `OrderNexusWorkflow`
+**Durable ne fournit pas de couche anticorruption.** Vous l'écrivez vous-même, et la boutique en a désormais une.
+`OrderWorkflow` invoque un cas d'usage `PlaceOrder` à travers un port `Payments`. `NexusPayments`
+implémente le port et passe la charge de `verify` à `Authorisation::fromWire()`, la seule méthode
+de `sylius/src/` qui lise son champ `accepted`. Les trois bancs qui appellent sans cette couche montrent ce que coûte de s'en passer : `OrderNexusWorkflow`
 lit cinq charges par clé, dans le code qui décide. Les contrats portent des scalaires et des
 tableaux parce que le fil est du JSON nu, et il faut que quelque chose en fasse un modèle.
 

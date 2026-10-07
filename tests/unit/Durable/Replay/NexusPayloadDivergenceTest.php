@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Replay;
 
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -58,6 +59,6 @@ final class NexusPayloadDivergenceTest extends TestCase
         $history->method('findScheduledNexusOperation')->willReturn('op-1');
         $history->method('findNexusOperationSlotResult')->willReturn(new SlotOutcome('done'));
 
-        return new ExecutionContext('exec-nexus', $history, $this->createStub(WorkflowCommandBufferInterface::class));
+        return new ExecutionContext(ExecutionId::fromString('exec-nexus'), $history, $this->createStub(WorkflowCommandBufferInterface::class));
     }
 }

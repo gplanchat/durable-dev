@@ -5,9 +5,8 @@ weight: 27
 
 # Annulation
 
-Une exécution est un déroulement durable d'un workflow, et son journal est l'historique, en ajout
-seul, de ce qu'elle a décidé et reçu (voir le [glossaire](../glossary/)). Quand vous annulez une
-exécution, Durable ne la tue pas. L'annulation est **levée à l'intérieur du workflow, à l'endroit
+Quand vous annulez une exécution (un déroulement durable d'un workflow ; voir le
+[glossaire](../glossary/)), Durable ne la tue pas. L'annulation est **levée à l'intérieur du workflow, à l'endroit
 où il attend**, pour qu'il puisse compenser avant de se terminer. C'est l'équivalent du
 `CanceledFailure` de Temporal.
 
@@ -60,8 +59,8 @@ final class CheckoutWorkflow
 
 `Saga` enregistre une compensation par étape terminée et, à l'appel de `compensate()`, les exécute
 dans l'ordre inverse. Chaque compensation fait son propre `await()`, si bien qu'elle se termine avant
-que la suivante ne commence. Une compensation qui renvoie un `Awaitable` à la place fait lever une
-`LogicException` à `compensate()`. Une étape qui ne s'est jamais terminée n'a rien à défaire,
+que la suivante ne commence. Si une compensation renvoie un `Awaitable` à la place, `compensate()` lève une
+`LogicException`. Une étape qui ne s'est jamais terminée n'a rien à défaire,
 puisque sa compensation n'a jamais été ajoutée. La première compensation qui lève une exception
 arrête la série, et son exception remplace celle en cours de compensation.
 
@@ -85,9 +84,9 @@ L'annulation est levée **une fois par exécution**. Si elle était levée de no
 dont se sert la compensation seraient annulées à leur tour, et la compensation n'aurait jamais lieu.
 
 Le rejeu (la réexécution du code du workflow depuis sa première ligne, où chaque étape enregistrée
-renvoie son résultat) reste déterministe parce que le dénouement figure dans le journal ; Durable
-n'écrit aucun marqueur à part. L'opération en attente est annulée avec la raison `workflow_cancelled`, et au rejeu ce dénouement
-enregistré rejette le même awaitable au même endroit. Le workflow prend donc la même branche à
+renvoie son résultat) reste déterministe parce que le dénouement figure dans le journal (l'historique, en ajout seul, de ce que l'exécution
+a décidé et reçu), sans marqueur à part. L'opération en attente est annulée avec la raison
+`workflow_cancelled`, et au rejeu ce dénouement enregistré rejette le même awaitable au même endroit. Le workflow prend donc la même branche à
 chaque rejeu.
 
 ---
@@ -99,6 +98,18 @@ chaque rejeu.
 - **De l'extérieur, sur Temporal.** Lancez `temporal workflow cancel`, ou appelez
   `RequestCancelWorkflowExecution` depuis n'importe quel client. Le serveur enregistre la demande et
   replanifie une tâche de workflow, que le worker traite ensuite.
+- **Depuis votre application, sur Temporal.** Appelez `WorkflowClient::cancel($workflowId)` pour
+  demander l'annulation, ou `WorkflowClient::terminate($workflowId, $reason)` pour terminer
+  l'exécution aussitôt, sans exécuter une ligne de plus du workflow. Les deux prennent l'identifiant
+  que renvoie `WorkflowClient::workflowId()`. Sur une exécution terminée, ou qui n'existe pas, le
+  serveur répond NotFound et les deux méthodes lèvent une `\RuntimeException` de code 5, qui nomme
+  l'identifiant et garde l'échec du serveur comme exception précédente. Rien n'est modifié. Terminer
+  deux fois une exécution lève donc une exception au second appel. Ces méthodes n'existent que sur
+  Temporal. Les backends à journal (InMemory, DBAL, Illuminate, Magento) ne les ont pas encore.
+- **De l'extérieur, sur les autres backends.** L'application n'a aucun point d'entrée pour demander
+  une annulation en mémoire, sur DBAL, sur Illuminate ou sur Magento ; la
+  [matrice de capacités](../backends/#capability-matrix) classe la ligne comme non prise en charge
+  sur les trois premiers et « pas encore » pour la colonne Magento Database.
 
 ---
 

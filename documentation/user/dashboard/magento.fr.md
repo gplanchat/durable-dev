@@ -7,7 +7,21 @@ weight: 20
 
 Pour suivre les workflows d'une boutique depuis l'administration Magento, installez
 `gplanchat/durable-magento` ([Paquets](../../packages/)) et ouvrez **System > Durable processes >
-Process history**. La page est en lecture seule et en anglais.
+Process history** (**Exécutions Durable > Historique des exécutions** pour un compte
+d'administration en français). La page est en lecture seule. Elle s'affiche en anglais ou en
+français, selon la langue de l'interface (**Interface Locale**) du compte d'administration. Les textes que compose le
+cœur, comme les libellés d'événements et les valeurs `waiting on …`, restent en anglais, comme sous
+Sylius et Filament.
+
+## Captures d'écran
+
+![La grille de l'historique des processus Magento : état du backend, présence des workers, compteurs par issue et liste des exécutions](/images/dashboard/magento-history.png)
+
+*System > Durable processes > Process history, sur huit exécutions du banc : quatre terminées, deux en échec et deux en cours, dont une suspendue sur un minuteur.*
+
+![La page d'une exécution terminée sous Magento, avec sa frise History](/images/dashboard/magento-run.png)
+
+*La page d'order/4244 : l'exécution, l'exécution côté backend et l'issue, puis une frise History où `durable.demo.charge` est hachuré pendant les 30 secondes d'attente d'un worker.*
 
 ## Donner l'accès à un rôle
 
@@ -22,9 +36,9 @@ processes > Process history** dans les ressources du rôle.
   filtres de la grille.
 - **La grille standard de l'administration** : pagination (20 par défaut), contrôle des colonnes,
   et filtres sur l'issue, le nom du workflow, l'identifiant d'exécution et l'identifiant d'exécution
-  côté backend. Les filtres texte cherchent le texte n'importe où dans la valeur, parmi les exécutions de la fenêtre. Le filtre sur le nom du workflow ignore la casse ; les deux filtres sur les identifiants respectent le texte tel que saisi. Un avis indique la fenêtre quand elle est pleine.
+  côté backend. Les filtres texte suivent la règle des autres surfaces, parmi les exécutions de la fenêtre : le nom entier du workflow, le début de l'identifiant d'exécution et de l'identifiant de run côté backend, le tout tel que saisi. Un avis indique la fenêtre quand elle est pleine.
 - **Une page d'exécution**, ouverte depuis une ligne : l'exécution, son exécution côté backend,
-  l'issue, les dates de démarrage et de fin, ce qu'elle attend, ses opérations Nexus, une frise **History** et un tableau **Journal** avec une ligne par événement (nature, phase, action, ce qui s'est passé). Voir
+  l'issue, les dates de démarrage et de fin, ce qu'elle attend, ses opérations Nexus, une frise **History** et un tableau **Journal** avec une ligne par événement (type, phase, action, ce qui s'est passé). Voir
   [Lire une exécution](../reading-a-run/).
 
 ## Ce qu'elle ne montre pas

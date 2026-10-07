@@ -236,7 +236,7 @@ final class NexusOperationRoundTripTest extends TestCase
         $poll->setIdentity($this->connection->identity);
         $task = $this->client->PollWorkflowTaskQueue($poll, [], ['timeout' => 30_000_000]);
 
-        $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer($this->connection, ExecutionId::fromString('exec-1'));
         $buffer->scheduleNexusOperation(
             'op-' . bin2hex(random_bytes(4)),
             NexusEndpoint::named($this->endpointName),

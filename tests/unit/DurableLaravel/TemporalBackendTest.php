@@ -15,6 +15,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalActivityWorker;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
@@ -169,6 +170,18 @@ final class TemporalBackendTest extends TestCase
         (new DurableServiceProvider($app))->register();
 
         self::assertInstanceOf(InMemoryWorkflowMetadataStore::class, $app->make(WorkflowMetadataStore::class));
+    }
+
+    public function testTheClientIsBoundByItsInterfaceAndTheStringIdIsItsAlias(): void
+    {
+        // #879: durable-filament resolves the client by class; the string id stays for compatibility.
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);
+        (new DurableServiceProvider($app))->register();
+
+        $client = $app->make(WorkflowServiceClientInterface::class);
+        self::assertSame($client, $app->make('durable.temporal.client'));
+        $assembly = $app->make(TemporalRuntimeAssembly::class);
+        self::assertSame($client, (new \ReflectionProperty($assembly, 'client'))->getValue($assembly));
     }
 
     public function testTheDsnIsRequiredAndSaysWhat(): void

@@ -12,14 +12,24 @@ use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\Nexus\Serving\NexusHandlerErrorType;
+use Psr\Log\LoggerInterface;
 use Temporal\Api\Common\V1\Payload;
 use Temporal\Api\Enums\V1\ActivityTaskFailedCause;
+use Temporal\Api\Enums\V1\NexusHandlerErrorRetryBehavior;
 use Temporal\Api\Enums\V1\WorkflowTaskFailedCause;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
+use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\Nexus\V1\Failure as NexusFailure;
+use Temporal\Api\Nexus\V1\HandlerError;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
+use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
+use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedRequest;
 
 /**
@@ -45,9 +55,13 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
     /** @var array<class-string<Message>, list<array{string, string}>> */
     private static array $payloadFields = [];
 
+    /** The history event the decode walk is in, kept when a payload of it fails (#936). */
+    private ?int $eventId = null;
+
     public function __construct(
         private readonly WorkflowServiceClientInterface $inner,
         private readonly PayloadCodecInterface $codec,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -69,11 +83,13 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
         $response = $this->inner->{$rpc}($copy, $metadata, $options);
         \assert($response instanceof $responseClass);
 
+        $this->eventId = null;
+
         try {
             $this->walk($response, $this->codec->decode(...));
         } catch (\Throwable $e) {
             if (!$this->failTask($copy, $response, $e)) {
-                throw $e;
+                throw new PayloadDecodeFailure(sprintf('Payload decode failed: %s', $e->getMessage()), 0, $e, $this->eventId);
             }
 
             // An empty poll, as after a long poll that found nothing: every worker loop polls again.
@@ -90,6 +106,10 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
      *
      * The failure carries the error's class and message, never its stack trace: the trace quotes
      * arguments, and those of a decrypt call are the key or the plaintext this server must not see.
+     * The worker's own log gets the error itself, trace included, and the event id (#936).
+     *
+     * A Nexus task gets a retryable INTERNAL handler error (#824): the server delivers it again, and
+     * a worker redeployed with the right codec or key serves it.
      *
      * @return bool false when the call is not a task poll, whose caller gets the error instead
      */
@@ -102,20 +122,42 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
             // A server older than this field ignores it, as proto3 does with any unknown field.
             $failed = new RespondActivityTaskFailedRequest(['cause' => ActivityTaskFailedCause::ACTIVITY_TASK_FAILED_CAUSE_ACTIVITY_WORKER_UNHANDLED_FAILURE]);
             $rpc = 'RespondActivityTaskFailed';
+        } elseif ($request instanceof PollNexusTaskQueueRequest) {
+            $failed = new RespondNexusTaskFailedRequest(['error' => new HandlerError([
+                'error_type' => NexusHandlerErrorType::Internal->value,
+                'retry_behavior' => NexusHandlerErrorRetryBehavior::NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE,
+                'failure' => new NexusFailure(['message' => sprintf('Payload decode failed: %s', $error->getMessage())]),
+            ])]);
+            $rpc = 'RespondNexusTaskFailed';
         } else {
             return false;
         }
         \assert(method_exists($response, 'getTaskToken'));
+        $this->logger?->error('A task payload cannot be decoded; the worker answers the task as failed.', [
+            'exception' => $error,
+            'event_id' => $this->eventId,
+            'rpc' => $rpc,
+            // What identifies the task, from the poll response: none of it is sensitive (#939).
+            ...match (true) {
+                $response instanceof PollWorkflowTaskQueueResponse => [
+                    'workflow_id' => $response->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $response->getWorkflowExecution()?->getRunId(),
+                ],
+                $response instanceof PollActivityTaskQueueResponse => ['activity_id' => $response->getActivityId()],
+                default => [],
+            },
+        ]);
 
-        $failure = new Failure();
-        $failure->setMessage(sprintf('Payload decode failed: %s', $error->getMessage()));
-        $failure->setSource('DurablePayloadCodec');
-        $failure->setApplicationFailureInfo(new ApplicationFailureInfo(['type' => $error::class]));
-
+        if (!$failed instanceof RespondNexusTaskFailedRequest) {
+            $failure = new Failure();
+            $failure->setMessage(sprintf('Payload decode failed: %s', $error->getMessage()));
+            $failure->setSource('DurablePayloadCodec');
+            $failure->setApplicationFailureInfo(new ApplicationFailureInfo(['type' => $error::class]));
+            $failed->setFailure($failure);
+        }
         $failed->setNamespace($request->getNamespace());
         $failed->setIdentity($request->getIdentity());
         $failed->setTaskToken($response->getTaskToken());
-        $failed->setFailure($failure);
 
         try {
             $this->inner->{$rpc}($failed, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
@@ -142,6 +184,9 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
 
             return;
         }
+        if ($message instanceof HistoryEvent) {
+            $this->eventId = (int) $message->getEventId();
+        }
         foreach (self::payloadFieldsOf($message::class) as [$getter, $setter]) {
             $value = $message->{$getter}();
             if ($value instanceof Payload) {
@@ -158,6 +203,10 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
                     }
                 }
             }
+        }
+        if ($message instanceof HistoryEvent) {
+            // Read whole: a later failure, outside the history, is not this event's.
+            $this->eventId = null;
         }
     }
 

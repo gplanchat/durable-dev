@@ -17,6 +17,7 @@ use Temporal\Api\Enums\V1\EventType;
  *
  *     temporal operator search-attribute create --name DurableOrderId --type Keyword
  *     temporal operator search-attribute create --name DurableAmount  --type Int
+ *     temporal operator search-attribute create --name DurablePrice   --type Double
  */
 final class SearchAttributesTest extends TemporalServerTestCase
 {
@@ -35,6 +36,28 @@ final class SearchAttributesTest extends TemporalServerTestCase
         self::assertTrue($fields->offsetExists('DurableOrderId'));
         self::assertSame('ORD-4242', JsonPlainPayload::decode($fields->offsetGet('DurableOrderId')));
         self::assertSame(4242, JsonPlainPayload::decode($fields->offsetGet('DurableAmount')));
+    }
+
+    public function testAWholeValuedDoubleComesBackAsAFloat(): void
+    {
+        // Encoded as `30` rather than `30.0`, a Double attribute reads back as the int 30 (#826).
+        $executionId = $this->startWorkflow('Plain', ['value' => 1], new WorkflowStartOptions(
+            searchAttributes: SearchAttributes::none()->double('DurablePrice', 30.0),
+        ));
+
+        $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+
+        $execution = new \Temporal\Api\Common\V1\WorkflowExecution();
+        $execution->setWorkflowId($this->workflowId($executionId));
+        $req = new \Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest();
+        $req->setNamespace($this->connection->namespace->name());
+        $req->setExecution($execution);
+        $fields = $this->client->DescribeWorkflowExecution($req, [], ['timeout' => 10_000_000])
+            ->getWorkflowExecutionInfo()?->getSearchAttributes()?->getIndexedFields();
+
+        self::assertNotNull($fields);
+        self::assertTrue($fields->offsetExists('DurablePrice'));
+        self::assertSame(30.0, JsonPlainPayload::decode($fields->offsetGet('DurablePrice')));
     }
 
     public function testTheWorkflowBecomesFindableByItsAttributes(): void

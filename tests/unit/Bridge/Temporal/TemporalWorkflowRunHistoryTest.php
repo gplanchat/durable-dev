@@ -25,9 +25,11 @@ use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\StartChildWorkflowExecutionInitiatedEventAttributes;
 use Temporal\Api\History\V1\TimerStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
+use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionUpdateAcceptedEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionUpdateCompletedEventAttributes;
 use Temporal\Api\Update\V1\Input;
+use Temporal\Api\Update\V1\Meta;
 use Temporal\Api\Update\V1\Request;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 
@@ -51,6 +53,18 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
 
         self::assertSame(WorkflowRunEventKind::Activity, $history[0]->kind);
         self::assertSame('SendWelcomeEmail', $history[0]->label);
+    }
+
+    public function testTheEndOfTheRunCarriesTheWorkflowTypeLikeItsStartDoes(): void
+    {
+        // #850: on the house journal the events of the run's own line carry the workflow's name;
+        // the same run on Temporal says the same, where it used to say WORKFLOW EXECUTION FAILED.
+        $started = $this->event(1, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+        $started->setWorkflowExecutionStartedEventAttributes((new WorkflowExecutionStartedEventAttributes())->setWorkflowType((new WorkflowType())->setName('App\\OrderWorkflow')));
+
+        $history = $this->readHistory($started, $this->event(9, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED));
+
+        self::assertSame(['App\\OrderWorkflow', 'App\\OrderWorkflow'], [$history[0]->label, $history[1]->label]);
     }
 
     public function testASignalDoesNotLandOnTheExecutionLane(): void
@@ -200,12 +214,29 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         self::assertNotSame($history[0]->actionKey, $history[1]->actionKey);
     }
 
-    private function updateAccepted(int $eventId, string $updateName): HistoryEvent
+    public function testAnUpdateCompletionWithoutAcceptedEventIdJoinsItsUpdateById(): void
+    {
+        // #860: a server that leaves `accepted_event_id` at 0 still echoes the update id in the
+        // completion's `meta`. The id comes first, as in TemporalExecutionHistory (#856); the two
+        // completions arrive in the reverse order of the acceptances.
+        $history = $this->readHistory(
+            $this->updateAccepted(42, 'orderUpdate', 'upd-order'),
+            $this->updateAccepted(44, 'billingUpdate', 'upd-billing'),
+            $this->updateCompleted(45, 0, 'upd-billing'),
+            $this->updateCompleted(46, 0, 'upd-order'),
+        );
+
+        self::assertSame($history[1]->actionKey, $history[2]->actionKey);
+        self::assertSame($history[0]->actionKey, $history[3]->actionKey);
+    }
+
+    private function updateAccepted(int $eventId, string $updateName, string $updateId = ''): HistoryEvent
     {
         $input = new Input();
         $input->setName($updateName);
         $request = new Request();
         $request->setInput($input);
+        $request->setMeta(new Meta(['update_id' => $updateId]));
 
         $attributes = new WorkflowExecutionUpdateAcceptedEventAttributes();
         $attributes->setProtocolInstanceId('pid-' . $eventId);
@@ -217,10 +248,11 @@ final class TemporalWorkflowRunHistoryTest extends TestCase
         return $event;
     }
 
-    private function updateCompleted(int $eventId, int $acceptedEventId): HistoryEvent
+    private function updateCompleted(int $eventId, int $acceptedEventId, string $updateId = ''): HistoryEvent
     {
         $attributes = new WorkflowExecutionUpdateCompletedEventAttributes();
         $attributes->setAcceptedEventId($acceptedEventId);
+        $attributes->setMeta(new Meta(['update_id' => $updateId]));
 
         $event = $this->event($eventId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED);
         $event->setWorkflowExecutionUpdateCompletedEventAttributes($attributes);

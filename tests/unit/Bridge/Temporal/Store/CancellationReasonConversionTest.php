@@ -38,7 +38,7 @@ final class CancellationReasonConversionTest extends TestCase
 {
     public function testACancelledActivityWithoutTheMarkerLostARace(): void
     {
-        $converter = new TemporalEventConverter('exec-1');
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
         $converter->convert(self::activityScheduled(5, 'act-1'));
 
         $cancelled = $converter->convert(self::activityCanceled(9, 5));
@@ -49,7 +49,7 @@ final class CancellationReasonConversionTest extends TestCase
 
     public function testACancelledActivityTheMarkerTargetsWasCancelledWithTheWorkflow(): void
     {
-        $converter = new TemporalEventConverter('exec-1');
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
         $converter->convert(self::activityScheduled(5, 'act-1'));
         $converter->convert(self::activityScheduled(6, 'act-2'));
         $converter->convert(self::cancellationDelivered(8, ['act-1']));
@@ -65,7 +65,7 @@ final class CancellationReasonConversionTest extends TestCase
 
     public function testACancelledTimerFollowsTheSameRule(): void
     {
-        $converter = new TemporalEventConverter('exec-1');
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
         $converter->convert(self::timerStarted(5, 'timer-1'));
         $converter->convert(self::timerStarted(6, 'timer-2'));
         $converter->convert(self::cancellationDelivered(8, ['timer-1']));
@@ -130,7 +130,7 @@ final class CancellationReasonConversionTest extends TestCase
 
         $this->expectException(\TypeError::class);
         /** @psalm-suppress InvalidArgument — the wrong type is the point of the test */
-        TemporalEventConverter::forHistory('exec-1', $history); // @phpstan-ignore argument.type
+        TemporalEventConverter::forHistory(ExecutionId::fromString('exec-1'), $history); // @phpstan-ignore argument.type
     }
 
     private static function activityScheduled(int $eventId, string $activityId): HistoryEvent

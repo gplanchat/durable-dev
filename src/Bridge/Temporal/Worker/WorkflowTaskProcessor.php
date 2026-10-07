@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Worker;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Codec\PayloadDecodeFailure;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
+use Psr\Log\LoggerInterface;
 use Temporal\Api\Enums\V1\QueryResultType;
+use Temporal\Api\Enums\V1\WorkflowTaskFailedCause;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Query\V1\WorkflowQueryResult;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
@@ -31,6 +34,7 @@ final readonly class WorkflowTaskProcessor
         private readonly WorkflowServiceClientInterface $client,
         private readonly TemporalConnection $settings,
         private readonly WorkflowTaskRunner $runner,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -47,7 +51,18 @@ final readonly class WorkflowTaskProcessor
 
         try {
             $result = $this->runner->run($poll);
-        } catch (WorkflowTaskFailure $e) {
+        } catch (WorkflowTaskFailure|PayloadDecodeFailure $e) {
+            // A payload on a later history page is decoded here, during replay, not at poll time (#824);
+            // a history that does not read, its started memo included, fails the same way (#890).
+            if ($e instanceof PayloadDecodeFailure) {
+                // The server gets the message only: the original error and its event stay here (#936).
+                $this->logger?->error('A workflow task payload cannot be read; the worker answers the task as failed.', [
+                    'exception' => $e->getPrevious() ?? $e,
+                    'event_id' => $e->eventId,
+                    'workflow_id' => $poll->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $poll->getWorkflowExecution()?->getRunId(),
+                ]);
+            }
             $this->respondTaskFailed($poll->getTaskToken(), $e);
 
             return true;
@@ -86,11 +101,17 @@ final readonly class WorkflowTaskProcessor
      * Fails the **task**, not the execution: no command is emitted, so the history learns nothing
      * of this attempt and the server hands the task back.
      *
+     * The server may reject this answer with NOT_FOUND (5), when the task has already timed out,
+     * or with InvalidArgument (3), when it has already failed and rescheduled the task: the same
+     * two codes {@see respond()} lets through. Either way the token is dead and the history holds
+     * nothing from this attempt, so the worker logs the rejection and keeps polling (#863).
+     *
      * `cause` stays at its default value, `UNSPECIFIED`: the causes the server enumerates describe
      * worker protocol faults, and a replay divergence is not one of them. Inventing one would tell
-     * the server something false.
+     * the server something false. A payload that fails to decode gets the cause a failed decode
+     * gets at poll time ({@see \Gplanchat\Bridge\Temporal\Codec\PayloadCodecWorkflowServiceClient}).
      */
-    private function respondTaskFailed(string $taskToken, WorkflowTaskFailure $reason): void
+    private function respondTaskFailed(string $taskToken, WorkflowTaskFailure|PayloadDecodeFailure $reason): void
     {
         $failure = new Failure();
         $failure->setMessage($reason->getMessage());
@@ -101,8 +122,21 @@ final readonly class WorkflowTaskProcessor
         $req->setIdentity($this->settings->identity);
         $req->setTaskToken($taskToken);
         $req->setFailure($failure);
+        if ($reason instanceof PayloadDecodeFailure) {
+            $req->setCause(WorkflowTaskFailedCause::WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
+        }
 
-        $this->client->RespondWorkflowTaskFailed($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
+        try {
+            $this->client->RespondWorkflowTaskFailed($req, [], ['timeout' => TemporalGrpcTimeouts::RESPOND_WORKFLOW_TASK_US]);
+        } catch (\RuntimeException $e) {
+            if (5 !== $e->getCode() && 3 !== $e->getCode()) {
+                throw $e;
+            }
+            $this->logger?->warning('Temporal rejected a workflow task failure answer; the worker keeps polling.', [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function pollOnce(): PollWorkflowTaskQueueResponse
@@ -176,6 +210,21 @@ final readonly class WorkflowTaskProcessor
         } catch (\RuntimeException $e) {
             // NOT_FOUND: task token is stale or workflow was already closed (e.g. replayed from a prior attempt).
             if (5 === $e->getCode()) {
+                $this->logger?->warning('Temporal rejected a workflow task completion; the worker keeps polling.', [
+                    'code' => $e->getCode(),
+                    'message' => $e->getMessage(),
+                ]);
+
+                return;
+            }
+            // INVALID_ARGUMENT: the server has already failed and rescheduled the task, for instance
+            // on BadSearchAttributes while a continue-as-new's mapping settles (#840).
+            if (3 === $e->getCode()) {
+                $this->logger?->warning('Temporal rejected a workflow task completion; the server reschedules the task.', [
+                    'code' => $e->getCode(),
+                    'message' => $e->getMessage(),
+                ]);
+
                 return;
             }
 

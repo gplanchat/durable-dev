@@ -29,8 +29,8 @@ au-dessus changent seulement l'endroit où l'exécution est enregistrée, jamais
 Un workflow est la classe PHP qui décrit les étapes d'une exécution, et une activité est une unité
 d'effet de bord qu'un workflow appelle, comme un appel HTTP ou une écriture en base.
 
-Les trois ponts sont des **alternatives** et ne se superposent pas : vous installez Temporal, DBAL ou Illuminate, jamais deux
-d'entre eux.
+Les trois ponts sont des **alternatives** et ne se superposent pas : vous installez Temporal,
+DBAL ou Illuminate, jamais deux d'entre eux.
 
 Les deux derniers paquets sont des **outils de développement** et se placent en `require-dev` :
 
@@ -133,8 +133,10 @@ temporal server start-dev --namespace durable-test --port 7233
 
 > [!NOTE]
 > Les planifications cron et les attributs de recherche sont des capacités de Temporal sans
-> équivalent en processus. Le backend en mémoire les rejette avec une erreur explicite au lieu de
-> les ignorer en silence.
+> équivalent en processus. Les backends à journal ne les exécutent pas. Le `cronSchedule` d'un
+> workflow enfant y échoue avec `UnsupportedByBackendException`, de même que son `namespace` et son
+> `taskQueue`. Ses attributs de recherche sont écrits au journal et rien n'agit dessus, et les
+> options de démarrage d'un workflow racine n'existent que sur le client Temporal.
 
 ---
 
@@ -153,9 +155,11 @@ consigne la décision qui le fonde.
 Le pont laisse intacts l'interpréteur de rejeu, les ports de workflow et le tampon de commandes. Le
 rejeu est la façon dont une exécution reprend : le code du workflow tourne à nouveau depuis sa
 première ligne, et chaque étape enregistrée renvoie son résultat depuis le journal. Le pont rend
-seulement persistants trois stockages locaux au processus : le journal d'événements, les
-métadonnées de workflow, et les liens parents des workflows enfants. Le code de workflows et
-d'activités est octet pour octet celui qui tourne sur Temporal ou en mémoire.
+seulement persistants quatre stockages locaux au processus : le journal d'événements, les
+métadonnées de workflow, les liens parents des workflows enfants, et le catalogue des exécutions,
+la liste des exécutions que lit un tableau de bord. Deux classes se partagent la table du
+catalogue : `DbalWorkflowRunProjection` y écrit et `DbalWorkflowRunCatalog` la lit. Le code de
+workflows et d'activités est octet pour octet celui qui tourne sur Temporal ou en mémoire.
 
 | Conservé | Abandonné par rapport à Temporal |
 |---|---|
@@ -165,7 +169,9 @@ d'activités est octet pour octet celui qui tourne sur Temporal ou en mémoire.
 | Le déterminisme du rejeu et le journal d'événements | La rétention d'historique, l'API de visibilité, l'interface Temporal |
 
 Choisissez-le quand vous avez besoin de durabilité sans opérer de cluster. Il demande une base que
-vous sauvegardez déjà, une migration, et aucune extension à compiler.
+vous sauvegardez déjà et aucune extension à compiler. Le pont ne livre aucune migration :
+`DurableSchema` crée les tables à la première écriture, et `bin/console durable:setup` les crée
+d'avance (voir [Backend DBAL](../backends/#le-backend-dbal)).
 
 ---
 
@@ -179,8 +185,9 @@ php artisan migrate
 ```
 
 Ce pont fournit les mêmes quatre stockages que le pont DBAL, avec les mêmes compromis face à
-Temporal : le tableau ci-dessus s'applique mot pour mot. La connexion change. Ces stockages
-utilisent `Illuminate\Database\Connection` et son constructeur de requêtes, sans Eloquent.
+Temporal : le tableau ci-dessus s'applique mot pour mot. Une seule classe,
+`IlluminateWorkflowRunCatalog`, écrit et lit le catalogue des exécutions. La connexion change. Ces
+stockages utilisent `Illuminate\Database\Connection` et son constructeur de requêtes, sans Eloquent.
 
 Donnez aux stockages leur propre connexion dans `config/database.php`, distincte de la connexion par
 défaut de l'application (DUR054). Sur une connexion partagée, les transactions propres à Durable
@@ -189,12 +196,19 @@ une prise de main reste invisible aux autres workers tant que le code métier n'
 traiter une activité qui écrit puis meurt, rendez l'activité idempotente. Ne partagez jamais une
 transaction avec le code métier à cette fin.
 
-Les quatre tables sont livrées en migration, chargée directement depuis le paquet : `migrate`
-suffit. Pour les modifier, publiez-les avec `vendor:publish --tag=durable-migrations` ; à partir de
-là, vous maintenez la copie publiée. **Gardez le nom du fichier publié.** Laravel indexe les
-migrations par leur nom de base et donne la priorité à `database/migrations` quand deux noms
-coïncident, ce qui fait de votre copie celle qui s'exécute. Si vous la renommez, les deux migrations
-s'exécutent, et la seconde échoue sur une table qui existe déjà.
+Les cinq tables sont livrées en migrations, chargées directement depuis le paquet : `migrate`
+suffit. Chaque stockage a sa table, et le journal d'événements écrit aussi dans
+`durable_execution_heads`, un compteur par exécution qui empêche une reprise dépassée d'écrire
+(DUR053). Pour les modifier, publiez-les avec `vendor:publish --tag=durable-migrations` ; à partir
+de là, vous maintenez les copies publiées. La commande copie tout le répertoire `Migrations/` du
+paquet, cinq fichiers, dans `database/migrations`. **Gardez les noms des fichiers publiés.** Laravel
+indexe les migrations par leur nom de base et donne la priorité à `database/migrations` quand deux
+noms coïncident, ce qui fait de votre copie celle qui s'exécute. Si vous renommez un fichier,
+Laravel exécute à la fois le fichier du paquet et votre copie. Seule
+`0001_01_01_000000_create_durable_tables.php` échoue à la seconde exécution : ses appels à
+`Schema::create` n'ont aucune garde et s'arrêtent sur une table qui existe déjà. Les quatre autres
+migrations vérifient d'abord `hasColumn`, `hasIndex` ou `hasTable` et ne modifient rien la seconde
+fois.
 
 `ResumeLock` couvre ce qu'aucun choix de stockage ne fournit. Il vit dans [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--lintégration-laravel), qui s'en sert sur tous les backends. Quand deux workers reprennent la
 **même** exécution, tous deux la rejouent, tous deux traitent les commandes qu'elle produit comme
@@ -261,10 +275,7 @@ fait bien son travail ; si vous cherchez un moteur pensé d'abord pour Laravel, 
 contre un cluster Temporal (Temporal Cloud et Nexus compris, avec un historique que l'interface de
 Temporal lit) *ou* contre une base SQL, sans cluster à opérer. Un parc mixte Symfony / Sylius /
 Laravel partage aussi un seul moteur : une classe de workflow écrite pour `gplanchat/durable-bundle`
-tourne ici sans modification. Ces deux points sont toute la promesse du paquet, et
-`durable-workflow/workflow` ne la fait pas.
-
-Cette section existe parce que les deux paquets portent des noms voisins sur Packagist.
+tourne ici sans modification. `durable-workflow/workflow` ne propose ni l'un ni l'autre.
 
 ### Démarrer une exécution
 
@@ -272,10 +283,14 @@ Cette section existe parce que les deux paquets portent des noms voisins sur Pac
 
 - sur `illuminate`, il met en file la première reprise pour `queue:work` ;
 - sur `temporal`, il démarre le workflow sur le cluster, qui livre tout ce qui suit ;
-- sur `memory`, il mène l'exécution **dans le processus appelant** : l'appel rend la main une fois
-  l'exécution terminée, ou quand elle attend un signal ou une échéance au-delà du budget de dix
+- sur `memory`, il met l'exécution en file **dans le processus appelant**. Menez-la dans le même
+  processus avec `app(InProcessWorkflowResumeDispatcher::class)->drain()` après l'envoi. Dans un
+  processus console (tests, commandes, workers de file), `Artisan::call('durable:drain')` fait de
+  même ; la commande n'est pas enregistrée pendant une requête HTTP. Le drainage rend la main une
+  fois l'exécution terminée, ou quand elle attend un signal ou une échéance au-delà du budget de dix
   secondes. Le journal de ce backend vit dans le processus : rien hors du processus ne peut faire
-  avancer l'exécution.
+  avancer l'exécution, et un `php artisan durable:drain` lancé à part démarre avec une file vide et
+  ne mène rien.
 
 ### Servir des opérations Nexus {#nexus-sur-le-backend-qui-sait-le-router}
 
@@ -438,24 +453,31 @@ Vous ne déclarez pas le *contrat*. La fabrique lit les interfaces de chaque ges
 celles qui portent `#[AsActivityMethod]`, ce qui fait une déclaration de moins à écrire de travers
 et laisse les noms d'activité à ceux des attributs.
 
-Deux autres arguments de la même fabrique bornent une exécution, et `di.xml` est le seul endroit où
+Trois autres arguments de la même fabrique bornent une exécution, et `di.xml` est le seul endroit où
 les régler :
 
 ```xml
 <argument name="maxActivityRetries" xsi:type="number">3</argument>
 <argument name="budgetSeconds" xsi:type="number">30</argument>
+<argument name="maxContinuations" xsi:type="number">10</argument>
 ```
 
 - `maxActivityRetries` est le plafond de tentatives des activités que `MagentoRuntime::run()`
-  exécute dans le processus appelant, l'équivalent du
+  exécute dans le processus appelant quand aucun DSN n'est configuré, l'équivalent du
   [`max_activity_retries`](../configuration/#max_activity_retries) du bundle Symfony. La valeur par
   défaut, `0`, ne fixe aucun plafond. Les workers Temporal ne le lisent jamais : là, le cluster
   relance d'après la `RetryLimit` propre à l'activité.
-- `budgetSeconds` borne `MagentoRuntime::run()`, qui mène un workflow à son terme dans le processus
-  appelant. Au-delà du budget, l'appel lève `WorkflowStuckException` au lieu d'attendre encore. La
-  valeur par défaut est `10`. Le budget existe à cause du plafond de tentatives : sans plafond, une
-  activité qui échoue sans cesse occuperait ce processus pour toujours. Les workers et
-  `workflowClient()` ne lisent ni l'un ni l'autre.
+- `budgetSeconds` borne `MagentoRuntime::run()`. Sans DSN, l'appel mène un workflow à son terme dans
+  le processus appelant ; avec un DSN, il attend aussi longtemps le résultat du cluster. Au-delà du
+  budget, l'appel lève `WorkflowStuckException` au lieu d'attendre encore. La valeur par défaut est
+  `10`. Dans le processus, le budget existe à cause du plafond de tentatives : sans plafond, une
+  activité qui échoue sans cesse occuperait ce processus pour toujours.
+- `maxContinuations` est, sans DSN, le nombre de continue-as-new (une exécution qui referme son
+  journal et passe la main à une exécution neuve ; voir le [glossaire](../glossary/)) que suit
+  l'exécution dans le processus avant de lever `ContinuationCapReachedException`. La valeur par défaut est `10`. Avec un
+  DSN, le cluster mène la chaîne.
+
+Les workers et `workflowClient()` n'en lisent aucun.
 
 **Magento prend en charge deux backends, et Composer l'impose.** Magento atteint la mémoire et
 Temporal, et le module déclare un `conflict` sur les deux ponts SQL, car
@@ -469,7 +491,27 @@ d'Illuminate. Un DSN dans `app/etc/env.php` choisit le backend ; aucun autre ré
 ```
 
 Sans ce DSN, le journal vit dans le processus qui l'écrit et disparaît quand ce processus se
-termine. C'est acceptable pour une commande en ligne, inadapté à tout le reste.
+termine. C'est acceptable pour une commande console, inadapté à tout le reste.
+
+`MagentoRuntime::run()` suit le même choix. Sans DSN, il exécute le workflow dans le processus
+appelant. Avec un DSN, il démarre le workflow sur le cluster et attend son résultat, que produisent
+les workers ci-dessous. L'attente dure environ `budgetSeconds` et se termine par
+`WorkflowStuckException`.
+
+Un workflow qui échoue, expire ou est terminé arrive autrement chez l'appelant avec un DSN : sous la
+forme d'une `\RuntimeException` simple, dont le message commence par `Workflow "<execution id>"`,
+sans exception précédente. Un workflow qui attend un signal attend tout le budget au lieu d'échouer
+aussitôt.
+
+Le résultat revient décodé du JSON : un objet que le workflow renvoie arrive sous forme de tableau.
+
+Pour démarrer un workflow depuis un observateur, appelez
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()`. Avec un DSN, il démarre le workflow
+sur le cluster et rend la main aussitôt. Sans DSN, il exécute le workflow dans le processus
+appelant, dans la limite de `budgetSeconds`, et la requête l'attend : il bloque comme `run()`. Un
+workflow qui échoue ne lève pas d'exception depuis l'appel, comme sur le cluster ; l'échec part dans
+le logger que la fabrique détient. Un workflow non déclaré, lui, lève une exception. Pour démarrer
+uniquement sur le cluster, appelez `workflowClient()->startAsync()`.
 
 **Les workers sont des commandes `bin/magento`**, pas des consommateurs de file. Supervisez-les
 comme n'importe quel processus long :
@@ -479,22 +521,29 @@ bin/magento durable:worker --role=journal   --time-limit=3600
 bin/magento durable:worker --role=activity  --time-limit=3600
 ```
 
-Chaque processus sert un rôle sur une file. Les deux rôles utilisent deux files Temporal distinctes,
-et vous réglez leur parallélisme séparément. Rien ne passe par le `MessageQueue` de Magento : sur
+Chaque processus sert un rôle sur une file. Les rôles journal et activité utilisent deux files
+Temporal distinctes, et vous réglez leur parallélisme séparément. Rien ne passe par le `MessageQueue` de Magento : sur
 Temporal, une activité est une commande Temporal et une reprise une tâche de workflow, donc un topic
 Magento ne ferait qu'ajouter une seconde file à superviser.
+
+**Une boutique qui sert des [opérations Nexus](../nexus/#servir-une-opération)** liste ses
+gestionnaires dans un tableau de plus de la même fabrique, `nexusHandlers` : un objet par
+gestionnaire, dont le `#[AsNexusServiceHandler]` nomme le contrat servi. Une opération pour laquelle
+le gestionnaire n'a pas de méthode vient d'une entrée de `workflowClasses` qui porte
+`#[FulfilsNexusOperation]`. Un troisième processus, `bin/magento durable:worker --role=nexus`, les
+sert sur la `nexus_task_queue` du DSN, qui vaut par défaut la file des tâches de workflow. Sans DSN,
+ce worker échoue avec `A Nexus worker needs a cluster`.
 
 **Un worker absent se manifeste différemment selon son rôle.** Sans `--role=journal`, rien
 n'avance : les exécutions démarrent, leur historique se remplit, et aucun processus ne répond à
 leurs tâches de workflow. Sans `--role=activity`, l'exécution semble fonctionner, ce qui rend le
 problème plus difficile à voir : elle avance **jusqu'à sa première activité** et s'y arrête, la
-commande débitée et le stock intact, et c'est le client qui vous l'apprend. Tourner sans le worker
-d'activité remet en place la panne que cette intégration existe pour supprimer.
+commande débitée et le stock intact, et c'est le client qui vous l'apprend.
 
 Les bornes `--time-limit` et `--max-tasks` servent au superviseur : elles terminent le processus
-pour que le superviseur puisse le relancer. Les reprises relèvent du cluster, qui planifie les
+pour que le superviseur puisse le relancer. Les nouvelles tentatives relèvent du cluster, qui planifie les
 tentatives d'une activité qu'un worker écoute ou non. Une exécution dont l'activité « a échoué après
-3 tentatives » en quelques secondes signale un worker absent, pas un code qui a échoué trois fois.
+3 tentatives » en quelques secondes signale un worker absent.
 
 > [!WARNING]
 > **Les réglages de file de Magento ne s'appliquent pas à Durable.** `retry_inprogress_after`, les
@@ -502,11 +551,33 @@ tentatives d'une activité qu'un worker écoute ou non. Une exécution dont l'ac
 > ne passe par `MessageQueue`. Réglez-les pour vos propres consommateurs.
 
 > [!NOTE]
-> Démarrez les exécutions **sur le cluster**, hors de la requête qui les déclenche. Un observateur
-> sur `sales_order_place_after` qui appelle `RuntimeFactory::workflowClient()->startAsync()` confie
-> l'exécution à Temporal et rend la main. `workflowClient()` exige le cluster, car `startAsync()`
-> n'existe que sur Temporal. Une exécution démarrée dans la requête s'arrêterait avec elle, ce qui
-> est précisément la panne que cette intégration existe pour supprimer.
+> Démarrez les exécutions **sur le cluster**, hors de la requête qui les déclenche. Avec un DSN, un
+> observateur sur `sales_order_place_after` confie l'exécution à Temporal et rend la main. Un
+> démarrage peut encore lever une exception (un workflow non déclaré) : interceptez-la, car une
+> exception qui sort de l'observateur interrompt le flux propre de la boutique.
+>
+> ```php
+> public function execute(Observer $observer): void
+> {
+>     $incrementId = $observer->getEvent()->getData('order')->getIncrementId();
+>
+>     try {
+>         $this->runtimeFactory->resumeDispatcher()->dispatchNewWorkflowRun(
+>             ExecutionId::fromString('order-' . $incrementId),
+>             PlaceOrder::class,
+>             ['orderId' => $incrementId],
+>         );
+>     } catch (\Throwable $exception) {
+>         $this->logger->error('Le workflow n\'a pas démarré : ' . $exception->getMessage());
+>     }
+> }
+> ```
+>
+> Le même observateur fonctionne sans cluster, avec une différence : le workflow s'exécute dans la
+> requête, qui l'attend, pendant `budgetSeconds` au plus (10 par défaut). Un workflow qui attend un
+> signal ou un long minuteur retient la requête pendant tout le budget. Le journal en mémoire
+> disparaît avec la requête : une exécution non terminée à ce moment est perdue. C'est acceptable en
+> développement ; en production, configurez le DSN.
 
 ---
 
@@ -571,8 +642,10 @@ activités**. Un workflow que vous avez testé en mémoire se comporte de la mê
 contre Temporal, y compris pour le décompte des réessais, la classification des échecs,
 l'annulation et la compensation.
 
-Quand une capacité n'a pas d'équivalent sur un backend, ce backend **échoue avec un message
-explicite**. [Backends](../backends/#capability-matrix) liste les différences.
+Certaines capacités n'ont pas d'équivalent sur un backend. Nexus y échoue avec un message explicite ;
+le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant échouent avec
+`UnsupportedByBackendException`, et ses attributs de recherche sont enregistrés sans être
+exécutés. [Backends](../backends/#capability-matrix) liste les différences.
 
 ---
 

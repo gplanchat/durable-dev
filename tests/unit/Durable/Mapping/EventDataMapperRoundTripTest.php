@@ -52,7 +52,7 @@ final class EventDataMapperRoundTripTest extends TestCase
         yield 'ActivityFailed legacy without retryState' => [new ActivityFailed(ExecutionId::fromString('exec-1'), 'act-1', 'App\\Boom', 'kaput')];
         yield 'ActivityRetryQueued' => [new ActivityRetryQueued(ExecutionId::fromString('exec-1'), 'act-1', 3)];
         yield 'TimerCancelled' => [new TimerCancelled(ExecutionId::fromString('exec-1'), 'timer-1', 'race_superseded')];
-        yield 'WorkflowExecutionCancelled' => [new WorkflowExecutionCancelled(ExecutionId::fromString('exec-1'), 'parent_request_cancel', 'parent-1')];
+        yield 'WorkflowExecutionCancelled' => [new WorkflowExecutionCancelled(ExecutionId::fromString('exec-1'), 'parent_request_cancel', ExecutionId::fromString('parent-1'))];
         yield 'WorkflowExecutionCancelled without parent' => [new WorkflowExecutionCancelled(ExecutionId::fromString('exec-1'), 'operator')];
     }
 

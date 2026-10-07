@@ -20,10 +20,14 @@ use Psr\Clock\ClockInterface;
 /**
  * The memory backend's resumes and timers, driven in the caller's process (#603).
  *
- * The journal of this backend lives in the process, so nothing else can advance a run: the call that
- * starts it drives it. Resumes, the activities they queue and the timers that fall due drain in
+ * The journal of this backend lives in the process, so nothing else can advance a run: the process
+ * that starts it drains it. Resumes, the activities they queue and the timers that fall due drain in
  * one loop, one at a time. A dispatch made while the loop runs is only queued: a resume never
  * runs inside another, which is the recursion the provider refuses for a `sync` queue connection.
+ *
+ * A new run is only queued, wherever it is dispatched from, and runs at the next drain: `durable:drain`,
+ * {@see drain()}, or any other dispatch. A continue-as-new thus marks the old run completed before
+ * its next run runs (#881).
  *
  * A delayed retry or a timer is waited for within the budget; later work, or a run waiting on a
  * signal, stays suspended until the next dispatch. The budget is fixed on purpose: this backend
@@ -76,9 +80,13 @@ final class InProcessWorkflowResumeDispatcher implements WorkflowResumeDispatche
     public function dispatchNewWorkflowRun(ExecutionId $executionId, string $workflowType, array $payload): void
     {
         // A caller passing `::class` gets the alias, as on the other dispatchers (#258).
-        $this->metadata->save($executionId, (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType), $payload);
+        // Insert-only (#918): a row that exists is left as it is. Rewriting it would set `completed`
+        // back to false and reopen a run that finished since the caller read it. The first send of a
+        // run finds no row, and a run without one cannot complete.
+        if (null === $this->metadata->get($executionId)) {
+            $this->metadata->save($executionId, (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowType), $payload);
+        }
         $this->resumes[] = new ResumeWorkflowMessage($executionId->toString());
-        $this->drain();
     }
 
     public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void
@@ -87,7 +95,10 @@ final class InProcessWorkflowResumeDispatcher implements WorkflowResumeDispatche
         $this->drain();
     }
 
-    private function drain(): void
+    /**
+     * Drives what this process has queued, within the budget. A call made during a drain returns at once.
+     */
+    public function drain(): void
     {
         if ($this->draining) {
             return;

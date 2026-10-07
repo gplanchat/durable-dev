@@ -18,13 +18,29 @@ Le panneau affiche alors **Exécutions Durable** dans sa navigation. Le plugin f
 Filament 3 et 4, lit le catalogue que `gplanchat/durable-laravel` lie dans le conteneur (en mémoire,
 Illuminate ou Temporal) et est en lecture seule.
 
+## Captures d'écran
+
+![La page Exécutions Durable de Filament : état du backend, filtres, compteurs par issue et liste des exécutions](/images/dashboard/filament-runs.fr.png)
+
+*Exécutions Durable, sur quatre exécutions d'un workflow de commande. Les compteurs en comptent une en attente d'un worker.*
+
+![La page d'une exécution sous Filament, en attente d'un minuteur, avec sa frise d'historique](/images/dashboard/filament-run.fr.png)
+
+*La page d'order/4244 : ce qu'elle attend, et une frise d'historique où `reserveStock` est hachuré pour le temps passé dans la file.*
+
 ## Ce que la page propose
 
 - **L'état du backend**, daté.
 - **Des compteurs** par issue, avec un nombre **En attente d'un worker**, sur les exécutions de la
   page.
-- **Des filtres** sur le nom du workflow et sur le début de l'identifiant d'exécution, là où le
-  backend sait les appliquer.
+- **Des filtres** sur l'issue, et sur le nom du workflow et le début de l'identifiant d'exécution
+  là où le backend peut les appliquer. Les filtres restent posés d'une page à la suivante.
+- **La présence des workers**, au-dessus de la liste, sur le backend Temporal : pour chaque rôle de
+  `durable:temporal-worker`, workflow et activity, si un worker a interrogé sa file de tâches dans
+  les 120 dernières secondes. Sur le backend Illuminate, le panneau affiche « Impossible de
+  demander » : la file de Laravel ne tient aucune liste des processus qui lancent
+  `php artisan queue:work`. Le backend en mémoire exécute chaque tâche dans le processus qui la
+  lance, et la page n'affiche aucun panneau.
 - **La liste des exécutions**, 20 par page, en avant par curseur. Chaque ligne porte l'identifiant d'exécution (un lien vers l'exécution), l'issue, le workflow, la date de démarrage et une note (`waiting for a worker`, `waiting on …`).
 - **Une page d'exécution**, ouverte depuis une ligne : l'issue, ce qu'elle attend, ses [opérations
   Nexus](../../nexus/) quand le catalogue sait les lister, et son historique, un bloc par action, sous une frise.
@@ -32,7 +48,7 @@ Illuminate ou Temporal) et est en lecture seule.
 
 ## Ce qu'elle ne montre pas
 
-La page n'a ni filtre sur l'issue, ni panneau de présence des workers. Voir [Parité](../parity/).
+La page n'a pas de ligne de présence pour `durable:nexus-worker`. Voir [Parité](../parity/).
 
 ## Langue et contenus enregistrés
 

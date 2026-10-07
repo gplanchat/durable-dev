@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Event\SideEffectRecorded;
 use Gplanchat\Durable\Event\VersionMarked;
 use Gplanchat\Durable\Event\WorkflowCancellationDelivered;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\EventType;
@@ -26,7 +27,7 @@ final class MarkerEventConversionTest extends TestCase
 {
     public function testEachMarkerConvertsToTheEventItRecords(): void
     {
-        $converter = new TemporalEventConverter('exec-1');
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
 
         $version = $converter->convert(self::marker(1, ChangePoint::MARKER_NAME, [
             ChangePoint::DETAIL_CHANGE_ID => 'add-discount',
@@ -51,7 +52,7 @@ final class MarkerEventConversionTest extends TestCase
 
     public function testAMarkerDurableDidNotWriteIsSkipped(): void
     {
-        self::assertNull((new TemporalEventConverter('exec-1'))->convert(self::marker(1, 'SomeoneElse', ['result' => 1])));
+        self::assertNull((new TemporalEventConverter(ExecutionId::fromString('exec-1')))->convert(self::marker(1, 'SomeoneElse', ['result' => 1])));
     }
 
     /**

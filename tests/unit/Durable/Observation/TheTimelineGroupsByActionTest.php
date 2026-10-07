@@ -15,10 +15,12 @@ use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\TimerCompleted;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
+use Gplanchat\Durable\Observation\WorkflowRunEventPhase;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
 
@@ -143,12 +145,28 @@ final class TheTimelineGroupsByActionTest extends TestCase
         self::assertSame('App\\OrderWorkflow', $history[0]->label);
     }
 
+    public function testTheEndOfTheRunIsNamedByTheWorkflowAndNotByAnEventClass(): void
+    {
+        // Same rule as an activity's follow-ups: the row borrows the name of its action, and the
+        // phase says what happened to it. "WorkflowExecutionFailed" named the event class.
+        $history = $this->read([
+            new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
+            WorkflowExecutionFailed::unhandledDeclaredActivityFailure(ExecutionId::fromString('exec-1'), new \RuntimeException('payment declined')),
+        ], 'App\\OrderWorkflow');
+
+        self::assertSame('App\\OrderWorkflow', $history[1]->label);
+        self::assertSame(WorkflowRunEventPhase::Failed, $history[1]->phase);
+
+        $completed = $this->read([new ExecutionCompleted(ExecutionId::fromString('exec-1'), null)], 'App\\OrderWorkflow');
+        self::assertSame('App\\OrderWorkflow', $completed[0]->label);
+    }
+
     public function testAChildWorkflowKeepsItsOwnLineAndItsOwnName(): void
     {
         $history = $this->read([
             new ExecutionStarted(ExecutionId::fromString('exec-1'), []),
-            new ChildWorkflowScheduled(ExecutionId::fromString('exec-1'), 'child-1', 'App\\ShipmentWorkflow', []),
-            new ChildWorkflowCompleted(ExecutionId::fromString('exec-1'), 'child-1', null),
+            new ChildWorkflowScheduled(ExecutionId::fromString('exec-1'), ExecutionId::fromString('child-1'), 'App\\ShipmentWorkflow', []),
+            new ChildWorkflowCompleted(ExecutionId::fromString('exec-1'), ExecutionId::fromString('child-1'), null),
         ], 'App\\OrderWorkflow');
 
         self::assertSame('child:child-1', $history[1]->actionKey);

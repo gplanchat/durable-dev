@@ -56,10 +56,9 @@ Nexus par leur triplet point d'entrée / service / opération, les workflows enf
 ### Revenir à la version précédente {#revenir-en-arrière-et-lexécution-se-termine}
 
 L'échec signifie que le déploiement ne convient pas aux exécutions sur lesquelles il est tombé.
-Remettez la version précédente, et le réessai suivant rejoue proprement : l'exécution repart
-exactement là où elle en était, et ne perd que le temps écoulé entre les deux déploiements.
-
-C'est pour cela que la tâche échoue et que l'exécution, elle, n'échoue pas.
+Remettez la version précédente, et le réessai suivant rejoue proprement, car seule la tâche a
+échoué : l'exécution repart exactement là où elle en était, et ne perd que le temps écoulé entre
+les deux déploiements.
 
 ### Ou déclarer un point de changement
 
@@ -140,9 +139,10 @@ final class CheckoutV2Workflow { … }
 Une exécution résout son gestionnaire par le type enregistré à son démarrage : celles qui sont déjà
 en vol ne voient donc jamais la nouvelle classe. Les nouvelles démarrent sur `checkout-v2`.
 
-Cela coûte deux classes et une fenêtre d'écoulement, et c'est aujourd'hui la seule façon de modifier
-un workflow sans attendre. Une primitive de versionnage par point de changement est un chantier à
-part.
+Cela coûte deux classes et une fenêtre d'écoulement. Prenez cette voie quand le changement est **trop
+grand pour s'exprimer en branche**, par exemple un autre ensemble d'activités et une forme
+entièrement différente, là où un point de changement ferait seulement porter deux workflows à un
+seul.
 
 ## Ce qui n'est pas vérifié
 
@@ -162,6 +162,10 @@ l'exécution.
 
 ---
 
-La décision qui sous-tend tout ceci, y compris la raison pour laquelle le contrôle ne s'appuie que
-sur ce que le journal enregistre déjà, est
-[DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md).
+Deux décisions couvrent cette page :
+[DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md)
+pour la raison pour laquelle le contrôle ne s'appuie que sur ce que le journal enregistre déjà, et
+[DUR044](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR044-declared-change-points.md)
+pour les points de changement, y compris pourquoi une exécution antérieure au point est reconnue
+plutôt que marquée, et pourquoi l'attribut de recherche fait partie de la primitive au lieu d'être
+un ajout.

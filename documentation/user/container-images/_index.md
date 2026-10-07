@@ -32,7 +32,7 @@ base image you will still build from next year, use the rolling tag, which keeps
 
 ---
 
-## Pick the tag that matches your PHP {#picking-the-tag-three-things-have-to-match}
+## Pick the tag that matches your PHP build and libc {#picking-the-tag-three-things-have-to-match}
 
 An extension is a shared object compiled for one particular PHP. Three properties of that PHP have
 to match, and each mismatch fails in a different way:

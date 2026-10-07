@@ -12,8 +12,8 @@ métier au long cours, et font des arbitrages différents à chaque couche en de
 
 Cette page décrit ces différences, y compris celles où le SDK est devant. Elle emploie quelques
 termes de Durable : un workflow est la classe PHP qui décrit les étapes d'une exécution, une
-activité est une unité d'effet de bord qu'il planifie, le journal est l'enregistrement, en ajout
-seul, de tout ce qu'une exécution a décidé et reçu, un backend est l'endroit où vit ce journal, et
+activité est une unité d'effet de bord qu'il planifie, le journal est l'historique de tout ce qu'une
+exécution a décidé et reçu, où chaque entrée s'ajoute sans jamais être réécrite, un backend est l'endroit où vit ce journal, et
 un worker est le processus qui prend le travail. Le [glossaire](../glossary/) définit chacun d'eux.
 
 **Quelle version du SDK.** Chaque affirmation ci-dessous a été vérifiée contre `temporal/sdk`
@@ -54,8 +54,8 @@ bin/magento durable:worker --role=activity                          #   (deux r�
 ### Quand Durable a encore besoin de gRPC {#ce-que-cela-ne-prétend-pas}
 
 Durable ne supprime pas gRPC. Quand le backend est Temporal, le pont (le paquet qui relie Durable à
-ce backend) parle gRPC au cluster, et **`ext-grpc` est requis**. C'est
-`gplanchat/durable-bridge-temporal` qui déclare cette exigence, pas le paquet cœur :
+ce backend) parle gRPC au cluster, et **`ext-grpc` est requis**. Le paquet
+`gplanchat/durable-bridge-temporal` déclare cette exigence :
 
 | Paquet | Exige |
 |---|---|
@@ -429,12 +429,11 @@ de remplacer les *yields* par une suspension de fibre
 changement est prototypé et prévu pour un prochain majeur. Rien de tout cela n'est dans une version
 publiée à la v2.18, et cette section décrit la v2.18.
 
-Ce changement réglerait la différence de coloration, et elle seule. Ce qui oblige un test de
-workflow à démarrer un serveur, c'est [le moteur du worker](#1-the-worker-runtime-no-roadrunner),
-pas le mécanisme de suspension. Un workflow continue de tourner dans RoadRunner, piloté par une
-file de tâches sur un vrai cluster, qu'il suspende sur un `yield` ou sur une fibre. Une fois les
-fibres arrivées dans le SDK, la différence qui compte le plus est donc
-[la testabilité](#2-testability) : mener un workflow jusqu'au bout dans le processus de test et
+Ce changement réglerait la différence de coloration, et elle seule. Un test de workflow a
+besoin d'un serveur à cause du [moteur du worker](#1-the-worker-runtime-no-roadrunner), quelle que
+soit la façon dont le workflow suspend. Un workflow continue de tourner dans RoadRunner, piloté par une
+file de tâches sur un vrai cluster, qu'il suspende sur un `yield` ou sur une fibre. Après ce
+changement, [la testabilité](#2-testability) reste la plus grande différence : mener un workflow jusqu'au bout dans le processus de test et
 vérifier la valeur qu'il renvoie, sans serveur à démarrer ni second moteur à superviser.
 
 ---
@@ -467,8 +466,8 @@ $v = yield Workflow::getVersion('add-discount', Workflow::DEFAULT_VERSION, 1);
 $v = $this->environment->version('add-discount', minSupported: ChangePoint::DEFAULT_VERSION, maxSupported: 1);
 ```
 
-Le format sur le fil est le même, et il a été vérifié sur un historique réel. Il a été lu dans un
-historique produit par le SDK Go, puis émis depuis le pont, et le serveur l'a accepté. Une
+Le format sur le fil est le même. Je l'ai lu dans un historique produit par le SDK Go, puis émis
+depuis le pont, et le serveur l'a accepté. Une
 exécution Durable versionnée et une exécution Go versionnée enregistrent le **même** marqueur
 `Version` et le **même** attribut de recherche `TemporalChangeVersion`. Quand vous cherchez les
 exécutions encore sur une ancienne branche, la même requête renvoie les deux.
@@ -484,7 +483,7 @@ Voir [Changer un workflow qui tourne](../deploying/).
 
 ---
 
-## 8. Nexus : le seul endroit où Durable est devant {#8-nexus-the-one-place-durable-is-ahead}
+## 8. Nexus : appeler et servir des opérations depuis PHP {#8-nexus-the-one-place-durable-is-ahead}
 
 [Nexus](https://docs.temporal.io/nexus) achemine un appel d'un workflow vers une opération servie
 dans un autre espace de noms ou un autre cluster. **Un workflow Durable peut appeler une opération
@@ -544,7 +543,8 @@ final class Billing implements BillingServed
 final class Charge { /* … */ }
 ```
 
-Les neuf secondes viennent du `request-timeout` de la tâche, pas de Durable, et ont été mesurées.
+Les neuf secondes sont le `request-timeout` de la tâche, que j'ai mesuré ; Durable n'ajoute aucune
+limite.
 Quand un gestionnaire travaille encore à l'expiration de ce délai, sa tâche est redélivrée et
 recommence. Ce budget est la raison d'être de la forme différée, et la raison pour laquelle je l'ai
 construite avant la forme immédiate.
@@ -564,10 +564,11 @@ Durable place PHP des deux côtés de cette frontière.
 Une limite est délibérée :
 
 - **Backend Temporal seulement.** Nexus achemine vers un point d'entrée servi ailleurs. Un backend
-  qui garde son journal dans une seule base n'a ni cette route ni de repli honnête. Le backend DBAL
-  **échoue donc immédiatement**, par `NexusUnsupportedByBackendException`, qui nomme le backend et
-  indique quoi faire à la place ; le workflow n'attend pas un résultat que personne ne produira.
-  Côté gestionnaire, la même vérification échoue **au montage du conteneur**, et non à la requête,
+  qui garde son journal lui-même, en mémoire ou dans une seule base, n'a ni cette route ni de repli qui garde le sens de l'appel. Les backends en mémoire, DBAL et Illuminate
+  **lèvent donc immédiatement** `NexusUnsupportedByBackendException`, dont le message indique
+  d'utiliser le backend Temporal ; le workflow n'attend pas un résultat que personne ne produira.
+  Côté gestionnaire, sur Symfony, la vérification échoue **au montage du conteneur** quand
+  `durable.temporal.dsn` n'est pas renseigné, et non à la requête,
   parce qu'un gestionnaire sans route ne reçoit jamais aucune requête.
 
 [DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)
@@ -594,8 +595,8 @@ migration, et reste une rupture.
 
 **Prenez le SDK PHP de Temporal** quand vous opérez déjà un cluster Temporal, que vous voulez le
 client officiellement maintenu et sa parité entre langages, que vous avez besoin du versionnage des
-**workers** (identifiants de build, épinglage d'une exécution à une version de worker) ou d'un
-**gestionnaire** Nexus, et que RoadRunner est acceptable dans votre déploiement.
+**workers** (identifiants de build, épinglage d'une exécution à une version de worker), et que
+RoadRunner est acceptable dans votre déploiement.
 
 **Vous venez du SDK ?** `gplanchat/durable-rector` fait la partie mécanique de la migration. Il
 convertit les attributs et les classes d'échec, et conserve les **noms de type** de workflow et
@@ -609,8 +610,8 @@ sachiez avant de commencer si la migration vous est seulement ouverte.
 **Prenez Durable** quand vous voulez l'exécution durable sans ajouter un second moteur à votre
 application, quand une seule base SQL est la bonne empreinte opérationnelle, quand vous voulez une
 logique de workflow couverte par des tests unitaires sans infrastructure, ou quand vous avez besoin
-d'**appeler** des opérations Nexus depuis PHP tout court. Dans chaque cas, une préversion aux
-ruptures possibles entre versions doit être un échange que vous pouvez faire.
+d'**appeler ou de servir** des opérations Nexus depuis PHP tout court. Dans chaque cas, vous devez
+pouvoir accepter une préversion, avec des ruptures possibles entre versions.
 
 ---
 

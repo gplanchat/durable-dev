@@ -51,8 +51,8 @@ final class TheProfilerSpeaksEnglishTest extends TestCase
         yield 'timer fired' => [new TimerCompleted(ExecutionId::fromString('e-1'), 't-1'), 'Timer fired'];
         yield 'timer cancelled' => [new TimerCancelled(ExecutionId::fromString('e-1'), 't-1', 'no reason'), 'Timer cancelled'];
         yield 'side effect' => [new SideEffectRecorded(ExecutionId::fromString('e-1'), 's-1', null), 'Side effect recorded'];
-        yield 'child scheduled' => [new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), 'c-1', 'Child', []), 'Child workflow scheduled'];
-        yield 'child completed' => [new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), 'c-1', null), 'Child workflow finished'];
+        yield 'child scheduled' => [new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), ExecutionId::fromString('c-1'), 'Child', []), 'Child workflow scheduled'];
+        yield 'child completed' => [new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), ExecutionId::fromString('c-1'), null), 'Child workflow finished'];
         yield 'signal' => [new WorkflowSignalReceived(ExecutionId::fromString('e-1'), 'approve', []), 'Signal received'];
         yield 'update' => [new WorkflowUpdateHandled(ExecutionId::fromString('e-1'), 'raise', [], null), 'Update handled'];
         yield 'execution cancelled' => [new WorkflowExecutionCancelled(ExecutionId::fromString('e-1'), 'no reason'), 'Execution cancelled'];
@@ -72,11 +72,11 @@ final class TheProfilerSpeaksEnglishTest extends TestCase
     {
         self::assertSame(
             'Child · child c-1',
-            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), 'c-1', 'Child', []))['subtitle'],
+            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowScheduled(ExecutionId::fromString('e-1'), ExecutionId::fromString('c-1'), 'Child', []))['subtitle'],
         );
         self::assertSame(
             'child c-1',
-            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), 'c-1', null))['subtitle'],
+            DurableProfilerEventPresentation::fromStoreEvent(new ChildWorkflowCompleted(ExecutionId::fromString('e-1'), ExecutionId::fromString('c-1'), null))['subtitle'],
         );
     }
 

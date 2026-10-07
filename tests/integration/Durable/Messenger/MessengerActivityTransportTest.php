@@ -42,7 +42,7 @@ final class MessengerActivityTransportTest extends TestCase
         $engine = new ExecutionEngine($eventStore, $runtime);
         $executionId = (string) Uuid::v7();
 
-        $result = $engine->start($executionId, function (WorkflowEnvironment $env) {
+        $result = $engine->start(ExecutionId::fromString($executionId), function (WorkflowEnvironment $env) {
             return $env->await($env->activityStub(SuiteActivities::class)->echoValue('hello messenger'));
         });
 

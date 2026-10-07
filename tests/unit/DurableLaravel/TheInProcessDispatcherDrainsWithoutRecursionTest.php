@@ -18,6 +18,9 @@ use unit\Durable\Fixtures\FrozenClock;
 /**
  * #603: on Laravel's memory backend a run is driven in the caller's process. A resume dispatched
  * while a resume runs is queued and run after it, never inside it.
+ *
+ * #881, the user's decision (2026-10-01): a new run is only queued, and runs when the queue is
+ * drained. The tests that started a run now drain after the dispatch.
  */
 final class TheInProcessDispatcherDrainsWithoutRecursionTest extends TestCase
 {
@@ -39,6 +42,7 @@ final class TheInProcessDispatcherDrainsWithoutRecursionTest extends TestCase
         });
 
         $dispatcher->dispatchNewWorkflowRun(ExecutionId::fromString('exec-1'), 'Greeting', []);
+        $dispatcher->drain();
 
         self::assertSame(['resume exec-1', 'resume exec-2'], $this->ran);
         self::assertSame(1, $this->deepest, 'no resume ran inside another');
@@ -62,8 +66,26 @@ final class TheInProcessDispatcherDrainsWithoutRecursionTest extends TestCase
         );
 
         $dispatcher->dispatchNewWorkflowRun(ExecutionId::fromString('exec-1'), 'Greeting', []);
+        $dispatcher->drain();
 
         self::assertSame(['resume exec-1', 'activity act-1', 'resume exec-1'], $this->ran);
+    }
+
+    /**
+     * A resume handler called outside a drain, a continue-as-new for instance, gets its next run
+     * queued: the handler returns, then the drain runs it (#881).
+     */
+    public function testANewRunIsQueuedUntilTheDrain(): void
+    {
+        $dispatcher = $this->dispatcher(resume: function (ResumeWorkflowMessage $message): void {
+            $this->ran[] = 'resume ' . $message->executionId;
+        });
+
+        $dispatcher->dispatchNewWorkflowRun(ExecutionId::fromString('exec-1'), 'Greeting', []);
+        self::assertSame([], $this->ran, 'nothing runs inside the dispatch');
+
+        $dispatcher->drain();
+        self::assertSame(['resume exec-1'], $this->ran);
     }
 
     public function testAFailedResumeLeavesTheDispatcherReadyForTheNextOne(): void

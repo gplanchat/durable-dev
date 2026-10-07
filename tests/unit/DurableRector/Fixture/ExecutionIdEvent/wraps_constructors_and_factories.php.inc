@@ -54,7 +54,7 @@ final class JournalWriter
             new TimerCompleted(\Gplanchat\Durable\ExecutionId::fromString($executionId), 'timer-1'),
             new ExecutionCompleted(\Gplanchat\Durable\ExecutionId::fromString('exec-' . $executionId), null),
             new \Gplanchat\Durable\Event\ActivityCompleted(\Gplanchat\Durable\ExecutionId::fromString('exec-1'), 'a1', 42),
-            new ChildWorkflowCompleted(\Gplanchat\Durable\ExecutionId::fromString($executionId), 'child-1', null),
+            new ChildWorkflowCompleted(\Gplanchat\Durable\ExecutionId::fromString($executionId), \Gplanchat\Durable\ExecutionId::fromString('child-1'), null),
             WorkflowExecutionFailed::workflowHandlerFailure(\Gplanchat\Durable\ExecutionId::fromString($executionId), $e),
             WorkflowExecutionFailed::fromStoredPayload(\Gplanchat\Durable\ExecutionId::fromString('exec-1'), []),
             ActivityCatastrophicFailure::fromStoredPayload(\Gplanchat\Durable\ExecutionId::fromString($executionId), []),

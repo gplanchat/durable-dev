@@ -49,13 +49,18 @@ final class TheBufferRefusesWhatTemporalCannotHonourTest extends TestCase
                 return false;
             }
 
+            public function isChildRunning(ExecutionId $childExecutionId): bool
+            {
+                return false;
+            }
+
             public function runChild(ExecutionId $childExecutionId, string $workflowType, array $input, ?ExecutionId $parentExecutionId = null): mixed
             {
                 return 'done';
             }
         };
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
-        $context = new ExecutionContext('exec-1', TemporalExecutionHistory::fromEvents([]), $buffer, $inline);
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
+        $context = new ExecutionContext(ExecutionId::fromString('exec-1'), TemporalExecutionHistory::fromEvents([]), $buffer, $inline);
 
         $this->expectException(UnsupportedByBackendException::class);
         $this->expectExceptionMessage('completeChildWorkflow');
@@ -73,7 +78,7 @@ final class TheBufferRefusesWhatTemporalCannotHonourTest extends TestCase
      */
     private function refusalOf(\Closure $call): UnsupportedByBackendException
     {
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
 
         try {
             $call($buffer);

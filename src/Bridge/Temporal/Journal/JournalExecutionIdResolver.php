@@ -14,15 +14,16 @@ final class JournalExecutionIdResolver
 {
     private function __construct() {}
 
-    public const MEMO_KEY_DURABLE_EXECUTION_ID = 'durableExecutionId';
+    public const MEMO_KEY_DURABLE_EXECUTION_ID = \Gplanchat\Durable\ChildWorkflowOptions::MEMO_KEY_DURABLE_EXECUTION_ID;
 
     /** What a suspended run last waited on, in the core's words (#514), upserted at each suspension. */
-    public const MEMO_KEY_DURABLE_WAITING_ON = 'durableWaitingOn';
+    public const MEMO_KEY_DURABLE_WAITING_ON = \Gplanchat\Durable\ChildWorkflowOptions::MEMO_KEY_DURABLE_WAITING_ON;
 
     /**
      * The execution id a memo carries, or `null` when it carries none Durable wrote.
      *
-     * A payload that is not JSON counts as none here: this reads the visibility of any workflow.
+     * A field that is not JSON, or holds no non-empty string, counts as none here: this reads the
+     * visibility of any workflow.
      */
     public static function fromMemo(?\Temporal\Api\Common\V1\Memo $memo): ?string
     {
@@ -38,7 +39,7 @@ final class JournalExecutionIdResolver
      *
      * @internal the worker's history reads the id through this; call {@see durableExecutionIdFromStartedAttributes()}
      *
-     * @throws \JsonException when the payload is not JSON
+     * @throws \JsonException when the field is not JSON or holds no non-empty string (#890)
      */
     public static function fromStartedAttributes(
         \Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes $attr,
@@ -48,19 +49,20 @@ final class JournalExecutionIdResolver
 
     /**
      * @throws \RuntimeException when the started event carries no execution id
-     * @throws \JsonException    when the payload is not JSON
+     * @throws \JsonException    when the field is not JSON or holds no non-empty string (#890)
      */
     public static function durableExecutionIdFromStartedAttributes(
         \Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes $attr,
     ): string {
         return self::fromStartedAttributes($attr) ?? throw new \RuntimeException(
-            'WorkflowExecutionStarted carries no durableExecutionId memo that decodes to a non-empty string; expected StartWorkflowExecution from WorkflowClient.',
+            'WorkflowExecutionStarted carries no durableExecutionId memo; expected StartWorkflowExecution from WorkflowClient.',
         );
     }
 
     /**
-     * The one reading of the memo field: no memo, no field, or a value that is not a non-empty
-     * string give `null`; a payload that is not JSON throws.
+     * The one reading of the memo field: no memo or no field give `null`. A field that is not JSON,
+     * or holds anything but a non-empty string, throws: falling back to the workflow id would
+     * journal under the wrong id (#890).
      *
      * @throws \JsonException
      */
@@ -72,6 +74,10 @@ final class JournalExecutionIdResolver
         }
         $decoded = JsonPlainPayload::decode($fields->offsetGet(self::MEMO_KEY_DURABLE_EXECUTION_ID));
 
-        return \is_string($decoded) && '' !== $decoded ? $decoded : null;
+        if (!\is_string($decoded) || '' === $decoded) {
+            throw new \JsonException(\sprintf('The %s memo field holds %s, not a non-empty string.', self::MEMO_KEY_DURABLE_EXECUTION_ID, '' === $decoded ? 'an empty string' : get_debug_type($decoded)));
+        }
+
+        return $decoded;
     }
 }

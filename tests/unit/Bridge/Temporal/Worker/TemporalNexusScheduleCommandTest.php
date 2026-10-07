@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
@@ -76,7 +77,7 @@ final class TemporalNexusScheduleCommandTest extends TestCase
     {
         $buffer = new TemporalWorkflowCommandBuffer(
             new TemporalConnection(target: '127.0.0.1:7233', namespace: 'durable-test'),
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
         );
 
         $buffer->scheduleNexusOperation(

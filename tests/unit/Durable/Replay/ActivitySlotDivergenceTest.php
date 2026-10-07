@@ -66,9 +66,9 @@ final class ActivitySlotDivergenceTest extends TestCase
         $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-2', 'shipped'));
 
         $context = new ExecutionContext(
-            self::EXECUTION,
-            new EventStoreHistorySource($store, self::EXECUTION),
-            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            ExecutionId::fromString(self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
         $context->activity('chargeCard', ['sku' => 'ABC']);
 
@@ -118,9 +118,9 @@ final class ActivitySlotDivergenceTest extends TestCase
         $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), 'act-1', 42));
 
         $context = new ExecutionContext(
-            self::EXECUTION,
-            new EventStoreHistorySource($store, self::EXECUTION),
-            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            ExecutionId::fromString(self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
 
         $awaitable = $context->activity('reserveStock', ['sku' => 'ABC']);
@@ -135,9 +135,9 @@ final class ActivitySlotDivergenceTest extends TestCase
         $store->append(new ActivityCompleted(ExecutionId::fromString(self::EXECUTION), $activityId, $result));
 
         return new ExecutionContext(
-            self::EXECUTION,
-            new EventStoreHistorySource($store, self::EXECUTION),
-            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            ExecutionId::fromString(self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
     }
 }

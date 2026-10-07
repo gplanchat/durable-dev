@@ -65,23 +65,51 @@
     </listingToolbar>
 
     <columns name="durable_process_columns">
+        <!--
+            The three text columns declare an `eq` condition instead of the `<filter>text</filter>`
+            shorthand. The shorthand means `like`: Magento's Input filter then escapes `%` and `_` and
+            wraps the text in `%...%` before the data provider sees it, so the provider would be
+            comparing a pattern (#815). With `eq`, the text arrives as typed, which is what the
+            whole-name and start-of-id rules of the other surfaces need.
+        -->
         <column name="execution_id">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="filter" xsi:type="array">
+                        <item name="filterType" xsi:type="string">text</item>
+                        <item name="conditionType" xsi:type="string">eq</item>
+                    </item>
+                </item>
+            </argument>
             <settings>
-                <filter>text</filter>
                 <label translate="true">Execution</label>
                 <sortable>false</sortable>
             </settings>
         </column>
         <column name="run_id">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="filter" xsi:type="array">
+                        <item name="filterType" xsi:type="string">text</item>
+                        <item name="conditionType" xsi:type="string">eq</item>
+                    </item>
+                </item>
+            </argument>
             <settings>
-                <filter>text</filter>
                 <label translate="true">Backend run</label>
                 <sortable>false</sortable>
             </settings>
         </column>
         <column name="workflow_name">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="filter" xsi:type="array">
+                        <item name="filterType" xsi:type="string">text</item>
+                        <item name="conditionType" xsi:type="string">eq</item>
+                    </item>
+                </item>
+            </argument>
             <settings>
-                <filter>text</filter>
                 <label translate="true">Workflow</label>
                 <sortable>false</sortable>
             </settings>

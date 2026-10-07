@@ -123,7 +123,7 @@ final class TheCoreReadsTimeFromItsClockTest extends TestCase
         $store = new InMemoryEventStore();
         $runner = new InMemoryWorkflowRunner($store, new InMemoryActivityTransport(), new RegistryActivityExecutor(), clock: new FrozenClock(1_700_000_000.0));
 
-        $runner->run('exec-1', static function (WorkflowEnvironment $wf): string {
+        $runner->run(ExecutionId::fromString('exec-1'), static function (WorkflowEnvironment $wf): string {
             $wf->sleep(60);
 
             return 'done';
@@ -143,7 +143,7 @@ final class TheCoreReadsTimeFromItsClockTest extends TestCase
         $store = new InMemoryEventStore();
         $runner = new InMemoryWorkflowRunner($store, new InMemoryActivityTransport(), new RegistryActivityExecutor(), clock: new FrozenClock(1_700_000_000.0));
 
-        $runner->run('exec-1', static function (WorkflowEnvironment $wf): string {
+        $runner->run(ExecutionId::fromString('exec-1'), static function (WorkflowEnvironment $wf): string {
             $wf->sleep(new \DateTimeImmutable('@1700000060'));
 
             return 'done';
@@ -162,7 +162,7 @@ final class TheCoreReadsTimeFromItsClockTest extends TestCase
     {
         $runner = new InMemoryWorkflowRunner(new InMemoryEventStore(), new InMemoryActivityTransport(), new RegistryActivityExecutor(), clock: null);
 
-        self::assertSame('done', $runner->run('exec-1', static fn(WorkflowEnvironment $wf): string => 'done'));
+        self::assertSame('done', $runner->run(ExecutionId::fromString('exec-1'), static fn(WorkflowEnvironment $wf): string => 'done'));
     }
 
     public function testAnActivityPastItsScheduleToCloseOnTheProcessorsClockTimesOut(): void

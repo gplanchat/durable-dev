@@ -113,9 +113,9 @@ final class ChangePointOnAnOlderRunTest extends TestCase
     private function context(InMemoryEventStore $store): ExecutionContext
     {
         return new ExecutionContext(
-            self::EXECUTION,
-            new EventStoreHistorySource($store, self::EXECUTION),
-            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            ExecutionId::fromString(self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
     }
 }

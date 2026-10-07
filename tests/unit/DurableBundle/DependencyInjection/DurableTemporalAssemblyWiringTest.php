@@ -17,6 +17,7 @@ use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
@@ -47,7 +48,7 @@ final class DurableTemporalAssemblyWiringTest extends TestCase
         }
     }
 
-    public function testTheAssemblyGetsTheClientConnectionRegistryAndLoader(): void
+    public function testTheAssemblyGetsTheClientConnectionRegistryLoaderAndLogger(): void
     {
         $arguments = $this->load()->getDefinition(TemporalRuntimeAssembly::class)->getArguments();
 
@@ -56,6 +57,7 @@ final class DurableTemporalAssemblyWiringTest extends TestCase
             new Reference('durable.temporal.connection'),
             new Reference(WorkflowRegistry::class),
             new Reference(WorkflowDefinitionLoader::class),
+            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ], $arguments);
     }
 

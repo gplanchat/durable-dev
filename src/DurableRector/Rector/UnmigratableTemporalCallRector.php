@@ -9,9 +9,15 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Stmt;
+use PhpParser\Node\Stmt\Catch_;
+use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Finally_;
 use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\GroupUse;
+use PhpParser\Node\Stmt\TryCatch;
+use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeVisitor;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -34,6 +40,21 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     public const MARKER = 'durable-rector:';
 
     private const SDK_WORKFLOW_FACADE = 'Temporal\Workflow';
+    private const SDK_PROMISE_FACADE = 'Temporal\Promise';
+
+    /** What TemporalFacadeToEnvironmentRector rewrites on `Promise::`, given its arguments. */
+    private const REWRITABLE_PROMISE = ['all', 'any', 'some'];
+
+    /**
+     * The SDK failures that `temporal-sdk.php` deliberately does not rename: mapping one onto a
+     * neighbour would silently change which catch block wins.
+     */
+    private const FAILURES_WITHOUT_COUNTERPART = [
+        'Temporal\Exception\Failure\ApplicationFailure',
+        'Temporal\Exception\Failure\ServerFailure',
+        'Temporal\Exception\Failure\TerminatedFailure',
+        'Temporal\Exception\Failure\TimeoutFailure',
+    ];
 
     /**
      * The facade calls a Durable environment can answer. Everything else is reported.
@@ -122,21 +143,28 @@ AFTER,
     {
         \assert($node instanceof Stmt);
 
-        if ($node instanceof ClassLike || $node instanceof ClassMethod || $node instanceof Function_) {
+        if ($node instanceof Class_ && null !== $node->name && null !== $node->extends) {
+            // A class reports only the failure it extends; its members report for themselves. An
+            // anonymous class is marked above the statement that encloses it.
+            $findings = array_filter([self::failureFinding($node->extends)]);
+        } elseif ($node instanceof ClassLike || $node instanceof Catch_ || $node instanceof Finally_) {
             // Containers: their statements report for themselves, and marking both would say it twice.
+            // A catch clause reports on its `try`, the statement a comment can sit above.
             return null;
+        } elseif ($node instanceof Use_ || $node instanceof GroupUse) {
+            // An import is not a use: the statements that reference the class carry the marker.
+            return null;
+        } elseif ($node instanceof ClassMethod || $node instanceof Function_) {
+            // A method or a function reports only its signature types; its body reports for itself.
+            $findings = $this->signatureFindings($node);
+        } else {
+            $findings = $this->findings($node);
         }
 
-        $findings = $this->findings($node);
+        // Already reported: a second pass adds no second comment for the same finding.
+        $findings = array_filter($findings, static fn(string $finding): bool => !self::isMarked($node, $finding));
         if ([] === $findings) {
             return null;
-        }
-
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::MARKER)) {
-                // Already reported. A second pass must not stack a second comment.
-                return null;
-            }
         }
 
         $comments = $node->getComments();
@@ -150,17 +178,62 @@ AFTER,
     }
 
     /**
+     * Whether a `durable-rector:` comment on the node already reports this finding.
+     *
+     * Two markers report the same finding when they match up to the first ` — `, the part that names
+     * the construct. The explanation after it can differ: a marker written by an earlier run keeps
+     * its text (#914). A different finding gets its own marker next to the first one (#917).
+     */
+    public static function isMarked(Node $node, string $finding): bool
+    {
+        $separator = strpos($finding, ' — ');
+        $needle = self::MARKER . ' ' . (false === $separator ? $finding : substr($finding, 0, $separator + \strlen(' — ')));
+
+        foreach ($node->getComments() as $comment) {
+            if (str_contains($comment->getText(), $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return string[] one line per unmigratable call, in source order, without duplicates
      */
     private function findings(Stmt $statement): array
     {
         $findings = [];
 
+        if ($statement instanceof TryCatch) {
+            foreach ($statement->catches as $catch) {
+                foreach ($catch->types as $type) {
+                    $findings[] = self::failureFinding($type);
+                }
+            }
+        }
+
         $this->traverseNodesWithCallable($statement, static function (Node $node) use ($statement, &$findings): ?int {
+            if ($node instanceof New_ && $node->class instanceof Class_) {
+                // An anonymous class: the enclosing statement reports its `extends`; its members, being
+                // statements, report for themselves.
+                if (null !== $node->class->extends) {
+                    $findings[] = self::failureFinding($node->class->extends);
+                }
+
+                return null;
+            }
+
             if ($node instanceof Stmt && $node !== $statement) {
                 // A nested statement reports on its own line; stopping here is what keeps the
                 // marker on the innermost statement rather than on every block above it.
                 return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+            }
+
+            if ($node instanceof Node\Name) {
+                $findings[] = self::failureFinding($node);
+
+                return null;
             }
 
             if ($node instanceof New_ && $node->class instanceof Node\Name) {
@@ -182,6 +255,15 @@ AFTER,
             $reason = self::UNMIGRATABLE_CLASSES[$class] ?? null;
             if (null !== $reason) {
                 $findings[] = \sprintf('%s::%s() — %s', $node->class->getLast(), $node->name->toString(), $reason);
+
+                return null;
+            }
+
+            if (self::SDK_PROMISE_FACADE === $class) {
+                $finding = self::promiseFinding($node);
+                if (null !== $finding) {
+                    $findings[] = $finding;
+                }
 
                 return null;
             }
@@ -209,7 +291,62 @@ AFTER,
             return null;
         });
 
-        return array_values(array_unique($findings));
+        return array_values(array_unique(array_filter($findings)));
+    }
+
+    /**
+     * @return string[] one line per failure named in a parameter or return type, without duplicates
+     */
+    private function signatureFindings(ClassMethod|Function_ $function): array
+    {
+        $types = array_map(static fn(Node\Param $param): ?Node => $param->type, $function->params);
+        $types[] = $function->returnType;
+
+        $findings = [];
+        foreach (array_filter($types) as $type) {
+            // Nullable, union and intersection types hold their names as children.
+            $this->traverseNodesWithCallable($type, static function (Node $node) use (&$findings): null {
+                if ($node instanceof Node\Name) {
+                    $findings[] = self::failureFinding($node);
+                }
+
+                return null;
+            });
+        }
+
+        return array_values(array_unique(array_filter($findings)));
+    }
+
+    private static function failureFinding(Node\Name $name): ?string
+    {
+        if (!\in_array($name->toString(), self::FAILURES_WITHOUT_COUNTERPART, true)) {
+            return null;
+        }
+
+        return \sprintf(
+            '%s has no Durable counterpart — once temporal/sdk is removed this reference no longer resolves; decide by hand',
+            $name->getLast(),
+        );
+    }
+
+    /**
+     * The Promise calls TemporalFacadeToEnvironmentRector leaves as they are: another method, a
+     * call with no iterable, or `some()` without its count.
+     */
+    private static function promiseFinding(StaticCall $call): ?string
+    {
+        \assert($call->name instanceof Node\Identifier);
+        $name = $call->name->toString();
+
+        if (!\in_array($name, self::REWRITABLE_PROMISE, true) || [] === $call->args) {
+            return \sprintf('Promise::%s() — no Durable equivalent — decide by hand', $name);
+        }
+
+        if ('some' === $name && !isset($call->args[1])) {
+            return 'some() without a count — pass the count to $env->some() by hand';
+        }
+
+        return null;
     }
 
     /**

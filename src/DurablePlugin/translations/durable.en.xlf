@@ -9,6 +9,7 @@
             <trans-unit id="dashboard.worker_polling"><source>dashboard.worker_polling</source><target>The %role% worker is polling.</target></trans-unit>
             <trans-unit id="dashboard.worker_missing"><source>dashboard.worker_missing</source><target>No %role% worker has polled in %seconds% seconds: executions stop at their first %role% task. Start bin/console durable:worker --role=%role%.</target></trans-unit>
             <trans-unit id="dashboard.worker_unknown"><source>dashboard.worker_unknown</source><target>Could not ask the backend whether a %role% worker polls: %error%</target></trans-unit>
+            <trans-unit id="dashboard.workers_unlisted"><source>dashboard.workers_unlisted</source><target>Messenger keeps no list of the processes that run bin/console durable:worker.</target></trans-unit>
             <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Outcomes across the %count% runs on this page</target></trans-unit>
             <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>On this page</target></trans-unit>
             <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>Waiting for a worker</target></trans-unit>

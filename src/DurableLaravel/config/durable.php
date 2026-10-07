@@ -7,7 +7,7 @@ declare(strict_types=1);
  * application. One file for both, so there is nothing to let diverge.
  *
  * WARNING: no `env()` call here. The provider loads this file as a set of default values, in a
- * standalone worker and in a test too — where `env()` exists, since it comes from
+ * standalone worker and in a test too, where `env()` exists, since it comes from
  * `illuminate/support`, but blows up on `PhpOption\Option`, which only `vlucas/phpdotenv`
  * supplies. That is the exact failure the docblock of `ResumeLock` describes about
  * `Lock::block()`: it only happens where nobody is watching. Your published copy, on the other
@@ -25,7 +25,7 @@ return [
 
     /*
      * The database connection, in the sense of config/database.php. Name one of its own: `null`
-     * takes the application's default one, which works but is strongly discouraged (DUR054) —
+     * takes the application's default one, which works but is strongly discouraged (DUR054):
      * Durable's transactions then nest inside the application's, and a business rollback erases
      * journal events.
      */
@@ -38,7 +38,7 @@ return [
      * declaration is explicit. What that does not change is the class: the one that runs on
      * `durable-bundle` runs here without a line of difference.
      *
-     * Measured (§1.4): this list costs 0,14 ms and does not grow with the application, where a
+     * Measured (§1.4): this list costs 0.14 ms and does not grow with the application, where a
      * reflection scan costs 15 ms on a thousand classes and loads them all, in every process, to
      * find five.
      *
@@ -74,12 +74,12 @@ return [
         // namespace first: a server refuses a start that names an unregistered attribute.
         'search_attributes' => false,
         // A container binding: the application's GuzzleHttp\ClientInterface, which
-        // `transport=guzzle` in the DSN then uses — its proxy, TLS options and middleware apply to
+        // `transport=guzzle` in the DSN then uses: its proxy, TLS options and middleware apply to
         // gRPC. Unused by any other transport; null builds a default client.
         'guzzle_client' => null,
         // Container bindings: the application's PSR-18 client, which `transport=http` (the JSON
         // gateway) then uses instead of curl, and a PSR-17 factory implementing both request and
-        // stream factories — defaulting to the client's binding. null keeps curl.
+        // stream factories, defaulting to the client's binding. null keeps curl.
         'psr18_client' => null,
         'psr17_factory' => null,
         // A container binding: the application's PayloadCodecInterface, which encodes every
@@ -116,8 +116,8 @@ return [
     ],
 
     /*
-     * The Nexus operations this application **serves** — calling an operation has nothing to
-     * declare here, it is the workflow that asks for it.
+     * The Nexus operations this application **serves**. Calling an operation has nothing to
+     * declare here: the workflow asks for it.
      *
      * The key is the handler class, the value the contract it serves:
      *
@@ -130,7 +130,7 @@ return [
      * If both are given and disagree, the registry refuses. So it does for an operation nobody
      * serves, and for a class in `workflows` that does not exist.
      *
-     * What a handler does not serve, a workflow fulfils — it then carries
+     * What a handler does not serve, a workflow fulfils: it then carries
      * `#[FulfilsNexusOperation]`, and it is enough for it to be in the `workflows` list above.
      *
      * ⚠ Serving Nexus requires the "temporal" backend: it is the cluster that routes. Under any
@@ -160,9 +160,9 @@ return [
         /*
          * The deferral of a resume whose turn is taken, in seconds.
          *
-         * Measured (§1.5): on a hot execution — woken ceaselessly by signals or timers — 98,8 % of
+         * Measured (§1.5): on a hot execution (woken ceaselessly by signals or timers), 98.8% of
          * the resumes collide, and this delay then **is** the latency: one second turned 32 s of
-         * work into 148 s of clock. On an estate of many executions, the collisions drop to 0,6 %
+         * work into 148 s of clock. On an estate of many executions, the collisions drop to 0.6%
          * and the setting no longer has any effect.
          */
         'backoff' => 1,

@@ -20,7 +20,7 @@ final class AsksWhenTheNextTimerIsDue
 {
     public function due(object $store, string $executionId, float $now): ?int
     {
-        return \Gplanchat\Durable\Timer\TimerWakeDelayCalculator::millisecondsUntilNextTimerDue($store, $executionId, $now);
+        return \Gplanchat\Durable\Timer\TimerWakeDelayCalculator::millisecondsUntilNextTimerDue($store, \Gplanchat\Durable\ExecutionId::fromString($executionId), $now);
     }
 }
 

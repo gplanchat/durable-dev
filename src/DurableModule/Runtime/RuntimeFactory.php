@@ -6,6 +6,7 @@ namespace Gplanchat\DurableModule\Runtime;
 
 use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TaskQueueKind;
 use Gplanchat\Bridge\Temporal\Store\TaskQueuePollers;
 use Gplanchat\Bridge\Temporal\Store\TemporalTaskQueueProbe;
@@ -21,14 +22,18 @@ use Gplanchat\Durable\Activity\ActivityContractResolver;
 use Gplanchat\Durable\Activity\PayloadToContractMethodInvoker;
 use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerDeclarations;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\SystemClock;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
@@ -159,12 +164,35 @@ class RuntimeFactory
          * signature (#725).
          */
         private readonly ?object $codec = null,
-    ) {}
+        /**
+         * Without a DSN: how many times a chain may continue as new before the run fails. Like
+         * `budgetSeconds`, a bound on an inline run; set with an
+         * `<argument name="maxContinuations" xsi:type="number">` in `di.xml` (#888). A negative
+         * value throws here, when the factory is built, not at the first `create()` (#900).
+         */
+        private readonly int $maxContinuations = InMemoryWorkflowRunner::DEFAULT_MAX_CONTINUATIONS,
+    ) {
+        if ($maxContinuations < 0) {
+            throw new \InvalidArgumentException(\sprintf('maxContinuations must be 0 or more, %d given.', $maxContinuations));
+        }
+    }
 
     /** One per factory, and the ObjectManager shares the factory: one gRPC client per request (#356). */
     private ?WorkflowServiceClientInterface $client = null;
 
     private ?TemporalRuntimeAssembly $assembly = null;
+
+    /**
+     * Without a DSN: the one journal and catalog of this factory, so a run is found where it was started (#985).
+     *
+     * Ceiling: the factory is shared across requests in a long-lived Magento worker, and nothing
+     * evicts. Every run, with its full event stream, and every catalogue row stay until the process
+     * ends. A second `run()` with an id already in the journal replays the recorded result instead
+     * of executing again. Bounding or clearing the journal is an open decision (#985).
+     */
+    private ?InMemoryEventStore $memoryJournal = null;
+
+    private ?InMemoryWorkflowRunCatalog $memoryCatalog = null;
 
     private function clock(): ClockInterface
     {
@@ -183,14 +211,17 @@ class RuntimeFactory
             $activities,
             $workflows,
             new InMemoryWorkflowRunner(
-                $eventStore,
+                null === $this->temporalSettings() ? new ProjectingEventStore($eventStore, $this->memoryCatalog()) : $eventStore,
                 $transport,
                 $activities,
                 $this->maxActivityRetries,
                 $workflows,
                 $this->budgetSeconds,
                 $this->clock(),
+                maxContinuations: $this->maxContinuations,
             ),
+            null === $this->temporalSettings() ? null : $this->runOnCluster(...),
+            null === $this->temporalSettings() ? $this->memoryCatalog() : null,
         );
 
         foreach ($this->workflowClasses as $workflowClass) {
@@ -213,9 +244,9 @@ class RuntimeFactory
      * chooses, it is **the presence of a DSN** under `durable/temporal/dsn` in `env.php`. Absent,
      * the journal lives in this process and dies with it — a legitimate choice for a command, and
      * ruinous for a consumer. Present, the cluster's history is the journal of every run it
-     * carries, and the store reads it through the bridge's assembly, as the other hosts do. A run
-     * executed in this process keeps its events here, exactly as without a DSN: what must survive
-     * is started with `workflowClient()` (#356). Magento reaches no other persistent journal: the
+     * carries, and the store reads it through the bridge's assembly, as the other hosts do. With a
+     * DSN, `MagentoRuntime::run()` starts on the cluster and waits (#765); `workflowClient()`
+     * starts without waiting (#356). Magento reaches no other persistent journal: the
      * host ships neither of the two connection types the SQL bridges bind to.
      */
     private function eventStore(): EventStoreInterface
@@ -223,8 +254,18 @@ class RuntimeFactory
         $settings = $this->temporalSettings();
 
         return $settings === null
-            ? new InMemoryEventStore($this->clock())
+            ? $this->memoryJournal()
             : $this->assembly($settings)->readThroughEventStore(new InMemoryEventStore($this->clock()));
+    }
+
+    private function memoryJournal(): InMemoryEventStore
+    {
+        return $this->memoryJournal ??= new InMemoryEventStore($this->clock());
+    }
+
+    private function memoryCatalog(): InMemoryWorkflowRunCatalog
+    {
+        return $this->memoryCatalog ??= new InMemoryWorkflowRunCatalog($this->memoryJournal(), $this->clock());
     }
 
     /**
@@ -241,7 +282,7 @@ class RuntimeFactory
         $settings = $this->temporalSettings();
 
         if ($settings === null) {
-            return new InMemoryWorkflowRunCatalog(new InMemoryEventStore($this->clock()), $this->clock());
+            return $this->memoryCatalog();
         }
 
         // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
@@ -317,14 +358,44 @@ class RuntimeFactory
     /**
      * What it takes to start an execution **on the cluster**, rather than in this process.
      *
-     * `MagentoRuntime::run()` executes here and now: its activities go into the in-memory
-     * transport whatever the journal underneath, and die with the process. For an activity to
-     * become a Temporal task, the execution has to be started on the cluster and carried by the
-     * workers — that is the split task 5 describes, and this client is its door.
+     * `MagentoRuntime::run()` goes through it too and waits for the result (#765). Called
+     * directly, `startAsync()` returns at once, which is what a web request wants: the workers
+     * carry the execution, and nothing in this process waits for it.
      */
     public function workflowClient(): WorkflowClient
     {
         return $this->assembly($this->requireCluster('Starting a workflow on the cluster'))->workflowClient();
+    }
+
+    /**
+     * The start that works on every host, `dispatchNewWorkflowRun()` (#976). With a DSN, a new run
+     * starts on the cluster and returns at once; without one, it runs in this process, as
+     * `MagentoRuntime::run()` does, and a failing run does not throw from the call, as on the
+     * cluster.
+     */
+    public function resumeDispatcher(): WorkflowResumeDispatcher
+    {
+        if (null === $this->temporalSettings()) {
+            return new InProcessWorkflowResumeDispatcher($this->create(), $this->logger);
+        }
+
+        return new TemporalWorkflowResumeDispatcher($this->workflowClient(), new InMemoryWorkflowMetadataStore(), new WorkflowDefinitionLoader());
+    }
+
+    /**
+     * What `MagentoRuntime::run()` does with a DSN (#765): start on the cluster, then wait for the
+     * close event, the pair the Symfony bench's runner uses. `startSync()` is not it: it reads the
+     * history once and returns null while the execution still runs. The wait polls every 500 ms
+     * for `budgetSeconds`, and ends with `WorkflowStuckException` as in memory.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function runOnCluster(string $workflowClass, array $input, string $executionId): mixed
+    {
+        $client = $this->workflowClient();
+        $client->startAsync($workflowClass, $input, ExecutionId::fromString($executionId));
+
+        return $client->pollForCompletion($executionId, 500, max(1, (int) ceil($this->budgetSeconds * 2.0)));
     }
 
     private function client(TemporalConnection $settings): WorkflowServiceClientInterface
@@ -347,7 +418,7 @@ class RuntimeFactory
             foreach ($this->workflowClasses as $workflowClass) {
                 $registry->registerClass($workflowClass);
             }
-            $this->assembly = new TemporalRuntimeAssembly($this->client($settings), $settings, $registry, new WorkflowDefinitionLoader());
+            $this->assembly = new TemporalRuntimeAssembly($this->client($settings), $settings, $registry, new WorkflowDefinitionLoader(), $this->logger);
         }
 
         return $this->assembly;
@@ -394,7 +465,7 @@ class RuntimeFactory
     {
         $settings = $this->requireCluster('A Nexus worker');
 
-        return new TemporalNexusWorker($this->assembly($settings)->nexusRpc(), $settings, $this->nexusRegistry());
+        return new TemporalNexusWorker($this->assembly($settings)->nexusRpc(), $settings, $this->nexusRegistry(), $this->logger);
     }
 
     private function requireCluster(string $what): TemporalConnection

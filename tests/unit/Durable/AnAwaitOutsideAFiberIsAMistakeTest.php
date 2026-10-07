@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\Awaitable\Deferred;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
@@ -28,9 +29,9 @@ final class AnAwaitOutsideAFiberIsAMistakeTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $runtime->await((new Deferred())->awaitable(), new ExecutionContext(
-            'exec-1',
-            new EventStoreHistorySource($store, 'exec-1'),
-            new EventStoreCommandBuffer($store, $transport, 'exec-1'),
+            ExecutionId::fromString('exec-1'),
+            new EventStoreHistorySource($store, ExecutionId::fromString('exec-1')),
+            new EventStoreCommandBuffer($store, $transport, ExecutionId::fromString('exec-1')),
         ));
     }
 }

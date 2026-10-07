@@ -51,12 +51,12 @@ use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 
 final class WorkflowClientDouble implements WorkflowClientInterface
 {
-    public function startAsync(string $workflowType, array $payload, string $executionId): string
+    public function startAsync(string $workflowType, array $payload, string $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): string
     {
         return $executionId;
     }
 
-    public function startSync(string $workflowType, array $payload, string $executionId): mixed
+    public function startSync(string $workflowType, array $payload, string $executionId, ?\Gplanchat\Durable\WorkflowStartOptions $options = null): mixed
     {
         return null;
     }

@@ -32,7 +32,9 @@ final class JsonPlainPayload
      */
     public static function encodeWithMetadata(mixed $data, array $extraMetadata): Payload
     {
-        $json = json_encode($data, \JSON_THROW_ON_ERROR);
+        // Without the flag 30.0 goes out as 30 and reads back as an int (#826). A Double search
+        // attribute accepts 30.0; an Int one only ever receives an int, whose bytes do not change.
+        $json = json_encode($data, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION);
 
         return new Payload([
             'data' => $json,

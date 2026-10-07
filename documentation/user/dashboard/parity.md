@@ -14,20 +14,20 @@ when a gap closes.
 | | Sylius | Magento | Filament | Web profiler |
 | --- | --- | --- | --- | --- |
 | Runs listed | All | The 200 most recent | All | Those seen in one request, plus 20 named in `durable_execution` at most |
-| Backend state | 4 states, 3 of them dated | 3 states, the in-memory one undated | 4 states, 3 of them dated | None |
+| Backend state | 4 states, 3 of them dated | 3 states, all dated | 4 states, 3 of them dated | None |
 | Counters | Per outcome, over the page | Per outcome, over the window | Per outcome, over the page | None |
-| Outcome filter | Yes | Yes | No | No |
-| Workflow name filter | Whole name, where the backend can | Contains, ignoring case, within the window | Whole name, where the backend can | No |
-| Execution id filter | Prefix, where the backend can | Contains, within the window | Prefix, where the backend can | No |
+| Outcome filter | Yes | Yes | Yes | No |
+| Workflow name filter | Whole name, where the backend can | Whole name, within the window | Whole name, where the backend can | No |
+| Execution id filter | Prefix, where the backend can | Prefix, within the window | Prefix, where the backend can | No |
 | `waiting for a worker` | Line and counter | No | Line and counter | No |
 | `waiting on` | List | List and run page | List and run page | Run section |
-| One line per action | Yes | Yes, plus a journal table | Yes | No, one row per event |
-| Hatched queue time | Yes | Yes | On the timeline | No |
-| Red on the failing event | Yes | Yes | On the timeline | No |
+| One line per action | Yes | Yes, plus a journal table | Yes | Yes |
+| Hatched queue time | Yes | Yes | On the timeline | Yes |
+| Red on the failing event | Yes | Yes | On the timeline | Yes |
 | Nexus operations table | Yes | Yes | Yes | Yes |
-| Worker presence | Yes | Yes, journal and activity | No | No |
-| Payload masking | Folded | Folded | Folded | Always open |
-| Languages | English, French | English | English, French | English |
+| Worker presence | Per role on Temporal, "Could not ask" on DBAL, none in memory | Journal and activity on Temporal, none in memory | Workflow and activity on Temporal, "Could not ask" on Illuminate, none in memory | No |
+| Payload masking | Folded | Folded | Folded | Folded |
+| Languages | English, French | English, French | English, French | English |
 
 ## Words on screen
 
@@ -52,7 +52,6 @@ Three things stay specific to a surface:
 ## Behaviours worth knowing
 
 - **Magento counters.** They cover the whole 200-run window and ignore the grid filters.
-- **Filament outcome.** The list reads every outcome.
 - **Sylius run page.** It does not show the `waiting on` line, which the list does.
 - **Blank cells.** The Sylius grid leaves the start date blank when a run has none, and the
   Filament Notes column leaves an empty note blank. Magento and the profiler print a dash.

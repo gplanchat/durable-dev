@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Nexus;
 
 use Gplanchat\Durable\Awaitable\NexusOperationAwaitable;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusOperationTimeouts;
@@ -195,6 +196,6 @@ final class NexusOperationSchedulingTest extends TestCase
             },
         );
 
-        return new ExecutionContext('exec-1', $history, $buffer);
+        return new ExecutionContext(ExecutionId::fromString('exec-1'), $history, $buffer);
     }
 }

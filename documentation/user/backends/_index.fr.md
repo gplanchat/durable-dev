@@ -21,7 +21,7 @@ mémoire ; les trois autres sont les ponts entre lesquels vous choisissez.
 > **Sur Magento, les deux backends SQL ne sont pas disponibles.** `gplanchat/durable-magento`
 > déclare un `conflict` Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection`
 > n'est ni une connexion Doctrine DBAL ni celle d'Illuminate, donc aucun des deux n'a de quoi se
-> lier. L'état vit soit dans une grappe Temporal, soit dans un processus. La présence de
+> lier. L'état vit soit dans un cluster Temporal, soit dans un processus. La présence de
 > `durable/temporal/dsn` dans `app/etc/env.php` détermine lequel des deux ; aucun réglage ne le fait.
 
 Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
@@ -94,6 +94,21 @@ Le bundle enregistre lui-même ces workers à partir de `durable.temporal.dsn` :
 les trouve par leur nom, et `messenger.yaml` ne déclare aucun transport Temporal. Un troisième,
 `durable_nexus`, existe quand l'application [sert une opération Nexus](../nexus/).
 
+### Attendre le résultat avec `pollForCompletion()` {#waiting-for-the-result}
+
+`WorkflowClient::pollForCompletion()` lit l'événement de clôture de l'exécution jusqu'à ce qu'il
+arrive, puis renvoie le résultat ou lève une exception. Deux comportements diffèrent d'une exécution
+sur les backends à journal :
+
+- Un workflow qui laisse échapper l'échec d'une activité lève `DurableWorkflowAlgorithmFailureException`,
+  comme sur les backends à journal. Son exception précédente est une `ActivityFailureCauseException`
+  qui porte la classe et le message d'origine, pas l'exception d'origine elle-même. Tout autre échec
+  du workflow lève une simple `\RuntimeException` dont le message commence par
+  `Workflow "<execution id>" failed:`, et non l'exception propre au workflow.
+- Un workflow qui attend un signal que personne n'envoie échoue aussitôt en mémoire, puisque rien
+  d'autre ne peut le faire avancer. Sur Temporal, l'exécution reste ouverte : `pollForCompletion()`
+  attend jusqu'au bout de ses interrogations, puis lève `WorkflowStuckException`.
+
 ### Prérequis
 
 - L'extension PHP **`ext-grpc`**, compilée contre la version du paquet `grpc/grpc` qu'exige le pont.
@@ -110,6 +125,21 @@ les trouve par leur nom, et `messenger.yaml` ne déclare aucun transport Tempora
   exécuter le `STARTS_WITH` qu'il demande. Sur ces serveurs, le catalogue lève pour un préfixe une
   `RunFilterUnavailableException` qui nomme la 1.23, et les tableaux de bord ne proposent que le
   filtre par nom. Le filtre exact par nom de workflow fonctionne dès la 1.20.
+- Les **mises à jour** (`#[AsUpdateMethod]`, `onUpdate()`) demandent un **serveur 1.21 ou plus
+  récent**. Sur la 1.20, quand la tâche de workflow qui répond à une mise à jour termine aussi le
+  workflow, le serveur n'écrit aucun événement de mise à jour dans l'historique, et un rejeu
+  ultérieur ne voit pas la mise à jour.
+  De la 1.21 à la 1.24, les mises à jour sont désactivées par défaut : passez la valeur de
+  configuration dynamique `frontend.enableUpdateWorkflowExecution` à `true`. Sans elle,
+  `WorkflowClient::update()` échoue avec `UpdateWorkflowExecution operation is disabled on this
+  namespace`. Dans le fichier de configuration dynamique du serveur (inutile d'activer
+  `frontend.enableUpdateWorkflowExecutionAsyncAccepted` : Durable attend l'étape COMPLETED de la
+  mise à jour) :
+
+  ```yaml
+  frontend.enableUpdateWorkflowExecution:
+    - value: true
+  ```
 
 ### Installer `ext-grpc`
 
@@ -261,14 +291,18 @@ DSN](../configuration/#format-du-dsn).
 
 ## Le backend DBAL
 
-Le backend DBAL persiste le journal, les métadonnées de reprise et les liens parent/enfant dans une
-**seule base SQL**, à travers Doctrine DBAL. Pas de serveur d'orchestration, pas de sidecar, pas
-d'`ext-grpc`. Voir **DUR030**.
+Le backend DBAL persiste le journal, les métadonnées de reprise, les liens parent/enfant et le
+catalogue des exécutions (la liste des exécutions que lit un tableau de bord) dans une **seule base
+SQL**, à travers Doctrine DBAL. Pas de serveur d'orchestration, pas de sidecar, pas d'`ext-grpc`.
+Voir **DUR030**.
 
 ### Comment il fonctionne
 
-- Les trois stockages locaux au processus deviennent des tables SQL ; tout le reste (rejeu, tampon
-  de commandes, cycle de vie) est le code que le backend en mémoire fait déjà tourner.
+- Les quatre stockages locaux au processus deviennent des tables SQL : le journal d'événements,
+  les métadonnées de workflow, les liens parents des workflows enfants et le catalogue des
+  exécutions. Une cinquième table, `durable_execution_heads`, tient un compteur par exécution qui
+  empêche une reprise dépassée d'écrire dans le journal (DUR053). Tout le reste (rejeu, tampon de commandes, cycle de vie) est le code que le backend
+  en mémoire fait déjà tourner.
 - Reprises et activités voyagent par **Symfony Messenger** : prenez donc un transport durable
   (Doctrine, Redis, AMQP). Un transport `in-memory://` jette ce que le journal SQL vient de
   persister.
@@ -289,7 +323,7 @@ schéma) et un utilisateur SQL propres à Durable, pour que le code métier ne p
 atteindre les tables du journal.
 
 ```yaml
-# config/packages/doctrine.yaml — le journal sur une connexion à lui
+# config/packages/doctrine.yaml : le journal sur une connexion à lui
 doctrine:
     dbal:
         default_connection: default
@@ -321,8 +355,31 @@ autre que celle de l'ORM, `doctrine:migrations:diff` ne voit pas les tables de D
 viennent de la première écriture, ou de `bin/console durable:setup`.
 
 Ajouter un `temporal.dsn` garde le journal en SQL et n'utilise le cluster que pour servir des
-opérations Nexus. Avec `backend: temporal`, c'est le cluster qui porte le journal. Dans aucun des
-deux cas il n'y a de seconde source de vérité.
+opérations Nexus. Avec `backend: temporal`, c'est le cluster qui porte le journal. Dans les deux
+cas, le journal vit à un seul endroit.
+
+### Le transport Doctrine sur PostgreSQL {#doctrine-transport-on-postgresql}
+
+Sur PostgreSQL, réglez `use_notify: false` sur les transports Doctrine de Durable :
+
+```yaml
+framework:
+    messenger:
+        transports:
+            durable_workflows:
+                dsn: 'doctrine://default?queue_name=durable_workflows'
+                options: { use_notify: false }
+            durable_activities:
+                dsn: 'doctrine://default?queue_name=durable_activities'
+                options: { use_notify: false }
+```
+
+Une fois une file vide, le transport PostgreSQL de Messenger ne la relit qu'à réception d'une
+notification ou au bout de 60 secondes (`check_delayed_interval`). Un worker qui consomme les deux
+files sur une seule connexion peut manquer cette notification, et la reprise qu'envoie une activité
+attend alors jusqu'à 60 secondes, ou le prochain lancement de `durable:worker`, quelle que soit la
+valeur de `--sleep`. Avec `use_notify: false`, le transport interroge chaque file à chaque tour, comme sur
+MySQL.
 
 ### Une seule reprise à la fois par exécution {#une-reprise-à-la-fois--la-chose-à-ne-pas-rater}
 
@@ -392,38 +449,83 @@ qui ressemblent à des bugs sans en être.
 Les quatre backends font tourner le **même pilote à fibres** et le même chemin d'exécution des
 activités. Ce qui diffère, c'est ce que la plateforme autour peut offrir. Les deux colonnes SQL ne
 diffèrent que par la connexion sur laquelle elles reposent : leurs réponses concordent sur chaque
-ligne, sauf pour le transport.
+ligne, sauf pour le transport et ce que l'hôte livre (signaux, mises à jour et service Nexus).
 
-| Capacité | En mémoire | DBAL | Illuminate | Temporal |
-|---|---|---|---|---|
-| Activités, réessais, délais | ✅ | ✅ | ✅ | ✅ |
-| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ (délais de la file) | ✅ |
-| Signaux, mises à jour, requêtes | ✅ | ✅ | ✅ | ✅ |
-| Workflows enfants | ✅ | ✅ | ✅ | ✅ |
-| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ | ✅ (pilotée par le serveur) |
-| Continue-as-new | ✅ | ✅ | ✅ | ✅ |
-| Annulation avec compensation | ✅ | ✅ | ✅ | ✅ |
-| Survit au redémarrage du processus | ❌ | ✅ | ✅ | ✅ |
-| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | verrou applicatif | ✅ côté serveur |
-| Attributs de recherche | journalisés seulement | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables |
-| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ |
-| Rétention d'historique / API de visibilité | ❌ | votre table SQL | votre table SQL | ✅ |
-| Opérations Nexus (appeler **et** servir) | ❌ | ❌ | ❌ | ✅ |
+La colonne Magento Database n'est pas un backend de la version courante. Son code est en cours de
+développement (épopée [#740](https://github.com/gplanchat/durable-dev/issues/740)), et rien n'en
+est sur `main`. Une cellule indique « pas encore » tant que la capacité n'est pas fusionnée.
+
+| Capacité | En mémoire | DBAL | Illuminate | Temporal | Magento Database |
+|---|---|---|---|---|---|
+| Activités, réessais, délais | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ (délais de la file) | ✅ | pas encore |
+| Gestionnaires de signaux, de mises à jour et de requêtes dans un workflow | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Envoi d'un signal ou d'une mise à jour depuis l'application | ✅ (message Symfony) | ✅ (message Symfony) | ❌ (Laravel n'en livre aucun) | ✅ (client ou message Symfony) | pas encore |
+| Résultat de la mise à jour renvoyé à l'appelant | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::update()`) | pas encore |
+| Lecture d'une requête depuis l'application | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::query()`) | pas encore |
+| Workflows enfants | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ | ✅ (pilotée par le serveur) | pas encore |
+| Continue-as-new | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Annulation avec compensation (le `RequestCancel` d'un parent) | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Annulation demandée de l'extérieur | ❌ | ❌ | ❌ | ✅ | pas encore |
+| Survit au redémarrage du processus | ❌ | ✅ | ✅ | ✅ | pas encore |
+| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | verrou applicatif | ✅ côté serveur | pas encore |
+| Attributs de recherche | journalisés seulement | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables | pas encore |
+| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ | pas encore |
+| Rétention d'historique / API de visibilité | ❌ | votre table SQL | votre table SQL | ✅ | pas encore |
+| Appel d'une opération Nexus | ❌ | ❌ | ❌ | ✅ | pas encore |
+| Service d'une opération Nexus | ✅ avec `temporal.dsn` (Symfony) | ✅ avec `temporal.dsn` (Symfony) | ❌ | ✅ (Symfony, Laravel, Magento) | pas encore |
+
+`gplanchat/durable-magento` ne livre ni signal ni mise à jour. Sur les backends à journal, un signal
+ou une mise à jour envoyé depuis l'application est écrit au journal, et la passe suivante du
+workflow le traite ; l'émetteur ne reçoit aucune réponse. Une requête n'y a aucun point d'entrée
+côté application.
 
 Aucun backend hors Temporal n'a d'ordonnanceur ou de frontière entre espaces de noms : cron et Nexus
-n'ont donc pas d'équivalent sur les trois autres. Une capacité absente **échoue explicitement** et
-n'est jamais ignorée en silence. Un *appel* Nexus échoue à l'appel. Un *gestionnaire* Nexus échoue
-au montage du conteneur, car un gestionnaire sans route ne voit jamais d'appel échouer : c'est un
-service qui ne reçoit jamais rien.
+n'ont donc pas d'équivalent sur les trois autres. Nexus échoue explicitement, à une lacune près sur
+Laravel, décrite plus bas. Le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant
+échouent aussi explicitement : un backend à journal échoue avec `UnsupportedByBackendException` en
+nommant l'option. Les attributs de recherche font exception : ceux d'un workflow enfant sont écrits
+au journal et rien ne les lit hors de Temporal, et les options de démarrage d'un workflow racine
+n'existent que sur le client Temporal. Un *appel* Nexus échoue à l'appel. Un *gestionnaire* Nexus
+sans route ne voit jamais d'appel échouer : c'est un service qui ne reçoit jamais rien. Sur Symfony,
+le montage du conteneur échoue quand `durable.temporal.dsn` n'est pas renseigné. Sur Magento,
+`bin/magento durable:worker --role=nexus` échoue avec `A Nexus worker needs a cluster` quand
+`app/etc/env.php` n'a pas de DSN.
+Sur Laravel, rien n'échoue au démarrage. Hors de `temporal`, rien ne résout le registre Nexus : un
+gestionnaire listé dans `durable.nexus.handlers` ne lève rien et ne reçoit rien, et
+`php artisan durable:nexus-worker` se termine sur `Command "durable:nexus-worker" is not defined.`,
+qui ne nomme pas le backend (voir [#931](https://github.com/gplanchat/durable-dev/issues/931)).
+
+### Démarrer une exécution depuis un observateur Magento {#magento-start-blocks}
+
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` a la même signature et le même
+comportement en cas d'échec sur les backends mémoire et Temporal de Magento : un workflow qui échoue ne lève pas
+d'exception depuis l'appel, un workflow non déclaré en lève une. Une différence subsiste, nommée ici
+comme exception à la règle selon laquelle l'application se comporte de la même façon sur tous les
+backends. Sur Temporal, l'appel démarre l'exécution et rend la main. Sur le backend mémoire de
+Magento, l'exécution s'effectue dans le processus appelant : la requête l'attend, pendant
+`budgetSeconds` au plus (10 par défaut), et un workflow qui attend un signal ou un long minuteur
+retient la requête pendant tout le budget. Rien d'autre ne peut faire avancer une exécution en
+mémoire, donc l'attente ne peut pas disparaître. Renseignez `durable/temporal/dsn` là où une requête
+ne doit pas attendre.
+
+Une seconde différence concerne l'échec que l'appel absorbe. Le journal en mémoire s'arrête avec la
+requête : la ligne de log est donc la seule trace de l'échec, et seulement si un logger est
+configuré. Sur Temporal, l'échec reste aussi dans l'historique du cluster.
 
 ---
 
-## Les réessais ont la même sémantique partout
+## Les limites de réessais diffèrent sur un réglage {#les-réessais-ont-la-même-sémantique-partout}
 
 Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends, c'est le
-défaut de Temporal. Le `max_activity_retries` du bundle agit toujours comme un plafond quand une
-activité n'en pose pas, sur les backends en mémoire et DBAL ; à `0`, il ne plafonne rien. Sous
-Temporal, la grappe relance d'après la `RetryLimit` propre à l'activité, et ne lit pas le plafond.
+défaut de Temporal.
+
+`max_activity_retries` fait exception. Sur le backend en mémoire et sur les backends à journal
+(DBAL, Illuminate), le worker resserre la `RetryLimit` de l'activité à ce plafond, et la plus
+stricte des deux s'applique ; à `0`, il ne plafonne rien. Sous Temporal, le cluster relance d'après
+la `RetryLimit` propre à l'activité et ne lit pas ce réglage : une activité que le plafond
+arrête sur les autres backends continue de réessayer sous Temporal.
 
 Voir [Échecs et réessais](../failures/) et [Options](../options/#retrylimit).
 

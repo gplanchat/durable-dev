@@ -40,6 +40,20 @@ final class DurableDashboardTest extends WebTestCase
         self::assertStringContainsString('Durable Workflow Dashboard', $crawler->html());
     }
 
+    /**
+     * The bench journal is on DBAL: Messenger keeps no list of the workers, and the page says so
+     * rather than staying silent about them (#892).
+     */
+    public function testOnTheDbalBackendThePageSaysItCouldNotAskWhoPolls(): void
+    {
+        $client = $this->authenticatedClient();
+
+        $crawler = $client->request('GET', self::ROUTE);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Could not ask the backend whether a queue worker polls: Messenger keeps no list of the processes that run bin/console durable:worker.', $crawler->html());
+    }
+
     public function testTheAdminHooksComposeThePageAroundTheDashboard(): void
     {
         // #383: sidebar, navbar, page wrapper and footer come from `sylius_admin.common.index`,

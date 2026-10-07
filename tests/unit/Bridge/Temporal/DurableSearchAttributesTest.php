@@ -134,7 +134,7 @@ final class DurableSearchAttributesTest extends TestCase
 
     public function testAChildStartCarriesBothAttributes(): void
     {
-        $buffer = new TemporalWorkflowCommandBuffer(self::enabled(), 'parent-1');
+        $buffer = new TemporalWorkflowCommandBuffer(self::enabled(), ExecutionId::fromString('parent-1'));
         $buffer->scheduleChildWorkflow(ExecutionId::fromString('child-1'), 'App\\ChildWorkflow', [], new ChildWorkflowOptions());
 
         self::assertSame(
@@ -147,7 +147,7 @@ final class DurableSearchAttributesTest extends TestCase
     {
         // The server carries no search attribute over to the next run, and a command that sets
         // some replaces them all (measured on Server 1.25.2, #558).
-        $buffer = new TemporalWorkflowCommandBuffer(self::enabled(), 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer(self::enabled(), ExecutionId::fromString('exec-1'));
         $buffer->continueAsNew('App\\NextWorkflow', []);
 
         self::assertSame(

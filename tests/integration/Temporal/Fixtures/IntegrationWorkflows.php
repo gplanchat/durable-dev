@@ -34,6 +34,7 @@ final class IntegrationWorkflows
         ConformanceWorkflow::registerActivity($executor);
         $executor->register('double', static fn(array $p): int => ((int) ($p['value'] ?? 0)) * 2);
         $executor->register('append', static fn(array $p): string => ((string) ($p['text'] ?? '')) . '!');
+        $executor->register('price', static fn(array $p): float => (float) ($p['value'] ?? 0));
         $executor->register('refund', static fn(array $p): string => 'refunded:' . ($p['order'] ?? '?'));
         $executor->register('sleep', static function (array $p): int {
             sleep((int) ($p['seconds'] ?? 0));
@@ -128,6 +129,10 @@ final class IntegrationWorkflows
 
             return ['slept' => true];
         });
+
+        $registry->registerFactory('Priced', static fn(array $input) => static fn(WorkflowEnvironment $env): array => [
+            'price' => $env->await($env->activityStub(IntegrationActivities::class, self::options())->price((int) ($input['value'] ?? 0))),
+        ]);
 
         $registry->registerFactory('SideEffecting', static fn(array $input) => static function (WorkflowEnvironment $env) use ($input): array {
             return ['side' => $env->sideEffect(static fn(): int => ((int) ($input['seed'] ?? 0)) + 1)];

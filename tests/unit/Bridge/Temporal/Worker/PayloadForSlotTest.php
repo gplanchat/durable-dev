@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -109,7 +110,7 @@ final class PayloadForSlotTest extends TestCase
         // rescheduled activity lands back on one's own worker, a Nexus operation goes to a third
         // party, where the duplicate is theirs.
         $context = new ExecutionContext(
-            'exec-nexus',
+            ExecutionId::fromString('exec-nexus'),
             TemporalExecutionHistory::fromEvents([
                 $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
             ]),
@@ -135,7 +136,7 @@ final class PayloadForSlotTest extends TestCase
     public function testAFaithfulNexusReplayIsNotRefused(): void
     {
         $context = new ExecutionContext(
-            'exec-nexus',
+            ExecutionId::fromString('exec-nexus'),
             TemporalExecutionHistory::fromEvents([
                 $this->nexusScheduled(5, 'payments', 'billing', 'collect', ['amount' => 90]),
             ]),

@@ -7,32 +7,17 @@ namespace Gplanchat\Durable\Bundle\DataCollector;
 use Gplanchat\Durable\Bundle\Profiler\DurableExecutionTrace;
 use Gplanchat\Durable\Bundle\Profiler\DurableProfilerEventPresentation;
 use Gplanchat\Durable\Bundle\Profiler\DurableProfilerTimeframe;
-use Gplanchat\Durable\Event\ActivityCancelled;
-use Gplanchat\Durable\Event\ActivityCompleted;
-use Gplanchat\Durable\Event\ActivityFailed;
-use Gplanchat\Durable\Event\ActivityScheduled;
-use Gplanchat\Durable\Event\ActivityTaskFailed;
-use Gplanchat\Durable\Event\ChildWorkflowCompleted;
-use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
-use Gplanchat\Durable\Event\ExecutionCompleted;
-use Gplanchat\Durable\Event\ExecutionStarted;
-use Gplanchat\Durable\Event\SideEffectRecorded;
-use Gplanchat\Durable\Event\TimerCancelled;
-use Gplanchat\Durable\Event\TimerCompleted;
-use Gplanchat\Durable\Event\TimerScheduled;
-use Gplanchat\Durable\Event\WorkflowCancellationRequested;
-use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
-use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
-use Gplanchat\Durable\Event\WorkflowExecutionFailed;
-use Gplanchat\Durable\Event\WorkflowSignalReceived;
-use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
+use Gplanchat\Durable\Observation\RunTimeline;
+use Gplanchat\Durable\Observation\TimelineAction;
+use Gplanchat\Durable\Observation\TimelineEvent;
+use Gplanchat\Durable\Observation\TimelineSegment;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -117,7 +102,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         sort($executionIdsList);
 
         $timeFrameProcess = $this->buildTimeFrameModelFromTimeline($timeline);
-        $storeTimelines = $this->buildStoreTimelines($executionIdsList);
         $storeEventRows = $this->collectStoreEventRows($executionIdsList);
         $grouped = $this->groupTimelineByExecution($timeline);
 
@@ -130,12 +114,10 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             'execution_ids' => $executionIdsList,
             'time_frame' => [
                 'process' => $timeFrameProcess,
-                'store_timelines' => $storeTimelines,
             ],
             'store_event_rows' => $storeEventRows,
             'executions_detail' => $this->buildExecutionsDetail(
                 $executionIdsList,
-                $storeTimelines,
                 $storeEventRows,
                 $timeFrameProcess,
                 $grouped,
@@ -154,7 +136,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 
     /**
      * @param list<string>                                                                                              $executionIdsList
-     * @param list<array<string, mixed>>                                                                                $storeTimelines
      * @param list<array<string, mixed>>                                                                                $storeEventRows
      * @param array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>} $timeFrameProcess
      * @param array<string, list<array<string, mixed>>>                                                                 $groupedTimeline
@@ -163,7 +144,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
      */
     private function buildExecutionsDetail(
         array $executionIdsList,
-        array $storeTimelines,
         array $storeEventRows,
         array $timeFrameProcess,
         array $groupedTimeline,
@@ -185,14 +165,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 $payload = $this->inferPayloadFromTimelineDispatch($timelineForExec);
             }
 
-            $storeTl = null;
-            foreach ($storeTimelines as $st) {
-                if (($st['executionId'] ?? '') === $eid) {
-                    $storeTl = $st;
-                    break;
-                }
-            }
-
             $rows = [];
             foreach ($storeEventRows as $row) {
                 if (($row['executionId'] ?? '') === $eid) {
@@ -202,8 +174,8 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 
             $processTf = $this->filterProcessTimeframeForExecution($timeFrameProcess, $eid);
 
-            $storeCountFromIndex = (int) ($storeTl['eventCount'] ?? 0);
-            $storeCountLive = $this->journal($eid)['count'];
+            $journal = $this->journal($eid);
+            $storeCountLive = $journal['count'];
             $timelineHasDispatch = $this->timelineHasDispatchForExecution($timelineForExec);
             $statusCode = $this->resolveExecutionStatus($eid, $rows, $meta, $timelineHasDispatch);
             $out[] = [
@@ -213,14 +185,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'executionStatus' => $statusCode,
                 'executionStatusLabel' => $this->executionStatusLabel($statusCode),
                 'waitingOn' => $this->runCatalog?->findRun(ExecutionId::fromString($eid))?->waitingOn,
-                'storeEventCount' => max($storeCountFromIndex, $storeCountLive),
-                'storeTruncated' => $storeTl['truncated'] ?? false,
+                'storeEventCount' => max(\count($journal['entries']), $storeCountLive),
+                'storeTruncated' => [] !== $journal['entries'] && $journal['truncated'],
                 'processTraceCount' => \count($processTf['segments']),
                 'processTimeframe' => $processTf,
-                'storeTimeline' => $storeTl,
                 'storeRows' => $rows,
                 'timelineEntries' => $groupedTimeline[$eid] ?? [],
                 'journalHint' => $this->buildJournalHint($rows, $storeCountLive, $timelineHasDispatch),
+                'runTimeline' => $this->runTimeline($eid, $wf ?? ''),
                 // Where each Nexus operation is served, and whether it is still in flight (#670).
                 'nexusOperations' => array_map(static fn(NexusOperationSummary $operation): array => [
                     'endpoint' => $operation->endpoint,
@@ -233,6 +205,43 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         }
 
         return $out;
+    }
+
+    /**
+     * The shared frieze of the run pages (#819), over the events this panel read. Only what the
+     * drawing needs is kept: a `TimelineEvent` carries the event's unmasked details, and `$this->data`
+     * is written to the profile.
+     *
+     * @return array{span: float, spanLabel: string, actions: list<array<string, mixed>>}
+     */
+    private function runTimeline(string $executionId, string $workflowType): array
+    {
+        $timeline = RunTimeline::of(
+            JournalRunHistoryReader::fromEntries($this->journal($executionId)['entries'], $workflowType),
+            $this->redactor,
+        );
+
+        return [
+            'span' => $timeline->span,
+            'spanLabel' => $timeline->spanLabel,
+            'actions' => array_map(static fn(TimelineAction $action): array => [
+                'kind' => $action->kind->value,
+                'label' => $action->label,
+                'durationLabel' => $action->durationLabel,
+                'segments' => array_map(static fn(TimelineSegment $segment): array => [
+                    'offset' => $segment->offset,
+                    'duration' => $segment->duration,
+                    'waiting' => $segment->waiting,
+                    'failed' => $segment->failed,
+                    'title' => $segment->title,
+                ], $action->segments),
+                'marks' => array_map(static fn(TimelineEvent $mark): array => [
+                    'offset' => $mark->offset,
+                    'failed' => $mark->event->failed,
+                    'title' => $mark->title,
+                ], $action->events),
+            ], $timeline->actions),
+        ];
     }
 
     /**
@@ -264,12 +273,14 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             }
         }
 
-        if (null !== $metadata && ($metadata['completed'] ?? false) === false && $this->metadataStore->hasActiveWorkflowMetadata(ExecutionId::fromString($executionId))) {
-            return 'running';
-        }
-
+        // Before the metadata branch: the metadata exists from the dispatch, so a run dispatched
+        // on this request and not executed yet has it too (#851).
         if ($timelineHasDispatch && 0 === $n) {
             return 'queued';
+        }
+
+        if (null !== $metadata && ($metadata['completed'] ?? false) === false && $this->metadataStore->hasActiveWorkflowMetadata(ExecutionId::fromString($executionId))) {
+            return 'running';
         }
 
         return 'pending';
@@ -524,79 +535,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
     }
 
     /**
-     * @param list<string> $executionIds
-     *
-     * @return list<array{executionId: string, bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>, eventCount: int, truncated: bool}>
-     */
-    private function buildStoreTimelines(array $executionIds): array
-    {
-        $out = [];
-        foreach ($executionIds as $eid) {
-            ['entries' => $entries, 'truncated' => $truncated] = $this->journal($eid);
-
-            if ([] === $entries) {
-                continue;
-            }
-
-            $out[] = [
-                'executionId' => $eid,
-                'bounds' => null,
-                'segments' => [],
-                'eventCount' => \count($entries),
-                'truncated' => $truncated,
-            ];
-            $idx = \count($out) - 1;
-            $model = $this->buildTimeFrameModelFromStoreEvents($eid, $entries);
-            $out[$idx]['bounds'] = $model['bounds'];
-            $out[$idx]['segments'] = $model['segments'];
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param list<array{event: Event, recordedAt: \DateTimeImmutable|null}> $entries
-     *
-     * @return array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>}
-     */
-    private function buildTimeFrameModelFromStoreEvents(string $executionId, array $entries): array
-    {
-        $timeRows = array_map(
-            static fn(array $e): array => ['recordedAt' => $e['recordedAt'] ?? null],
-            $entries,
-        );
-        $times = DurableProfilerTimeframe::monotonicUnixSecondsFromRecordedEntries($timeRows);
-        $n = \count($entries);
-        $raw = [];
-        for ($i = 0; $i < $n; ++$i) {
-            $event = $entries[$i]['event'];
-            $start = $times[$i];
-            $end = $i + 1 < $n ? $times[$i + 1] : $start + DurableProfilerTimeframe::MIN_SEGMENT_SEC;
-            if ($end <= $start) {
-                $end = $start + DurableProfilerTimeframe::MIN_SEGMENT_SEC;
-            }
-            $kind = $this->mapEventToBarKind($event);
-            $p = DurableProfilerEventPresentation::fromStoreEvent($event);
-            $raw[] = [
-                'executionId' => $executionId,
-                'kind' => $kind,
-                'seq' => $i + 1,
-                'label' => $p['title'],
-                'display_title' => $p['title'],
-                'display_subtitle' => $p['subtitle'],
-                'category' => $p['category'],
-                'technical' => $p['technical'],
-                'startSec' => $start,
-                'endSec' => $end,
-                'durationMs' => ($end - $start) * 1000.0,
-                'source' => 'store',
-            ];
-        }
-
-        return $this->finalizeTimeFrameSegments($raw);
-    }
-
-    /**
      * @param list<array<string, mixed>> $raw
      *
      * @return array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>}
@@ -638,32 +576,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
             ],
             'segments' => $segments,
         ];
-    }
-
-    private function mapEventToBarKind(Event $event): string
-    {
-        return match (true) {
-            $event instanceof ExecutionStarted,
-            $event instanceof ExecutionCompleted,
-            $event instanceof WorkflowExecutionFailed,
-            $event instanceof WorkflowContinuedAsNew,
-            $event instanceof WorkflowCancellationRequested,
-            $event instanceof WorkflowExecutionCancelled => 'workflow',
-            $event instanceof ActivityScheduled,
-            $event instanceof ChildWorkflowScheduled,
-            $event instanceof TimerScheduled => 'dispatch',
-            $event instanceof ActivityCompleted,
-            $event instanceof ActivityFailed,
-            $event instanceof ActivityCancelled,
-            $event instanceof TimerCompleted,
-            $event instanceof TimerCancelled,
-            $event instanceof ActivityTaskFailed,
-            $event instanceof SideEffectRecorded,
-            $event instanceof ChildWorkflowCompleted,
-            $event instanceof WorkflowSignalReceived,
-            $event instanceof WorkflowUpdateHandled => 'activity',
-            default => 'default',
-        };
     }
 
     /**
@@ -831,8 +743,7 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
 
     /**
      * @return array{
-     *     process: array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>},
-     *     store_timelines: list<array<string, mixed>>
+     *     process: array{bounds: array{tMin: float, tMax: float, spanSec: float}|null, segments: list<array<string, mixed>>}
      * }
      */
     public function getTimeFrame(): array
@@ -841,7 +752,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
         if (!\is_array($tf)) {
             return [
                 'process' => ['bounds' => null, 'segments' => []],
-                'store_timelines' => [],
             ];
         }
         $process = \is_array($tf['process'] ?? null) ? $tf['process'] : [];
@@ -851,7 +761,6 @@ final class DurableDataCollector extends DataCollector implements ResetInterface
                 'bounds' => $process['bounds'] ?? null,
                 'segments' => \is_array($process['segments'] ?? null) ? $process['segments'] : [],
             ],
-            'store_timelines' => \is_array($tf['store_timelines'] ?? null) ? $tf['store_timelines'] : [],
         ];
     }
 

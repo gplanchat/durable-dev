@@ -102,7 +102,7 @@ final class TimerRecordingResumes implements WorkflowResumeDispatcher
     {
         $this->sent[] = \sprintf('awaiting %s with %d events', $fact->describe(), $this->journal->countEventsInStream($executionId));
         if ($this->takeOverOnAnnouncement) {
-            PassEventStore::open($this->journal, $executionId->toString());
+            PassEventStore::open($this->journal, ExecutionId::fromString($executionId->toString()));
         }
     }
 

@@ -5,15 +5,16 @@ weight: 40
 
 # Testing workflows
 
-Durable ships a **testing toolkit** for testing your workflows and activities with standard PHPUnit.
+Durable ships a **testing toolkit** for your workflows and activities, built on standard PHPUnit.
 A workflow describes the steps of an execution, and an activity is one of those steps that has a
 side effect, such as an HTTP call; see the [glossary](../glossary/). Pick the entry point that
-matches your tests, framework-agnostic or Symfony bundle integration:
+matches your tests, framework-agnostic, Symfony bundle or Laravel integration:
 
 | Utility | Package | When to use |
 |---|---|---|
 | `DurableTestCase` + `ActivitySpy` + `WorkflowTestEnvironment` | `gplanchat/durable` | Pure unit / functional tests, no Symfony container. |
 | `DurableBundleTestTrait` | `gplanchat/durable-bundle` | Symfony `KernelTestCase`-based integration tests. |
+| `DurableLaravelTestTrait` | `gplanchat/durable-laravel` | Laravel integration tests, on the application's configured backend. |
 
 ---
 
@@ -254,7 +255,7 @@ when@test:
 
 ### Customising the transport list or drain timeout
 
-To change them, override the static properties before each test:
+To change the transport list or the drain timeout, override the static properties before each test:
 
 ```php
 protected function setUp(): void
@@ -277,6 +278,62 @@ protected function setUp(): void
 | `assertWorkflowFailed($executionId, $class?)` | Asserts the workflow failed, optionally matching the exception class. |
 | `getEventStoreService()` | Returns the `EventStoreInterface` from the test container for low-level inspection. |
 | `getDataCollector()` | Returns the `DurableDataCollector` when the profiler is enabled (debug kernel). |
+
+---
+
+## Laravel integration tests with `DurableLaravelTestTrait` {#laravel-integration-tests--durablelaraveltesttrait}
+
+Use `DurableLaravelTestTrait` in a test class that extends Laravel's
+`Illuminate\Foundation\Testing\TestCase` (or Testbench's), which provides `$this->app`. The trait
+offers the same four operations as the Symfony one, against the backend the application configures.
+Declare the workflow in the `workflows` key of `config/durable.php`, as in production.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Workflow\OrderWorkflow;
+use Gplanchat\Durable\Laravel\Testing\DurableLaravelTestTrait;
+use Tests\TestCase;
+
+final class OrderWorkflowTest extends TestCase
+{
+    use DurableLaravelTestTrait;
+
+    public function testOrderWorkflowCompletesSuccessfully(): void
+    {
+        $executionId = $this->dispatchWorkflow(OrderWorkflow::class, [
+            'orderId' => 'ORD-123',
+            'amount'  => 99.90,
+        ]);
+
+        $this->drainUntilSettled($executionId);
+
+        $this->assertWorkflowResultEquals($executionId, ['status' => 'charged', 'orderId' => 'ORD-123']);
+    }
+}
+```
+
+`drainUntilSettled()` depends on the backend. On `memory`, it drives the runs the process has
+queued, as `durable:drain` does, and throws a `\RuntimeException` if the run is still open when the
+drain ends, for instance when it waits on a signal. On `illuminate`, it runs
+`queue:work --stop-when-empty` until the run completes or fails, within 30 seconds. A workflow that
+fails ends the drain without throwing: assert on it with `assertWorkflowFailed()`.
+
+### The Symfony and Laravel helpers side by side {#the-three-hosts-side-by-side}
+
+| Operation | Symfony (`DurableBundleTestTrait`) | Laravel (`DurableLaravelTestTrait`) |
+|---|---|---|
+| Start | `dispatchWorkflow($class, $input, $executionId?)` | `dispatchWorkflow($class, $input, $executionId?)` |
+| Drain | `drainMessengerUntilSettled($executionId)` | `drainUntilSettled($executionId)` |
+| Read the result | `assertWorkflowResultEquals($executionId, $expected)` | `assertWorkflowResultEquals($executionId, $expected)` |
+| Assert on the journal | `assertWorkflowFailed($executionId, $class?)` | `assertWorkflowFailed($executionId, $class?)` |
+| Event store | `getEventStoreService()` | `getEventStoreService()` |
+
+The Symfony trait also offers `getDataCollector()`, for the profiler. Magento has no helper yet.
 
 ---
 
@@ -321,6 +378,7 @@ Some tests need namespace-level setup. The file that needs it documents that set
 ```bash
 temporal operator search-attribute create --name DurableOrderId --type Keyword
 temporal operator search-attribute create --name DurableAmount  --type Int
+temporal operator search-attribute create --name DurablePrice   --type Double
 ```
 
 ---
@@ -350,15 +408,11 @@ The clock only moves when **nothing else can progress**. Advancing it earlier wo
 win every `any(activity, timer)` race that the activity was about to win. Because the clock waits,
 a race has the same outcome here as in production.
 
-Retry backoff uses real time, because a retry is queued on the transport instead of being recorded
-as a timer. Pass `initialInterval: Duration::zero()` to keep those tests fast.
-
 ---
 
-## Stuck executions and endless retries in the in-memory runner {#two-traps-of-the-in-memory-runner}
+## Stuck executions, endless retries and endless chains in the in-memory runner {#two-traps-of-the-in-memory-runner}
 
-**An execution that cannot progress fails instead of hanging.** A workflow waiting on a signal that
-the test never delivers raises `WorkflowStuckException` instead of spinning.
+**A stuck execution fails.** A workflow waiting on a signal that the test never delivers raises `WorkflowStuckException`.
 
 **Attempts are unlimited by default.** An activity that always fails retries forever, so the runner
 enforces an overall budget. When the budget runs out, the runner reports which of the two situations
@@ -377,8 +431,45 @@ $env = WorkflowTestEnvironment::inMemory(
 );
 ```
 
-Retry backoff takes real time, so an activity configured with the default one-second interval makes
-the test wait. Pass `initialInterval: Duration::zero()` to keep tests fast.
+Retry backoff takes real time, because a retry is queued on the transport instead of being recorded
+as a timer, so an activity configured with the default one-second interval makes the test wait.
+Pass `initialInterval: Duration::zero()` to keep tests fast.
+
+**A continue-as-new chain stops after 10 continuations.** An execution that calls `continueAsNew()`
+closes its journal and hands over to a fresh execution (continue-as-new; see the
+[glossary](../glossary/)). The in-memory runner follows the chain and returns the result of the last
+execution. Each execution in the chain gets its own budget, so the budget does not stop a workflow
+that calls `continueAsNew()` every time. Past 10 continuations, the runner throws
+`ContinuationCapReachedException`, a `WorkflowStuckException`, where `x` is the execution id you
+started:
+
+```
+Workflow x continued as new more often than maxContinuations (10) allows. Give the workflow a run
+that returns, or raise the runner's maxContinuations.
+```
+
+To test a longer chain, raise the cap:
+
+```php
+$env = WorkflowTestEnvironment::inMemory(maxContinuations: 50);
+```
+
+An inline child workflow keeps the default cap of 10, as it keeps the default budget, whatever cap
+its parent's environment sets.
+
+In a `DurableTestCase`, `createWorkflowTestEnvironment()` and `createWorkflowRunner()` take the
+same two arguments, `budgetSeconds` and `maxContinuations`, and pass them to the runner:
+
+```php
+$env = $this->createWorkflowTestEnvironment(
+    ['charge' => $spy],
+    budgetSeconds: 3.0,
+    maxContinuations: 50,
+);
+```
+
+On Magento without a Temporal DSN, set the
+`maxContinuations` argument of `RuntimeFactory` in `di.xml`, as for `budgetSeconds`.
 
 ---
 

@@ -507,17 +507,13 @@ AFTER,
             return false;
         }
 
-        foreach ($method->getComments() as $comment) {
-            if (str_contains($comment->getText(), UnmigratableTemporalCallRector::MARKER)) {
-                return false;
-            }
+        $finding = 'a static method has no $this — move this to an instance method, or pass the environment in';
+        if (UnmigratableTemporalCallRector::isMarked($method, $finding)) {
+            return false;
         }
 
         $comments = $method->getComments();
-        $comments[] = new Comment(
-            '// ' . UnmigratableTemporalCallRector::MARKER
-            . ' a static method has no $this — move this to an instance method, or pass the environment in',
-        );
+        $comments[] = new Comment('// ' . UnmigratableTemporalCallRector::MARKER . ' ' . $finding);
         $method->setAttribute('comments', $comments);
 
         // Reported, not rewritten: the class gains nothing to inject.

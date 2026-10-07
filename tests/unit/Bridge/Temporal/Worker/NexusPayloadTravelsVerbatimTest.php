@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
@@ -35,7 +36,7 @@ final class NexusPayloadTravelsVerbatimTest extends TestCase
 {
     public function testTheScheduledCommandCarriesTheCallersPayloadAndNothingElse(): void
     {
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test-namespace'), 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test-namespace'), ExecutionId::fromString('exec-1'));
 
         $buffer->scheduleNexusOperation(
             'whatever',

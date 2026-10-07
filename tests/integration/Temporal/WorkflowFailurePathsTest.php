@@ -50,7 +50,7 @@ final class WorkflowFailurePathsTest extends TemporalServerTestCase
         $executionId = $this->startWorkflow('FailsOnActivity', []);
         $event = $this->waitForHistoryEvent($executionId, EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
 
-        $decoded = (new TemporalEventConverter($executionId))->convert($event);
+        $decoded = (new TemporalEventConverter(ExecutionId::fromString($executionId)))->convert($event);
 
         self::assertInstanceOf(WorkflowExecutionFailed::class, $decoded);
         self::assertSame(WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY, $decoded->kind());

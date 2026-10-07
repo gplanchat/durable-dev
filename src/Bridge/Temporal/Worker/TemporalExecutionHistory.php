@@ -11,7 +11,9 @@ use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\Exception\DurableChildWorkflowFailedException;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\FailureEnvelope;
@@ -118,14 +120,29 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
     /** @var list<array{signalName: string, payload: mixed, eventId: int}> signals in receive order */
     private array $signals = [];
 
-    /** @var list<array{updateName: string, result: mixed, eventId: int, arguments: array<string, mixed>}> updates in accept order */
+    /** @var list<array{updateId: string, updateName: string, outcome: ?SlotOutcome, eventId: int, arguments: array<string, mixed>}> updates in accept order; outcome null until completed */
     private array $updates = [];
 
     /** @var list<string> child execution IDs in schedule order */
     private array $childExecutionIds = [];
 
-    /** @var array<string, array{result: mixed, failed: bool}> child execution ID → outcome */
+    /** @var array<string, array{result: mixed, failed: bool, reason?: string}> child execution ID → outcome */
     private array $childOutcomes = [];
+
+    /**
+     * Child slots whose start the server refused, by slot: the child id can repeat across slots, so
+     * a refusal belongs to the initiated slot, never to the id.
+     *
+     * @var array<int, true>
+     */
+    private array $childStartRefused = [];
+
+    /**
+     * Initiated event id => child slot.
+     *
+     * @var array<int, int>
+     */
+    private array $childSlotByInitiatedEvent = [];
 
     private int $sideEffectSlot = 0;
 
@@ -496,7 +513,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                             $decoded = JsonPlainPayload::decode($args[0]);
                             $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
                         }
-                        $this->updates[] = ['updateName' => $updateName, 'result' => null, 'eventId' => $eventId, 'arguments' => $arguments];
+                        $this->updates[] = ['updateId' => (string) $request->getMeta()?->getUpdateId(), 'updateName' => $updateName, 'outcome' => null, 'eventId' => $eventId, 'arguments' => $arguments];
                     }
                 }
                 break;
@@ -504,15 +521,27 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
                 $attr = $event->getWorkflowExecutionUpdateCompletedEventAttributes();
                 if (null !== $attr) {
+                    // Matched by the update id in `meta` (field 1, echoed from the worker's
+                    // response by UpdateProtocol); when it is empty or unknown, by `accepted_event_id` (field 3, added
+                    // later to the proto). Never by position: updates may interleave (#803).
+                    $updateId = (string) $attr->getMeta()?->getUpdateId();
+                    $acceptedEventId = (int) $attr->getAcceptedEventId();
                     $outcome = $attr->getOutcome();
-                    if (null !== $outcome && null !== $outcome->getSuccess()) {
-                        $payloads = $outcome->getSuccess()->getPayloads();
-                        $result = $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null;
-                        // Update the last update's result
-                        $lastIdx = count($this->updates) - 1;
-                        if ($lastIdx >= 0) {
-                            $this->updates[$lastIdx]['result'] = $result;
+                    $byId = array_filter($this->updates, static fn(array $u): bool => '' !== $updateId && $u['updateId'] === $updateId);
+                    foreach ($this->updates as $i => $update) {
+                        $matches = [] !== $byId ? isset($byId[$i]) : $update['eventId'] === $acceptedEventId;
+                        if (!$matches || null === $outcome) {
+                            continue;
                         }
+                        if (null !== $outcome->getFailure()) {
+                            $failed = new DurableUpdateFailedException($update['updateName'], $outcome->getFailure()->getMessage());
+                            $this->updates[$i]['outcome'] = new SlotOutcome(null, $failed);
+                        } else {
+                            $payloads = $outcome->getSuccess()?->getPayloads();
+                            $result = null !== $payloads && $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null;
+                            $this->updates[$i]['outcome'] = new SlotOutcome($result);
+                        }
+                        break;
                     }
                 }
                 break;
@@ -521,6 +550,7 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
                 if (null !== $attr) {
                     $this->childExecutionIds[] = (string) $attr->getWorkflowId();
+                    $this->childSlotByInitiatedEvent[(int) $event->getEventId()] = \count($this->childExecutionIds) - 1;
                     // The type, in parallel and at the same index: it is the slot's identity,
                     // the execution id being generated.
                     $this->childWorkflowTypes[] = (string) ($attr->getWorkflowType()?->getName() ?? '');
@@ -566,17 +596,43 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
                 $this->cancelRequestedCause = '' !== $cause ? $cause : 'cancel_requested';
                 break;
 
+                // A child that ends without a result still settles its parent, with the failure the
+                // journal backends raise. Left unread, the parent waited for good (#980).
             case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
-                $attr = $event->getChildWorkflowExecutionFailedEventAttributes();
-                if (null !== $attr) {
-                    $exec = $attr->getWorkflowExecution();
-                    if (null !== $exec) {
-                        $childId = $exec->getWorkflowId();
-                        $this->childOutcomes[$childId] = ['result' => null, 'failed' => true];
-                    }
+                $this->settleChildAsFailed($event->getChildWorkflowExecutionFailedEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'failed');
+                break;
+
+            case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
+                $slot = $this->childSlotByInitiatedEvent[(int) $event->getStartChildWorkflowExecutionFailedEventAttributes()?->getInitiatedEventId()] ?? null;
+                if (null !== $slot) {
+                    $this->childStartRefused[$slot] = true;
+                } else {
+                    $this->settleChildAsFailed($event->getStartChildWorkflowExecutionFailedEventAttributes()?->getWorkflowId(), 'could not be started');
                 }
                 break;
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
+                $this->settleChildAsFailed($event->getChildWorkflowExecutionTimedOutEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'timed out');
+                break;
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
+                $this->settleChildAsFailed($event->getChildWorkflowExecutionCanceledEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'was cancelled');
+                break;
+
+            case EventType::EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
+                $this->settleChildAsFailed($event->getChildWorkflowExecutionTerminatedEventAttributes()?->getWorkflowExecution()?->getWorkflowId(), 'was terminated');
+                break;
         }
+    }
+
+    private function settleChildAsFailed(?string $childId, string $reason): void
+    {
+        if (null === $childId || '' === $childId) {
+            return;
+        }
+
+        // Never over an outcome already read: the same id can come back on a later slot.
+        $this->childOutcomes[$childId] ??= ['result' => null, 'failed' => true, 'reason' => $reason];
     }
 
     public function findActivitySlotResult(int $slot): ?SlotOutcome
@@ -704,13 +760,23 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
             return null;
         }
 
+        if (isset($this->childStartRefused[$slot])) {
+            return new ChildWorkflowOutcome($childId, null, new DurableChildWorkflowFailedException(
+                $childId,
+                \sprintf('Child workflow %s could not be started.', $childId),
+            ));
+        }
+
         $outcome = $this->childOutcomes[$childId] ?? null;
         if (null === $outcome) {
             return null;
         }
 
         if ($outcome['failed']) {
-            return new ChildWorkflowOutcome($childId, null, new \RuntimeException('Child workflow failed'));
+            return new ChildWorkflowOutcome($childId, null, new DurableChildWorkflowFailedException(
+                $childId,
+                \sprintf('Child workflow %s %s.', $childId, $outcome['reason'] ?? 'failed'),
+            ));
         }
 
         return new ChildWorkflowOutcome($childId, $outcome['result']);
@@ -744,6 +810,22 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
         }
 
         return \sprintf('%s/%s/%s', $site['endpoint'], $site['service'], $site['operation']);
+    }
+
+    /**
+     * The recorded outcome of an update, by its id, or null while it has not completed.
+     *
+     * @internal
+     */
+    public function updateOutcome(string $updateId): ?SlotOutcome
+    {
+        foreach ($this->updates as $update) {
+            if ($update['updateId'] === $updateId) {
+                return $update['outcome'];
+            }
+        }
+
+        return null;
     }
 
     public function messageAt(int $index): ?RecordedMessage
@@ -818,14 +900,14 @@ final class TemporalExecutionHistory implements WorkflowHistorySourceInterface
      *
      * @return list<Event>
      */
-    public function waitJournal(string $executionId): array
+    public function waitJournal(ExecutionId $executionId): array
     {
         $events = [];
         foreach ($this->activityNames as $activityId => $name) {
-            $events[] = new ActivityScheduled(ExecutionId::fromString($executionId), $activityId, $name, []);
+            $events[] = new ActivityScheduled($executionId, $activityId, $name, []);
         }
         foreach ($this->timerDeadlines as $timerId => $deadline) {
-            $events[] = new TimerScheduled(ExecutionId::fromString($executionId), $timerId, $deadline);
+            $events[] = new TimerScheduled($executionId, $timerId, $deadline);
         }
 
         return $events;

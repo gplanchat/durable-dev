@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowLifecycle;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\History\CancellationDelivery;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -205,7 +206,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
     public function testSideEffectMarkerRoundTripsThroughTheCommand(): void
     {
         // details is a map<string, Payloads>: a lone Payload was refused there by protobuf.
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
         $buffer->recordSideEffect('se-1', ['value' => 7]);
 
         $marker = $buffer->peek()[0]->getRecordMarkerCommandAttributes();
@@ -232,8 +233,8 @@ final class TemporalWorkflowCancellationTest extends TestCase
     /** @return list<\Temporal\Api\Command\V1\Command> */
     private function drive(TemporalExecutionHistory $history, callable $handler): array
     {
-        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1', $history);
-        $context = new ExecutionContext('exec-1', $history, $buffer);
+        $buffer = new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'), $history);
+        $context = new ExecutionContext(ExecutionId::fromString('exec-1'), $history, $buffer);
         $runtime = new ExecutionRuntime(
             new NoLocalJournalEventStore('Temporal'),
             new NoopActivityTransport(),
@@ -244,7 +245,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
         );
 
         (new WorkflowFiberDriver(new TemporalWorkflowLifecycle($buffer, $history->cancellationRequestedCause())))
-            ->run('exec-1', $context, new WorkflowEnvironment($context, $runtime), $handler);
+            ->run($context, new WorkflowEnvironment($context, $runtime), $handler);
 
         return $buffer->peek();
     }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\WorkflowStartOptions;
 
 /**
  * Contract for driving Temporal workflow executions from application code.
@@ -24,17 +26,19 @@ interface WorkflowClientInterface
      * {@see workflowId()}, and it is what signal(), query() and update() take (#638).
      *
      * @param array<string, mixed> $payload Business payload for the workflow input.
+     * @param WorkflowStartOptions|null $options Timeouts, id reuse policy, memo, cron, search attributes.
      * @return ExecutionId The execution started.
      */
-    public function startAsync(string $workflowType, array $payload, ExecutionId $executionId): ExecutionId;
+    public function startAsync(string $workflowType, array $payload, ExecutionId $executionId, ?WorkflowStartOptions $options = null): ExecutionId;
 
     /**
      * Starts a workflow and blocks until WorkflowExecutionCompleted.
      *
      * @param array<string, mixed> $payload Business payload for the workflow input.
+     * @param WorkflowStartOptions|null $options Timeouts, id reuse policy, memo, cron, search attributes.
      * @return mixed The decoded result of the workflow.
      */
-    public function startSync(string $workflowType, array $payload, ExecutionId $executionId): mixed;
+    public function startSync(string $workflowType, array $payload, ExecutionId $executionId, ?WorkflowStartOptions $options = null): mixed;
 
     /**
      * Polls Temporal for workflow completion, retrying periodically until the workflow terminates.
@@ -42,8 +46,11 @@ interface WorkflowClientInterface
      * @param int $refreshIntervalMs Milliseconds between poll attempts (default: 500 ms).
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
+     * @throws \Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException when the workflow
+     *         let an activity failure escape, as on the journal backends; the original failure is its previous.
      * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
-     * @throws \RuntimeException when no completion event is found within {@code $maxRefreshes} attempts.
+     * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
+     *                                 It extends \RuntimeException.
      */
     public function pollForCompletion(
         string $executionId,

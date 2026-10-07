@@ -59,7 +59,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->requestCancellation('exec-1');
 
         try {
-            $this->engine->resume('exec-1', $handler);
+            $this->engine->resume(ExecutionId::fromString('exec-1'), $handler);
             self::fail('the resume must end on a cancellation');
         } catch (WorkflowCancelledException $e) {
             self::assertSame(ActivityCancellationReason::WORKFLOW_CANCELLED, $e->reason);
@@ -103,7 +103,7 @@ final class WorkflowCancellationTest extends TestCase
 
         // Task 2: replay — the journal settles the compensation, then the cancellation resurfaces.
         try {
-            $this->engine->resume('exec-2', $handler);
+            $this->engine->resume(ExecutionId::fromString('exec-2'), $handler);
             self::fail('with the compensation finished, the cancellation must resurface');
         } catch (WorkflowCancelledException) {
         }
@@ -158,7 +158,7 @@ final class WorkflowCancellationTest extends TestCase
 
         // Task 2: the replay must reach the catch again, not walk past the condition.
         try {
-            $this->engine->resume('exec-6', $handler);
+            $this->engine->resume(ExecutionId::fromString('exec-6'), $handler);
             self::fail('with the compensation finished, the cancellation must resurface');
         } catch (WorkflowCancelledException) {
         }
@@ -203,7 +203,7 @@ final class WorkflowCancellationTest extends TestCase
 
         // Task 3: the signal releases the compensation, recorded after the delivery.
         $this->eventStore->append(new WorkflowSignalReceived(ExecutionId::fromString('exec-7'), 'approve', []));
-        self::assertSame('compensated', $this->engine->resume('exec-7', $handler));
+        self::assertSame('compensated', $this->engine->resume(ExecutionId::fromString('exec-7'), $handler));
     }
 
     public function testAWorkflowMaySwallowTheCancellationAndComplete(): void
@@ -220,7 +220,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->startAndSuspend('exec-3', $handler);
         $this->requestCancellation('exec-3');
 
-        self::assertSame('finished anyway', $this->engine->resume('exec-3', $handler));
+        self::assertSame('finished anyway', $this->engine->resume(ExecutionId::fromString('exec-3'), $handler));
         self::assertNotNull($this->firstOf('exec-3', ExecutionCompleted::class));
         self::assertNull($this->firstOf('exec-3', WorkflowExecutionCancelled::class));
     }
@@ -230,7 +230,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->eventStore->append(new ExecutionStarted(ExecutionId::fromString('exec-4'), []));
         $this->requestCancellation('exec-4');
 
-        self::assertSame('done', $this->engine->resume('exec-4', static fn(WorkflowEnvironment $env): string => 'done'));
+        self::assertSame('done', $this->engine->resume(ExecutionId::fromString('exec-4'), static fn(WorkflowEnvironment $env): string => 'done'));
         self::assertNotNull($this->firstOf('exec-4', ExecutionCompleted::class));
     }
 
@@ -241,7 +241,7 @@ final class WorkflowCancellationTest extends TestCase
         $this->executor->register('fast', static fn(): string => 'winner');
         $runner = new \Gplanchat\Durable\InMemoryWorkflowRunner($this->eventStore, $this->transport, $this->executor);
 
-        $result = $runner->run('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
+        $result = $runner->run(ExecutionId::fromString('race-1'), static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
             $env->activityStub(SuiteActivities::class)->fast(),
             $env->timer(3600.0),
         )));
@@ -258,7 +258,7 @@ final class WorkflowCancellationTest extends TestCase
     private function startAndSuspend(string $executionId, callable $handler): void
     {
         try {
-            $this->engine->start($executionId, $handler);
+            $this->engine->start(ExecutionId::fromString($executionId), $handler);
             self::fail('the workflow was to suspend on its activity');
         } catch (WorkflowSuspendedException) {
         }
@@ -267,7 +267,7 @@ final class WorkflowCancellationTest extends TestCase
     private function resumeExpectingSuspension(string $executionId, callable $handler): void
     {
         try {
-            $this->engine->resume($executionId, $handler);
+            $this->engine->resume(ExecutionId::fromString($executionId), $handler);
             self::fail('the workflow was to suspend on its compensation');
         } catch (WorkflowSuspendedException) {
         }
@@ -281,9 +281,9 @@ final class WorkflowCancellationTest extends TestCase
     private function drainActivities(string $executionId): void
     {
         $this->runtime->runUntilIdle(new ExecutionContext(
-            $executionId,
-            new EventStoreHistorySource($this->eventStore, $executionId),
-            new EventStoreCommandBuffer($this->eventStore, $this->transport, $executionId),
+            ExecutionId::fromString($executionId),
+            new EventStoreHistorySource($this->eventStore, ExecutionId::fromString($executionId)),
+            new EventStoreCommandBuffer($this->eventStore, $this->transport, ExecutionId::fromString($executionId)),
         ));
     }
 

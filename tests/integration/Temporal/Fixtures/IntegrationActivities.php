@@ -25,6 +25,10 @@ interface IntegrationActivities
     #[AsActivityMethod('append')]
     public function append(string $text): string;
 
+    /** Returns a whole-valued float, which must not come back as an int (#826). */
+    #[AsActivityMethod('price')]
+    public function price(int $value): float;
+
     #[AsActivityMethod('refund')]
     public function refund(string $order): string;
 

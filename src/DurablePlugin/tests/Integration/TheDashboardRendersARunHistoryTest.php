@@ -291,6 +291,21 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringNotContainsString('alert-danger', $page);
     }
 
+    /**
+     * Messenger keeps no list of its consumers: the page says it could not ask, and why, rather
+     * than blaming a worker it cannot see.
+     */
+    public function testABackendThatKeepsNoListOfItsWorkersSaysItCouldNotAsk(): void
+    {
+        $unlisted = [['role' => 'queue', 'pollers' => 0, 'polling' => false, 'error' => null, 'seconds' => 120, 'unlisted' => true]];
+
+        $page = $this->renderWorkers($unlisted);
+        self::assertStringContainsString('Could not ask the backend whether a queue worker polls: Messenger keeps no list of the processes that run bin/console durable:worker.', $page);
+        self::assertStringNotContainsString('alert-danger', $page);
+
+        self::assertStringContainsString('Messenger ne tient aucune liste des processus qui lancent bin/console durable:worker.', $this->renderWorkers($unlisted, 'fr'));
+    }
+
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
     {
         // The third state: it answers, and its answer is empty by construction.
@@ -393,6 +408,30 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         $page = $this->render(waitingOn: 'timer due at 2026-09-24T10:00:00+00:00');
 
         self::assertStringContainsString('waiting on timer due at 2026-09-24T10:00:00+00:00', $page);
+    }
+
+    public function testTheNotesOfARunReadOnTheLightTheme(): void
+    {
+        // #850: on Sylius's light theme `text-orange` (#f76707) gives 3.1:1 on white and
+        // `text-secondary` (#adb5bd) 2.1:1, under the 4.5:1 a line of text needs. The emphasis
+        // shades keep the meaning (warning, neutral) at 9:1 and 13:1, and flip on the dark theme.
+        $notes = [
+            $this->render(waiting: true, waitingOn: 'timer due at 2026-09-24T10:00:00+00:00'),
+            $this->twig()->render('@DurablePlugin/admin/grid/field/notes.html.twig', ['data' => ['waitingForWorker' => 'waiting for a worker · 1 min', 'waitingOn' => 'waiting on timer']]),
+        ];
+
+        foreach ($notes as $page) {
+            self::assertStringContainsString('<span class="text-warning-emphasis">waiting for a worker · ', $page);
+            self::assertStringContainsString('<span class="text-secondary-emphasis">waiting on timer', $page);
+            self::assertStringNotContainsString('text-orange', $page);
+        }
+    }
+
+    public function testALongActionNameWrapsInsteadOfBeingCut(): void
+    {
+        // #850: `fraud review hold (60 min 00…` hid the delay, the one fact a timer's name carries.
+        self::assertMatchesRegularExpression('/\.durable-frieze-name \{[^}]*overflow-wrap: anywhere/', $this->render());
+        self::assertDoesNotMatchRegularExpression('/\.durable-frieze-name \{[^}]*(ellipsis|nowrap)/', $this->render());
     }
 
     public function testARunWithNoRecordedWaitSaysNothingOfTheKind(): void

@@ -11,6 +11,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Laravel\Queue\InProcessWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -85,6 +86,8 @@ final class AnActivitiesArgumentIsInjectedTest extends TestCase
         (new DurableServiceProvider($app))->register();
 
         $app->make(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun(ExecutionId::fromString('injected-1'), 'injected-steps', []);
+        // On memory, a start is queued and runs when the queue is drained (#881).
+        $app->make(InProcessWorkflowResumeDispatcher::class)->drain();
 
         self::assertTrue($app->make(WorkflowMetadataStore::class)->get(ExecutionId::fromString('injected-1'))['completed'] ?? false);
         self::assertSame(['first', 'second after a'], InjectedStepHandler::ran());

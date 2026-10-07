@@ -7,8 +7,17 @@ parameters:
 
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
-        use_savepoints: true
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+                use_savepoints: true
+            # The journal's own connection (DUR054). `sylius.command_bus` wraps every handler in
+            # a transaction on `default`, and a rollback there must not erase what the journal
+            # has written. Same database: DUR054 recommends one of the journal's own, and the
+            # bench keeps a single DATABASE_URL so every environment and CI step sets one variable.
+            durable:
+                url: '%env(resolve:DATABASE_URL)%'
     orm:
         auto_generate_proxy_classes: true
         auto_mapping: true

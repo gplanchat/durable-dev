@@ -23,6 +23,7 @@ final class FakeCatalog implements WorkflowRunCatalogInterface, NexusOperationCa
     /** @var list<NexusOperationSummary> what every run is waiting on in Nexus */
     public array $nexusOperations = [];
 
+    public ?WorkflowRunStatus $askedStatus = null;
     public ?string $askedCursor = null;
     public ?WorkflowRunFilter $askedFilter = null;
 
@@ -40,10 +41,14 @@ final class FakeCatalog implements WorkflowRunCatalogInterface, NexusOperationCa
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
     {
+        $this->askedStatus = $status;
         $this->askedCursor = $cursor;
         $this->askedFilter = $filter;
 
-        return new WorkflowRunPage($this->runs, $this->nextCursor);
+        return new WorkflowRunPage(
+            array_values(array_filter($this->runs, static fn(WorkflowRunDescription $run): bool => null === $status || $run->status === $status)),
+            $this->nextCursor,
+        );
     }
 
     public function canFilterRuns(?WorkflowRunFilter $filter = null): bool

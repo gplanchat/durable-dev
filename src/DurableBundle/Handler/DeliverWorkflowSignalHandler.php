@@ -29,10 +29,10 @@ final readonly class DeliverWorkflowSignalHandler
     {
         $id = ExecutionId::fromString($message->executionId);
         $signal = AwaitedFact::signal($message->requestId);
-        if (!$signal->isJournalledIn($this->eventStore, $message->executionId)) {
+        if (!$signal->isJournalledIn($this->eventStore, $id)) {
             $this->resumeDispatcher->dispatchResumeAwaiting($id, $signal);
             $this->eventStore->append(new WorkflowSignalReceived(
-                ExecutionId::fromString($message->executionId),
+                $id,
                 $message->signalName,
                 $message->payload,
                 $message->requestId,

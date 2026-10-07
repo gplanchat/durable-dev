@@ -89,20 +89,20 @@ it, expire it and wrap it in a state machine that holds the wait.
 
 ## What it does not bring
 
-**Compensation is not provided.** None of the three contracts has an operation that gives back what it took. The
+**Durable does not provide compensation.** None of the three contracts has an operation that gives back what it took. The
 only protection is **call ordering**: `OrderNexusWorkflow` first asks everything that can say no
 (check the invoice, plan the round, hold the stock) and only then commits. Both reverse orders
 were written first, and measured: a USD order held stock before being refused an invoice, and a
 six-parcel order was **charged** before logistics refused to carry it.
 
-**Idempotency is not provided.** A Nexus task gets redelivered, and the handler has to withstand it. The `stock` handler
+**Durable does not provide idempotency.** A Nexus task gets redelivered, and the handler has to withstand it. The `stock` handler
 writes its verdict to `app_durable_stock_reservation`, keyed by order id: replaying the same order
-returns the same verdict and does not hold stock twice. That table is written by hand; Durable does
-not provide it.
+returns the same verdict and does not hold stock twice. You write that table by hand.
 
-**No anti-corruption layer is provided.** You write it yourself, and the shop now has one. `OrderWorkflow`
-invokes a `PlaceOrder` use case through a `Payments` port, and `NexusPayments` is the only class in
-`sylius/` that reads a payload's `accepted` field. The three benches that call without
+**Durable does not provide an anti-corruption layer.** You write it yourself, and the shop now has one. `OrderWorkflow`
+invokes a `PlaceOrder` use case through a `Payments` port. `NexusPayments` implements the port and
+hands `verify`'s payload to `Authorisation::fromWire()`, the only method in `sylius/src/` that reads
+its `accepted` field. The three benches that call without
 that layer show the cost of skipping it: `OrderNexusWorkflow` reads five payloads by key, in the code
 that decides. The contracts carry scalars and arrays because the wire is plain JSON, and something
 has to turn them into a model.

@@ -8,6 +8,7 @@ use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Awaitable\AnyAwaitable;
 use Gplanchat\Durable\Awaitable\AwaitableCancellation;
 use Gplanchat\Durable\ExecutionContext;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
@@ -67,7 +68,7 @@ final class NexusCancellationTraversalTest extends TestCase
         $history->method('findScheduledNexusOperation')->willReturn('op-done');
         $history->method('findNexusOperationSlotResult')->willReturn(new SlotOutcome('ok'));
 
-        $context = new ExecutionContext('nexus-1', $history, $buffer);
+        $context = new ExecutionContext(ExecutionId::fromString('nexus-1'), $history, $buffer);
 
         self::assertSame(
             [],
@@ -81,7 +82,7 @@ final class NexusCancellationTraversalTest extends TestCase
         $history->method('findScheduledNexusOperation')->willReturn($operationId);
         $history->method('findNexusOperationSlotResult')->willReturn(null);
 
-        return new ExecutionContext('nexus-1', $history, $buffer);
+        return new ExecutionContext(ExecutionId::fromString('nexus-1'), $history, $buffer);
     }
 
     /** @return \Gplanchat\Durable\Awaitable\Awaitable<mixed> */

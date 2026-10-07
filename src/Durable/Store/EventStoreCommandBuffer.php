@@ -19,6 +19,7 @@ use Gplanchat\Durable\Event\TimerScheduled;
 use Gplanchat\Durable\Event\VersionMarked;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
@@ -53,16 +54,27 @@ final readonly class EventStoreCommandBuffer implements WorkflowCommandBufferInt
     public function __construct(
         private readonly EventStoreInterface $eventStore,
         private readonly ActivityTransportInterface $activityTransport,
-        private readonly string $executionId,
+        ExecutionId $executionId,
         ?ClockInterface $clock = null,
         private readonly ?EventStoreHistorySource $history = null,
     ) {
         $this->clock = $clock ?? new SystemClock();
-        $this->id = ExecutionId::fromString($executionId);
+        $this->id = $executionId;
     }
 
     public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {
+        // No journal backend reads the heartbeat timeout (#977): refuse it instead of journaling
+        // an option nothing enforces. Temporal sends it to the server.
+        if (null !== $options?->timeouts->heartbeat) {
+            throw new UnsupportedByBackendException('ActivityTimeouts::$heartbeat is not supported by the journal backends (InMemory, DBAL, Illuminate, Magento Database): nothing enforces it there. Remove the option, or run the deployment on Temporal.');
+        }
+
+        // Only Temporal routes by task queue; no journal backend reads the name (#977).
+        if (null !== $options?->taskQueue) {
+            throw new UnsupportedByBackendException(\sprintf('The activity task queue "%s", set on ActivityOptions::$taskQueue, #[Activities(taskQueue:)] or activityStub(), is not supported on the InMemory, DBAL, Illuminate and Magento Database backends: no worker is bound to a queue by name there. Remove the option, or run on Temporal.', $options->taskQueue->name()));
+        }
+
         // It is here, in the adapter, that the options take their wire form — and that the
         // enqueuing is timestamped, with this backend's clock.
         $queuedAt = $this->nowSeconds();
@@ -79,7 +91,7 @@ final readonly class EventStoreCommandBuffer implements WorkflowCommandBufferInt
             $metadata,
         ));
         $this->activityTransport->enqueue(new ActivityMessage(
-            $this->executionId,
+            $this->id->toString(),
             $activityId,
             $activityName,
             $payload,
@@ -125,11 +137,18 @@ final readonly class EventStoreCommandBuffer implements WorkflowCommandBufferInt
         array $input,
         ChildWorkflowOptions $options,
     ): void {
+        // The journal records these three and applies none of them: refused by name (#977).
+        foreach (['namespace' => $options->namespace, 'taskQueue' => $options->taskQueue, 'cronSchedule' => $options->cronSchedule] as $name => $value) {
+            if (null !== $value) {
+                throw new UnsupportedByBackendException(\sprintf('The journal backend (in-memory, DBAL, Illuminate, Magento Database) cannot apply ChildWorkflowOptions::$%s: it only records it. Remove the option, or run on the Temporal backend.', $name));
+            }
+        }
+
         // The wire form is built here: the journal records the flat metadata the old code was
         // already giving it, including the two keys the core used to add by hand.
         $this->append(new ChildWorkflowScheduled(
             $this->id,
-            $childExecutionId->toString(),
+            $childExecutionId,
             $childWorkflowType,
             $input,
             $options->parentClosePolicy,
@@ -153,7 +172,7 @@ final readonly class EventStoreCommandBuffer implements WorkflowCommandBufferInt
     {
         $this->append(new ChildWorkflowCompleted(
             $this->id,
-            $childExecutionId->toString(),
+            $childExecutionId,
             $result,
         ));
     }
@@ -164,8 +183,8 @@ final readonly class EventStoreCommandBuffer implements WorkflowCommandBufferInt
         // child's own WorkflowExecutionFailed, so the replay reads back what the pass saw (#318).
         $this->append(AsyncChildWorkflowFailureProjector::toParentJournalEvent(
             $this->eventStore,
-            $this->executionId,
-            $childExecutionId->toString(),
+            $this->id,
+            $childExecutionId,
             $reason,
         ));
     }

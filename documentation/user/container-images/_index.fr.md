@@ -34,7 +34,7 @@ encore l'an prochain, prenez l'étiquette glissante, qui continue de fonctionner
 
 ---
 
-## Choisir l'étiquette qui correspond à votre PHP {#choisir-létiquette--trois-choses-doivent-correspondre}
+## Choisir l'étiquette selon votre PHP et votre libc {#choisir-létiquette--trois-choses-doivent-correspondre}
 
 Une extension est un objet partagé compilé pour un PHP précis. Trois propriétés de ce PHP doivent
 correspondre, et chaque écart échoue d'une façon différente :

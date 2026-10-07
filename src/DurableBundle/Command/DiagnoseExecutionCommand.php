@@ -92,7 +92,7 @@ final class DiagnoseExecutionCommand extends Command
                 $continuedFrom = $event->payload()['continuedFromExecutionId'];
             }
             if ($event instanceof WorkflowContinuedAsNew) {
-                $continuedAs = $event->newExecutionId();
+                $continuedAs = $event->newExecutionId()?->toString();
             }
             if (\count($sample) < $limit) {
                 $recordedAt = $row['recordedAt'];

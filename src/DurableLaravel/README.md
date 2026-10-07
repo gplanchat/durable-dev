@@ -5,7 +5,7 @@ and the workflow code is the one that already runs on Symfony.
 
 > **Read-only mirror.** This repository is a subtree-split of
 > **[gplanchat/durable-dev](https://github.com/gplanchat/durable-dev)**, published so Composer can
-> require this package on its own. Issues and pull requests are disabled here — open them **[on the
+> require this package on its own. Issues and pull requests are disabled here: open them **[on the
 > monorepo](https://github.com/gplanchat/durable-dev/issues)**.
 >
 > **The tests are in the monorepo, not here.** This split carries source only. What covers it is
@@ -28,7 +28,7 @@ Package auto-discovery registers the provider. `migrate` creates the four tables
 
 ## What it is not
 
-**A durable engine for Laravel.** That square is occupied — `durable-workflow/workflow` runs on
+**A durable engine for Laravel.** That square is occupied: `durable-workflow/workflow` runs on
 Laravel queues with its own storage, writes workflows as straight-line methods on Fibers since 2.0,
 and can move to its own server or Cloud, with PHP, Python and Rust SDKs. It is good at it. If that
 is what you want, take it.
@@ -53,7 +53,7 @@ php artisan vendor:publish --tag=durable-config
 ```
 
 ```php
-// config/database.php — the journal on a connection of its own
+// config/database.php: the journal on a connection of its own
 'connections' => [
     // …the application's…
     'durable' => [
@@ -71,7 +71,7 @@ the `durable` connection at a database and a database user of Durable's own, so 
 cannot reach the journal's tables at all.
 
 On the `temporal` backend, `temporal.guzzle_client` names a container binding whose
-`GuzzleHttp\ClientInterface` carries gRPC when the DSN says `transport=guzzle` — Laravel already
+`GuzzleHttp\ClientInterface` carries gRPC when the DSN says `transport=guzzle`. Laravel already
 ships Guzzle 7.14 or newer. `null` builds a default client. Likewise `temporal.psr18_client` and
 `temporal.psr17_factory` hand a PSR-18 client to `transport=http`, the JSON gateway, instead of curl.
 
@@ -81,9 +81,13 @@ ships Guzzle 7.14 or newer. `null` builds a default client. Likewise `temporal.p
 
 - on `illuminate`, it queues the first resume for `queue:work`;
 - on `temporal`, it starts the workflow on the cluster, which delivers everything after that;
-- on `memory`, it drives the run **in the caller's process**: the call returns once the run has
-  completed, or once it waits on a signal or on something due later than the ten-second drain
-  budget. The journal of this backend lives in the process, so nothing else could advance it.
+- on `memory`, it queues the run **in the caller's process**. Drive it in the same process with
+  `app(InProcessWorkflowResumeDispatcher::class)->drain()` after the dispatch. In a console process
+  (tests, commands, queue workers), `Artisan::call('durable:drain')` does the same; the command is
+  not registered in an HTTP request. The drain returns once the run has completed, or once it waits
+  on a signal or on something due later than the ten-second budget. The journal of this backend
+  lives in the process, so nothing else could advance it, and a separate
+  `php artisan durable:drain` starts with an empty queue and drives nothing.
 
 ### Workflows are declared, not scanned
 
@@ -98,10 +102,10 @@ The `activity_handlers` key does the same for activities. Each class serves the 
 share one instance. A class
 that does not exist, serves no activity, or lacks a method of its contract is refused at boot.
 
-The list is also the cheap answer. Measured on a thousand classes: naming them costs 0,14 ms and
+The list is also the cheap answer. Measured on a thousand classes: naming them costs 0.14 ms and
 does not grow with the application, while a reflection scan costs 15 ms **and loads all thousand
-into every process** to find five. There is no `durable:cache` for the same reason — a cached
-manifest beats the list by 0,11 ms, and `config:cache` already caches the file.
+into every process** to find five. There is no `durable:cache` for the same reason: a cached
+manifest beats the list by 0.11 ms, and `config:cache` already caches the file.
 
 A resume for a type nobody declared fails naming the type, the config key, and what *is* declared.
 `WorkflowRegistry` alone would say `Unknown workflow type: X` and stop, because the core has never
@@ -124,8 +128,8 @@ one execution:
 | store | overlapping critical sections |
 |---|---|
 | `database`, `file` | 0 of 20 |
-| `array` | 15 of 20 — excludes inside one process only |
-| `null` | 15 of 20 — excludes nothing |
+| `array` | 15 of 20 (excludes inside one process only) |
+| `null` | 15 of 20 (excludes nothing) |
 
 All four implement `LockProvider`, so **the type system does not protect you here**. Two workers
 replaying one execution both believe they are discovering the commands it produces, and those
@@ -133,7 +137,7 @@ commands go out twice.
 
 `null` is therefore refused **at boot**: no deployment needs a lock that grants everything. `array`
 is not, because it is Laravel's own default cache in the testing environment and excluding inside
-one process is exactly what a test wants — it is the worker command's business to refuse it, since
+one process is exactly what a test wants. It is the worker command's business to refuse it, since
 that is where the plurality of processes lives.
 
 ## One resume at a time
@@ -183,7 +187,7 @@ The `temporal` backend used to be on this list, and it no longer is: `backend =>
 the journal and the catalogue to a cluster, `durable:temporal-worker` drains the workflow tasks,
 `durable:temporal-worker --role=activity` the activity tasks, and `durable:nexus-worker` serves the Nexus operations
 `durable.nexus.handlers` declares. `gplanchat/durable-bridge-temporal` stays **suggested and not
-required** — it pulls in four Symfony components a Laravel application never loads, and an
+required**: it pulls in four Symfony components a Laravel application never loads, and an
 application on the `illuminate` backend has no use for them.
 
 ⚠ **Run the activity worker too.** Without `--role=activity`, nothing takes the tasks a workflow
@@ -191,7 +195,8 @@ schedules on the cluster's activity queue: a run advances up to its first activi
 
 ⚠ **The two worker commands are registered by the `temporal` backend only.** On `illuminate` or
 `memory`, `artisan list` shows neither, and the error you get from calling one names the command,
-not the backend that would have provided it.
+not the backend that would have provided it. `memory` registers `durable:drain` instead, and only
+`memory` does.
 
 ⚠ **A fulfilling workflow's parameter names are checked, and the check refuses.** If a required
 parameter of a workflow claiming an operation matches nothing in the contract's signature,

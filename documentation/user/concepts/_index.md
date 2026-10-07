@@ -29,7 +29,7 @@ method has to take the same decisions on every pass, which is the
 [determinism rule](#determinism-and-the-replay-contract).
 
 In your code, this reads like ordinary sequential PHP: `await` an activity, receive the result,
-continue. The runtime handles fault tolerance, and your code does not deal with it.
+continue. The runtime handles fault tolerance.
 
 ---
 

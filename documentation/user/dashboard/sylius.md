@@ -9,10 +9,26 @@ To follow the workflows of your shop from the Sylius back office, install
 `gplanchat/durable-plugin` ([Packages](../../packages/)) and open **Configuration > Durable
 Dashboard**. The page is read-only.
 
+## Screenshots
+
+![The Sylius dashboard: backend state, counters per outcome, filters and the list of runs](/images/dashboard/sylius-runs.png)
+
+*Configuration > Durable Dashboard, over four runs of an order workflow: one completed, one failed, one waiting on a timer and one waiting for a worker.*
+
+![The run page of an execution waiting on a timer, with its History timeline](/images/dashboard/sylius-run.png)
+
+*The run page of order/4244. The hatched stretch of `reserveStock` is the time the task spent in the queue before a worker picked it up; the timer that follows has been set and has not fired.*
+
+![The run page of a failed execution, with the failing activity in red](/images/dashboard/sylius-run-failed.png)
+
+*The run page of order/4243: `chargePayment` failed, and the run failed with it.*
+
 ## What the page offers
 
 - **The backend state**, above everything, dated, and one line per worker role when Temporal holds
-  the [journal](../../glossary/) (the recorded steps of an execution and their results).
+  the [journal](../../glossary/) (the recorded steps of an execution and their results). On the
+  DBAL backend, one line reads "Could not ask": Messenger keeps no list of the processes that run
+  `bin/console durable:worker`. The in-memory backend shows no worker line.
 - **Counters** per outcome, with a **Waiting for a worker** count, over the runs on the page.
 - **A filter** on outcome, and on workflow name and execution id prefix where the backend can apply
   them.

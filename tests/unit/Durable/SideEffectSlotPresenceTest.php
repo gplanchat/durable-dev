@@ -115,7 +115,7 @@ final class SideEffectSlotPresenceTest extends TestCase
             new WorkflowRegistry(),
         );
 
-        return $runner->run($executionId, $workflow);
+        return $runner->run(ExecutionId::fromString($executionId), $workflow);
     }
 
     private static function countSideEffects(InMemoryEventStore $store, string $executionId): int

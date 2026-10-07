@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable;
 
+use Gplanchat\Durable\Exception\ContinuationCapReachedException;
+use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
@@ -13,6 +15,7 @@ use Gplanchat\Durable\Store\PassEventStore;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Timer\VirtualClock;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -26,6 +29,7 @@ use Psr\Clock\ClockInterface;
 final readonly class InMemoryWorkflowRunner
 {
     public const DEFAULT_BUDGET_SECONDS = 10.0;
+    public const DEFAULT_MAX_CONTINUATIONS = 10;
 
     private readonly ClockInterface $clock;
 
@@ -37,6 +41,7 @@ final readonly class InMemoryWorkflowRunner
         /**
          * Required to run child workflows: without a registry no child type can be resolved
          * and {@see \Gplanchat\Durable\ExecutionContext::executeChildWorkflow()} throws.
+         * Without one, a continue-as-new still reaches the caller as ContinueAsNewRequested.
          */
         private readonly ?WorkflowRegistry $workflowRegistry = null,
         /**
@@ -57,7 +62,16 @@ final readonly class InMemoryWorkflowRunner
          * at its parent's virtual now, while its queue keeps the transport's clock (#652).
          */
         private readonly ?ClockInterface $virtualTimeStartsAt = null,
+        /**
+         * How many times a chain may continue as new before the run fails. The budget does not
+         * bound a chain, since each run gets its own: a workflow that always continues as new
+         * would run forever (#888). `0` allows no continuation; a negative value throws.
+         */
+        private readonly int $maxContinuations = self::DEFAULT_MAX_CONTINUATIONS,
     ) {
+        if ($maxContinuations < 0) {
+            throw new \InvalidArgumentException(\sprintf('maxContinuations must be 0 or more, %d given.', $maxContinuations));
+        }
         $this->clock = $clock ?? new SystemClock();
     }
 
@@ -66,7 +80,37 @@ final readonly class InMemoryWorkflowRunner
      *
      * @return mixed the handler's result
      */
-    public function run(string $executionId, callable $handler, ?string $workflowType = null): mixed
+    public function run(ExecutionId $executionId, callable $handler, ?string $workflowType = null): mixed
+    {
+        $startedExtras = [];
+        $firstExecutionId = $executionId;
+        $continuations = 0;
+
+        // A continue-as-new chain is followed to its last run, as ResumeWorkflowHandler does on the
+        // journal backends (#802); each run gets its own budget.
+        while (true) {
+            try {
+                return $this->runOnce($executionId, $handler, $workflowType, $startedExtras);
+            } catch (ContinueAsNewRequested $e) {
+                if (null === $this->workflowRegistry || null === $e->nextExecutionId) {
+                    throw $e;
+                }
+                if (++$continuations > $this->maxContinuations) {
+                    throw new ContinuationCapReachedException($firstExecutionId->toString(), $this->maxContinuations);
+                }
+                $startedExtras = ['continuedFromExecutionId' => $executionId->toString()];
+                $executionId = $e->nextExecutionId;
+                // The alias, as ResumeWorkflowHandler journals it; the registry knows both keys.
+                $workflowType = (new WorkflowDefinitionLoader())->aliasForTemporalInterop($e->workflowType);
+                $handler = $this->workflowRegistry->getHandler($e->workflowType, $e->payload);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $startedExtras merged into the run's ExecutionStarted
+     */
+    private function runOnce(ExecutionId $id, callable $handler, ?string $workflowType, array $startedExtras): mixed
     {
         // Virtual clock: an inline harness has nobody to deliver a timer wake-up, and waiting
         // out a due time for real would make every workflow that sleeps untestable. It only
@@ -105,7 +149,7 @@ final readonly class InMemoryWorkflowRunner
         // What the last suspension was waiting on, when that has a name: it is all that
         // separates "stuck" from "stuck on that particular condition" in the diagnosis.
         try {
-            return $engine->start($executionId, $handler, $workflowType);
+            return $engine->start($id, $handler, $workflowType, $startedExtras);
         } catch (WorkflowSuspendedException $e) {
             // DUR003: expected suspension (control flow), not an error — the while loop runs the worker then resumes.
             $waitingOn = $e->waitingOn();
@@ -116,16 +160,16 @@ final readonly class InMemoryWorkflowRunner
 
         while (true) {
             if (hrtime(true) >= $deadline) {
-                throw WorkflowStuckException::budgetExhausted($executionId, $this->budgetSeconds);
+                throw WorkflowStuckException::budgetExhausted($id->toString(), $this->budgetSeconds);
             }
 
-            $before = $this->eventStore->countEventsInStream(ExecutionId::fromString($executionId));
-            $this->runActivityWorker($executionId, $runtime, $clock, max(0.0, ((float) ($deadline - hrtime(true))) / 1e9));
+            $before = $this->eventStore->countEventsInStream($id);
+            $this->runActivityWorker($id, $runtime, $clock, max(0.0, ((float) ($deadline - hrtime(true))) / 1e9));
             // Timers already due fire on every round; time itself does not move yet.
-            $runtime->checkTimers($this->timerContext($executionId, $runtime), PassEventStore::open($this->eventStore, $executionId));
+            $runtime->checkTimers($this->timerContext($id, $runtime), PassEventStore::open($this->eventStore, $id));
 
             try {
-                return $engine->resume($executionId, $handler);
+                return $engine->resume($id, $handler);
             } catch (WorkflowSuspendedException $e) {
                 // DUR003: same — suspension until activities have produced the events needed for replay.
                 $waitingOn = $e->waitingOn();
@@ -137,19 +181,19 @@ final readonly class InMemoryWorkflowRunner
             // forever — a test that forgets to deliver its signal froze everything after it.
             // ponytail: detection by absence of progress; a real timer scheduler would call
             // for a virtual clock.
-            if ($this->eventStore->countEventsInStream(ExecutionId::fromString($executionId)) === $before) {
+            if ($this->eventStore->countEventsInStream($id) === $before) {
                 // Nothing moves any more: only now are we allowed to move time forward. Doing
                 // it sooner would hand the timer a race the activity was in the middle of
                 // winning.
-                if ($this->skipToNextTimer($executionId, $runtime, $clock)) {
+                if ($this->skipToNextTimer($id, $runtime, $clock)) {
                     continue;
                 }
 
                 // An attempt still queued tells the two causes apart: the workflow is still
                 // retrying (budget exhausted), rather than waiting for an event that will not come.
                 throw null !== $this->activityTransport->nextDueAt()
-                    ? WorkflowStuckException::budgetExhausted($executionId, $this->budgetSeconds)
-                    : WorkflowStuckException::noProgress($executionId, $waitingOn);
+                    ? WorkflowStuckException::budgetExhausted($id->toString(), $this->budgetSeconds)
+                    : WorkflowStuckException::noProgress($id->toString(), $waitingOn);
             }
         }
     }
@@ -166,34 +210,34 @@ final readonly class InMemoryWorkflowRunner
      *
      * @return bool true when time was moved forward
      */
-    private function skipToNextTimer(string $executionId, ExecutionRuntime $runtime, VirtualClock $clock): bool
+    private function skipToNextTimer(ExecutionId $id, ExecutionRuntime $runtime, VirtualClock $clock): bool
     {
-        $dueInMs = TimerWakeDelayCalculator::millisecondsUntilNextTimerDue($this->eventStore, $executionId, $clock->seconds());
+        $dueInMs = TimerWakeDelayCalculator::millisecondsUntilNextTimerDue($this->eventStore, $id, $clock->seconds());
         if (null === $dueInMs) {
             return false;
         }
 
         $clock->advance((float) $dueInMs / 1000.0);
-        $runtime->checkTimers($this->timerContext($executionId, $runtime), PassEventStore::open($this->eventStore, $executionId));
+        $runtime->checkTimers($this->timerContext($id, $runtime), PassEventStore::open($this->eventStore, $id));
 
         return true;
     }
 
-    private function timerContext(string $executionId, ExecutionRuntime $runtime): ExecutionContext
+    private function timerContext(ExecutionId $id, ExecutionRuntime $runtime): ExecutionContext
     {
         return new ExecutionContext(
-            $executionId,
-            $history = new EventStoreHistorySource($this->eventStore, $executionId),
-            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $executionId, $runtime->clock(), $history),
+            $id,
+            $history = new EventStoreHistorySource($this->eventStore, $id),
+            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $id, $runtime->clock(), $history),
         );
     }
 
-    private function runActivityWorker(string $executionId, ExecutionRuntime $runtime, VirtualClock $clock, float $budgetSeconds): void
+    private function runActivityWorker(ExecutionId $id, ExecutionRuntime $runtime, VirtualClock $clock, float $budgetSeconds): void
     {
         $context = new ExecutionContext(
-            $executionId,
-            $history = new EventStoreHistorySource($this->eventStore, $executionId),
-            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $executionId, $runtime->clock(), $history),
+            $id,
+            $history = new EventStoreHistorySource($this->eventStore, $id),
+            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $id, $runtime->clock(), $history),
             null,
         );
         $runtime->runUntilIdle($context, $budgetSeconds, $this->clock, $clock);

@@ -52,7 +52,7 @@ final class TheWorkerRecordsTheWaitTest extends TestCase
 
     private function buffer(): TemporalWorkflowCommandBuffer
     {
-        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
     }
 
     /**

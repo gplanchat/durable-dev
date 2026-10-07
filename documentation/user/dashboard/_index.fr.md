@@ -22,8 +22,8 @@ traduire.
 
 ### 1. L'état du backend
 
-Une liste vide ne dit rien toute seule : elle se lit pareil quand rien n'a tourné, quand la grappe
-est tombée, et quand le journal ne survit pas à la requête qui rend la page. La page dit donc lequel
+Une liste vide ne dit rien toute seule : elle se lit pareil quand rien n'a tourné, quand le cluster
+est tombé, et quand le journal ne survit pas à la requête qui rend la page. La page dit donc lequel
 des trois c'est, avant de montrer quoi que ce soit.
 
 | État | Ce que la page dit | Quoi faire |
@@ -55,8 +55,7 @@ Sous Sylius et Filament, la liste se filtre aussi par nom de workflow (le nom en
 l'identifiant d'exécution. Les deux respectent la casse et prennent `%` et `_` à la lettre. Ils
 n'apparaissent que là où le backend sait les appliquer : sur Temporal, il faut [activer ses
 attributs de recherche](../backends/#register-durables-search-attributes) ; sans eux, la page ne
-filtre que par issue. La grille Magento propose ses propres filtres texte sur le nom du workflow,
-l'identifiant d'exécution et l'identifiant de run : le filtre sur le nom du workflow ignore la casse, les deux filtres sur les identifiants respectent le texte tel que saisi, et chacun le cherche n'importe où dans la valeur, parmi les exécutions de sa fenêtre.
+filtre que par issue. La grille Magento propose les mêmes deux filtres, et un sur l'identifiant de run côté backend qui suit la règle de l'identifiant d'exécution. Elle les applique aux exécutions de sa fenêtre, si bien qu'ils s'affichent quel que soit le backend.
 
 Une exécution **poursuivie à neuf** n'est pas un échec. C'est une fin normale : le
 composant la traite comme une exécution neuve, et celle qui passe la main s'est terminée sans erreur.
@@ -100,8 +99,7 @@ l'application. Chaque surface dit lequel, parce que cela dépend de la façon do
   est pleine.
 
 Un intitulé « Total » sous lequel on lit vingt vous apprendrait qu'une application ayant enregistré
-cinq cents exécutions en a vingt. Les compteurs Magento portent une colonne `Total` : elle compte la
-fenêtre, pas l'historique. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
+cinq cents exécutions en a vingt. Les compteurs Magento intitulent leur première colonne `In the window`, et l'intitulé au-dessus d'eux dit que les filtres de la grille ne les changent pas. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
 d'une requête.
 
 ### 4. L'historique d'une exécution, une ligne par **action** {#4-lhistorique-dune-exécution--une-ligne-par-action}

@@ -79,7 +79,7 @@ final class ContinueAsNewKeepsTheChainTest extends TestCase
             if ($event instanceof WorkflowContinuedAsNew) {
                 self::assertNotNull($event->newExecutionId(), 'The old run does not say which run continues it.');
 
-                return $event->newExecutionId();
+                return $event->newExecutionId()->toString();
             }
         }
         self::fail('The run did not continue as new.');

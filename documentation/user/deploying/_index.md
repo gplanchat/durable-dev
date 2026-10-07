@@ -56,10 +56,8 @@ their endpoint/service/operation triple, child workflows by type.
 ### Revert the deployment {#revert-and-the-run-finishes}
 
 The failure means the deployment does not fit the runs it landed on. Put the previous version back,
-and the next retry replays cleanly: the run continues exactly where it was, and loses nothing but
-the time between the two deployments.
-
-This is why the task fails and the run does not.
+and the next retry replays cleanly, because only the task failed: the run continues exactly where
+it was, and loses nothing but the time between the two deployments.
 
 ### Or declare a change point
 

@@ -120,7 +120,7 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
     private function contextWithChild(string $childType): ExecutionContext
     {
         $store = new InMemoryEventStore();
-        $store->append(new ChildWorkflowScheduled(ExecutionId::fromString(self::EXECUTION), 'child-1', $childType, ['sku' => 'ABC']));
+        $store->append(new ChildWorkflowScheduled(ExecutionId::fromString(self::EXECUTION), ExecutionId::fromString('child-1'), $childType, ['sku' => 'ABC']));
 
         return $this->context($store);
     }
@@ -128,9 +128,9 @@ final class ChildWorkflowSlotDivergenceTest extends TestCase
     private function context(InMemoryEventStore $store): ExecutionContext
     {
         return new ExecutionContext(
-            self::EXECUTION,
-            new EventStoreHistorySource($store, self::EXECUTION),
-            new EventStoreCommandBuffer($store, new NoopActivityTransport(), self::EXECUTION),
+            ExecutionId::fromString(self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
+            new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
             $this->createStub(ChildWorkflowRunnerInterface::class),
         );
     }

@@ -10,6 +10,7 @@ use Gplanchat\Durable\Event\NexusOperationCompleted;
 use Gplanchat\Durable\Event\NexusOperationFailed;
 use Gplanchat\Durable\Event\NexusOperationScheduled;
 use Gplanchat\Durable\Event\NexusOperationTimedOut;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
@@ -111,6 +112,6 @@ final class NexusEventConversionTest extends TestCase
         $event->setEventId($eventId);
         $fill($event);
 
-        return (new TemporalEventConverter('exec-nexus'))->convert($event);
+        return (new TemporalEventConverter(ExecutionId::fromString('exec-nexus')))->convert($event);
     }
 }

@@ -23,7 +23,7 @@ final class DiagnoseExecutionCommandChainTest extends TestCase
     {
         $store = new InMemoryEventStore();
         $store->append(new ExecutionStarted(ExecutionId::fromString('exec-mid'), ['continuedFromExecutionId' => 'exec-first']));
-        $store->append(new WorkflowContinuedAsNew(ExecutionId::fromString('exec-mid'), 'Next', [], [], 'exec-last'));
+        $store->append(new WorkflowContinuedAsNew(ExecutionId::fromString('exec-mid'), 'Next', [], [], ExecutionId::fromString('exec-last')));
 
         $tester = new CommandTester(new DiagnoseExecutionCommand(
             new InMemoryWorkflowMetadataStore(),

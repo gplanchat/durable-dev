@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Bridge\Temporal\Worker;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\Exception\DurableNexusOperationFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusOperationFailureKind;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payload;
@@ -116,7 +117,7 @@ final class NexusHistoryReadingTest extends TestCase
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             $history,
         );
 
@@ -137,7 +138,7 @@ final class NexusHistoryReadingTest extends TestCase
         $history = TemporalExecutionHistory::fromEvents([$this->scheduled(5)]);
         $buffer = new \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer(
             new \Gplanchat\Bridge\Temporal\TemporalConnection('localhost:7233', 'test'),
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             $history,
         );
 

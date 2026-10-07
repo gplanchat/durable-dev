@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Testing;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -37,8 +38,11 @@ final readonly class WorkflowTestEnvironment
     private readonly WorkflowRegistry $workflowRegistry;
     private readonly InMemoryWorkflowRunner $runner;
 
-    private function __construct(int $maxActivityRetries = 0, float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS)
-    {
+    private function __construct(
+        int $maxActivityRetries = 0,
+        float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
+        int $maxContinuations = InMemoryWorkflowRunner::DEFAULT_MAX_CONTINUATIONS,
+    ) {
         $this->eventStore = new InMemoryEventStore();
         $this->activityTransport = new InMemoryActivityTransport();
         $this->activityExecutor = new RegistryActivityExecutor();
@@ -50,6 +54,7 @@ final readonly class WorkflowTestEnvironment
             $maxActivityRetries,
             $this->workflowRegistry,
             $budgetSeconds,
+            maxContinuations: $maxContinuations,
         );
     }
 
@@ -61,13 +66,16 @@ final readonly class WorkflowTestEnvironment
      *                                  (0 = no ceiling; the ActivityOptions stay in charge)
      * @param float $budgetSeconds      Max duration of an execution: activity attempts being
      *                                  unlimited by default, an inline harness needs a bound
+     * @param int   $maxContinuations   How many times a chain may continue as new before the run
+     *                                  throws ContinuationCapReachedException
      */
     public static function inMemory(
         array $activityHandlers = [],
         int $maxActivityRetries = 0,
         float $budgetSeconds = InMemoryWorkflowRunner::DEFAULT_BUDGET_SECONDS,
+        int $maxContinuations = InMemoryWorkflowRunner::DEFAULT_MAX_CONTINUATIONS,
     ): self {
-        $env = new self($maxActivityRetries, $budgetSeconds);
+        $env = new self($maxActivityRetries, $budgetSeconds, $maxContinuations);
         foreach ($activityHandlers as $activityName => $handler) {
             $env->activityExecutor->register($activityName, $handler);
         }
@@ -103,7 +111,7 @@ final readonly class WorkflowTestEnvironment
     {
         $id = $executionId ?? $this->generateExecutionId();
 
-        return $this->runner->run($id, $handler);
+        return $this->runner->run(ExecutionId::fromString($id), $handler);
     }
 
     /**

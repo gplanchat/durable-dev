@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
@@ -43,7 +44,7 @@ final class ParallelActivitiesTest extends TestCase
         $this->executor->register('double', static fn(array $p) => ($p['value'] ?? 0) * 2);
         $this->executor->register('square', static fn(array $p) => ($p['value'] ?? 0) ** 2);
 
-        $result = $this->runner->run('parallel-test-1', static function (WorkflowEnvironment $env): array {
+        $result = $this->runner->run(ExecutionId::fromString('parallel-test-1'), static function (WorkflowEnvironment $env): array {
             return $env->await($env->all(
                 $env->activityStub(SuiteActivities::class)->double(3),
                 $env->activityStub(SuiteActivities::class)->square(4),
@@ -60,7 +61,7 @@ final class ParallelActivitiesTest extends TestCase
     {
         $this->executor->register('add', static fn(array $p) => ($p['a'] ?? 0) + ($p['b'] ?? 0));
 
-        $result = $this->runner->run('parallel-test-2', static function (WorkflowEnvironment $env): array {
+        $result = $this->runner->run(ExecutionId::fromString('parallel-test-2'), static function (WorkflowEnvironment $env): array {
             return $env->await($env->all(
                 $env->activityStub(SuiteActivities::class)->add(1, 2),
                 $env->activityStub(SuiteActivities::class)->add(3, 4),
@@ -84,7 +85,7 @@ final class ParallelActivitiesTest extends TestCase
             return 'done-' . $p['name'];
         });
 
-        $result = $this->runner->run('parallel-test-3', static function (WorkflowEnvironment $env): array {
+        $result = $this->runner->run(ExecutionId::fromString('parallel-test-3'), static function (WorkflowEnvironment $env): array {
             $a = $env->activityStub(SuiteActivities::class)->task('x');
             $b = $env->activityStub(SuiteActivities::class)->task('y');
 
@@ -103,7 +104,7 @@ final class ParallelActivitiesTest extends TestCase
     {
         $this->executor->register('id', static fn(array $p) => $p['v'] ?? null);
 
-        $result = $this->runner->run('parallel-test-4', static function (WorkflowEnvironment $env): array {
+        $result = $this->runner->run(ExecutionId::fromString('parallel-test-4'), static function (WorkflowEnvironment $env): array {
             $first = $env->await($env->activityStub(SuiteActivities::class)->id('seq'));
             $parallel = $env->await($env->all(
                 $env->activityStub(SuiteActivities::class)->id('p1'),

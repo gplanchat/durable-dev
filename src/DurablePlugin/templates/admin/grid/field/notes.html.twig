@@ -1,3 +1,3 @@
 {# Dispatched and not picked up (#447), and what a suspended run last waited on (#324), both worded by the core. #}
-{% if data.waitingForWorker is defined %}<span class="text-orange">{{ data.waitingForWorker }}</span>{% endif %}
-{% if data.waitingOn is defined %}<span class="text-secondary">{{ data.waitingOn }}</span>{% endif %}
+{% if data.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ data.waitingForWorker }}</span>{% endif %}
+{% if data.waitingOn is defined %}<span class="text-secondary-emphasis">{{ data.waitingOn }}</span>{% endif %}

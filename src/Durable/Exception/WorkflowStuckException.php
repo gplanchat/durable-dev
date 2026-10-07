@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Exception;
 
 /**
- * The in-memory runner cannot carry the execution through to the end.
+ * The execution did not finish within the bound its caller waits for: the in-memory runner's
+ * budget, or a client's polls of a cluster.
  *
  * Signalled rather than looped on empty: a test harness must fail, not freeze.
+ * {@see ContinuationCapReachedException} extends it for a continue-as-new chain past the cap.
  */
-final class WorkflowStuckException extends \RuntimeException implements ExceptionInterface
+class WorkflowStuckException extends \RuntimeException implements ExceptionInterface
 {
-    private function __construct(
+    protected function __construct(
         public readonly string $executionId,
         string $message,
     ) {
@@ -44,6 +46,21 @@ final class WorkflowStuckException extends \RuntimeException implements Exceptio
             . 'RetryLimit::once(), declare the exception non-retryable, or raise the runner budget.',
             $executionId,
             $budgetSeconds,
+        ));
+    }
+
+    /**
+     * A client polled the cluster for the close event as many times as it was allowed to, and the
+     * execution is still open: no worker carries it, it waits on a signal, or it is slow (#765).
+     */
+    public static function pollsExhausted(string $executionId, int $maxRefreshes, int $refreshIntervalMs): self
+    {
+        return new self($executionId, \sprintf(
+            'Workflow "%s" did not complete within %d poll attempts (%d ms interval = ~%d s total).',
+            $executionId,
+            $maxRefreshes,
+            $refreshIntervalMs,
+            (int) ($maxRefreshes * $refreshIntervalMs / 1000),
         ));
     }
 }

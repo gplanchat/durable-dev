@@ -9,9 +9,14 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
+use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Exception\ActivityFailureCauseException;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
+use Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException;
+use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
@@ -22,8 +27,10 @@ use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
+use Temporal\Api\Workflowservice\V1\TerminateWorkflowExecutionRequest;
 
 /**
  * Client-side API for driving workflow executions from application code.
@@ -111,8 +118,10 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * @param int $refreshIntervalMs Milliseconds between poll attempts (default: 500 ms).
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
+     * @throws \Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException when the workflow
+     *         let an activity failure escape, as on the journal backends; the original failure is its previous.
      * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
-     * @throws \RuntimeException when no completion event is found within {@code $maxRefreshes} attempts.
+     * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
      */
     public function pollForCompletion(
         string $executionId,
@@ -134,9 +143,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
 
             return match ($closeEvent->getEventType()) {
                 EventType::EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED => $this->decodeCompletedResult($closeEvent),
-                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED     => throw new \RuntimeException(
-                    \sprintf('Workflow "%s" failed: %s', $executionId, $this->extractFailureMessage($closeEvent)),
-                ),
+                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED     => throw self::failureOf($executionId, $closeEvent),
                 EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT  => throw new \RuntimeException(
                     \sprintf('Workflow "%s" timed out on the Temporal side.', $executionId),
                 ),
@@ -150,13 +157,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
             };
         }
 
-        throw new \RuntimeException(\sprintf(
-            'Workflow "%s" did not complete within %d poll attempts (%d ms interval = ~%d s total).',
-            $executionId,
-            $maxRefreshes,
-            $refreshIntervalMs,
-            (int) ($maxRefreshes * $refreshIntervalMs / 1000),
-        ));
+        throw WorkflowStuckException::pollsExhausted($executionId, $maxRefreshes, $refreshIntervalMs);
     }
 
     /**
@@ -181,6 +182,59 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         }
 
         $this->client->SignalWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
+    }
+
+    /**
+     * Requests the cancellation of a running workflow: it receives it where it waits, and can
+     * compensate before it ends cancelled.
+     *
+     * Provisional signature: it follows signal(), pending the design of #782. No run id is sent:
+     * the call acts on the current run of the chain. A retry with the same request id succeeds while
+     * the run is open and throws once it has ended.
+     *
+     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     */
+    public function cancel(string $workflowId, ?string $requestId = null): void
+    {
+        $req = new RequestCancelWorkflowExecutionRequest();
+        $req->setNamespace($this->settings->namespace->name());
+        $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
+        $req->setIdentity($this->settings->identity);
+        $req->setRequestId($requestId ?? bin2hex(random_bytes(16)));
+
+        $this->endedOrNotFound($workflowId, fn() => $this->client->RequestCancelWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+    }
+
+    /**
+     * Ends a running workflow at once, without running more of its code.
+     *
+     * Provisional signature, pending the design of #782. No run id is sent: the call acts on the
+     * current run of the chain. Terminating an ended run answers NotFound too, so a second call throws.
+     *
+     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     */
+    public function terminate(string $workflowId, string $reason = ''): void
+    {
+        $req = new TerminateWorkflowExecutionRequest();
+        $req->setNamespace($this->settings->namespace->name());
+        $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
+        $req->setIdentity($this->settings->identity);
+        $req->setReason($reason);
+
+        $this->endedOrNotFound($workflowId, fn() => $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+    }
+
+    private function endedOrNotFound(string $workflowId, \Closure $call): void
+    {
+        try {
+            $call();
+        } catch (\RuntimeException $failure) {
+            if (self::GRPC_NOT_FOUND === $failure->getCode()) {
+                throw new \RuntimeException(\sprintf('Workflow "%s" has ended or does not exist.', $workflowId), self::GRPC_NOT_FOUND, $failure);
+            }
+
+            throw $failure;
+        }
     }
 
     /**
@@ -399,18 +453,35 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         return JsonPlainPayload::decode($payloads[0]);
     }
 
-    private function extractFailureMessage(HistoryEvent $event): string
+    /**
+     * The failure the journal backends throw for this close event
+     * ({@see \Gplanchat\Durable\Store\EventStoreWorkflowLifecycle::onFailed()}): an unhandled
+     * activity failure becomes a {@see DurableWorkflowAlgorithmFailureException}, the original
+     * failure, kept as class and message, as its previous.
+     *
+     * ponytail: the workflow's own exception still comes back as a bare \RuntimeException; whether
+     * to rebuild its class from the failure is open on #872.
+     */
+    private static function failureOf(string $executionId, HistoryEvent $closeEvent): \RuntimeException
     {
-        $attr = $event->getWorkflowExecutionFailedEventAttributes();
-        if (null === $attr) {
-            return '(unknown failure)';
-        }
-        $failure = $attr->getFailure();
-        if (null === $failure) {
-            return '(unknown failure)';
+        $failed = (new TemporalEventConverter(ExecutionId::fromString($executionId)))->convert($closeEvent);
+        \assert($failed instanceof WorkflowExecutionFailed);
+        $prefix = match ($failed->kind()) {
+            WorkflowExecutionFailed::KIND_UNHANDLED_CATASTROPHIC_ACTIVITY => 'Workflow did not handle catastrophic activity failure: ',
+            WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY => 'Workflow did not handle activity failure: ',
+            WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY_SUPERSEDED => 'Workflow did not handle superseded activity: ',
+            WorkflowExecutionFailed::KIND_UNHANDLED_DECLARED_ACTIVITY => 'Workflow did not handle declared activity failure: ',
+            default => null,
+        };
+        if (null === $prefix) {
+            return new \RuntimeException(\sprintf('Workflow "%s" failed: %s', $executionId, $failed->failureMessage()));
         }
 
-        return $failure->getMessage();
+        return new DurableWorkflowAlgorithmFailureException(
+            $prefix . $failed->failureMessage(),
+            0,
+            new ActivityFailureCauseException($failed->failureClass(), $failed->failureMessage(), $failed->failureCode()),
+        );
     }
 
     /**

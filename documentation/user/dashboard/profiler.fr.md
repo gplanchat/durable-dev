@@ -14,6 +14,17 @@ Ce n'est pas le [tableau de bord](../) dans un cadre plus petit. Le tableau de b
 exécutions d'une application ; ce panneau liste les exécutions d'**une requête**, il n'a donc ni
 bandeau d'état du backend, ni compteurs, ni filtres.
 
+
+## Captures d'écran
+
+![L'onglet Summary du panneau Durable : deux exécutions de la requête, une terminée et une en cours](/images/dashboard/profiler-summary.png)
+
+*L'onglet Summary après une requête qui a envoyé deux workflows : un terminé, un en cours dont le journal ne contient pas encore d'événement.*
+
+![L'onglet Executions du panneau Durable avec l'historique de l'exécution terminée](/images/dashboard/profiler-executions.png)
+
+*L'onglet Executions, ouvert sur l'exécution terminée : son issue, puis son historique, une ligne par événement du journal.*
+
 ## Ouvrir le panneau
 
 1. Chargez une page de votre application qui envoie un workflow, avec la barre de débogage activée.
@@ -23,8 +34,12 @@ bandeau d'état du backend, ni compteurs, ni filtres.
    son type, son issue et son nombre d'événements.
 
 L'onglet **Executions** ouvre chaque exécution : son historique d'événements, ses opérations Nexus,
-la frise de son journal et sa trace de processus. L'onglet **Overview** dessine tous les processus
-sur une même échelle de temps et liste les envois Messenger de la requête.
+sa frise et sa trace de processus. La frise est celle des pages d'exécution, avec une ligne par
+action, l'attente d'un worker hachurée et l'intervalle en échec en rouge (voir
+[Lire une exécution](../reading-a-run/)). La trace de processus montre le temps que ce processus a
+passé sur l'exécution pendant la requête, que le journal n'enregistre pas. L'onglet **Overview**
+dessine tous les processus sur une même échelle de temps et liste les envois Messenger de la
+requête.
 
 ## Charger un journal que la requête n'a pas envoyé
 
@@ -52,10 +67,6 @@ dans ce processus. Le panneau affiche **Journal still empty**. Lancez un worker,
 ## Ce qui diffère du tableau de bord
 
 - **Vocabulaire.** La colonne d'issue emploie les mots des autres tableaux de bord et ajoute trois états qui ne sont pas des issues : Queued (no journal yet), Pending et Cancellation requested. Le panneau est en anglais seulement.
-- **Frise.** Une ligne par événement, dans l'ordre du journal, et non une ligne par action. Le
-  temps de file n'est pas hachuré et un événement en échec n'est pas peint en rouge.
-- **Charges utiles.** Elles sont masquées comme celles du tableau de bord, et toujours affichées
-  dépliées.
 - **Limites.** 500 événements par journal, et un avertissement quand une table d'opérations Nexus
   est tronquée.
 

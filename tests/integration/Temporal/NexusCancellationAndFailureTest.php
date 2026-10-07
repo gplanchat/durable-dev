@@ -138,7 +138,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $history = TemporalExecutionHistory::fromEvents(
             (new TemporalHistoryCursor($this->client, $this->connection))->eventsFromPoll($task),
         );
-        $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1', $history);
+        $buffer = new TemporalWorkflowCommandBuffer($this->connection, ExecutionId::fromString('exec-1'), $history);
         // Since 1b.2, the identity of an operation is the eventId the server assigns, and not the
         // application identifier passed at scheduling time: it is the history that gives it.
         $identity = $history->findScheduledNexusOperation(0);
@@ -200,7 +200,7 @@ final class NexusCancellationAndFailureTest extends TestCase
         $this->workflowId = $client->workflowId($client->startAsync('NexusCancel', [], ExecutionId::fromString('nexuscf-' . bin2hex(random_bytes(4)))));
 
         $task = $this->pollTask();
-        $buffer = new TemporalWorkflowCommandBuffer($this->connection, 'exec-1');
+        $buffer = new TemporalWorkflowCommandBuffer($this->connection, ExecutionId::fromString('exec-1'));
         $buffer->scheduleNexusOperation(
             $operationId,
             NexusEndpoint::named($this->endpointName),

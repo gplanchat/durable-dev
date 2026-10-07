@@ -40,6 +40,9 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         'EVENT_TYPE_WORKFLOW_TASK_COMPLETED',
         'EVENT_TYPE_WORKFLOW_TASK_FAILED',
         'EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT',
+        // The memo the worker upserts with a workflow task to say what the run waits on (#514):
+        // plumbing of the run, not an action. A line of its own drew a lane with no length (#850).
+        'EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED',
     ];
 
     /** @var list<string> */
@@ -89,7 +92,7 @@ final class TheRunIsOneLineAndItsExceptionsAreTheRuleTest extends TestCase
         'EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED',
         'EVENT_TYPE_MARKER_RECORDED',
         'EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES',
-        'EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED',
+        // Somebody outside the run changed it: a fact of its own, unlike the memo the worker writes.
         'EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED_EXTERNALLY',
     ];
 

@@ -10,10 +10,13 @@ use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ContinueAsNewOptions;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\TaskQueue;
+use Gplanchat\Durable\WorkflowTimeouts;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
@@ -29,7 +32,7 @@ final class TemporalWorkflowFailureRoundTripTest extends TestCase
 {
     private function buffer(): TemporalWorkflowCommandBuffer
     {
-        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), 'exec-1');
+        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
     }
 
     public function testUnhandledActivityFailureKindSurvivesTheRoundTrip(): void
@@ -58,11 +61,21 @@ final class TemporalWorkflowFailureRoundTripTest extends TestCase
         $event->setEventType(EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
         $event->setWorkflowExecutionFailedEventAttributes($attrs);
 
-        $decoded = (new TemporalEventConverter('exec-1'))->convert($event);
+        $decoded = (new TemporalEventConverter(ExecutionId::fromString('exec-1')))->convert($event);
         self::assertInstanceOf(WorkflowExecutionFailed::class, $decoded);
         self::assertSame(WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY, $decoded->kind());
         self::assertSame('act-9', $decoded->context()['activityId'] ?? null);
         self::assertSame('charge_card', $decoded->context()['activityName'] ?? null);
+    }
+
+    public function testContinueAsNewAppliesTheRunAndTaskTimeouts(): void
+    {
+        $buffer = $this->buffer();
+        $buffer->continueAsNew('NextWorkflow', [], new ContinueAsNewOptions(timeouts: new WorkflowTimeouts(run: Duration::minutes(5), task: Duration::seconds(30))));
+
+        $attrs = $buffer->peek()[0]->getContinueAsNewWorkflowExecutionCommandAttributes();
+        self::assertSame(300, $attrs->getWorkflowRunTimeout()?->getSeconds());
+        self::assertSame(30, $attrs->getWorkflowTaskTimeout()?->getSeconds());
     }
 
     public function testContinueAsNewEmitsItsOwnCommandNotAFailure(): void

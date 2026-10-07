@@ -66,7 +66,14 @@ $timeline = $block->getTimeline();
                             <td><code><?= $escaper->escapeHtml($operation->endpoint) ?></code></td>
                             <td><?= $escaper->escapeHtml($operation->service) ?></td>
                             <td><?= $escaper->escapeHtml($operation->operation) ?></td>
-                            <td><span class="durable-nexus-state <?= $escaper->escapeHtmlAttr($operation->state->value) ?>"><?= $escaper->escapeHtml(__($operation->state->label())) ?></span></td>
+                            <td><span class="durable-nexus-state <?= $escaper->escapeHtmlAttr($operation->state->value) ?>"><?= $escaper->escapeHtml(match ($operation->state) {
+                                /* One literal per state, so that a dictionary can reach each. */
+                                \Gplanchat\Durable\Observation\NexusOperationState::InFlight => __('in flight'),
+                                \Gplanchat\Durable\Observation\NexusOperationState::Completed => __('completed'),
+                                \Gplanchat\Durable\Observation\NexusOperationState::Failed => __('failed'),
+                                \Gplanchat\Durable\Observation\NexusOperationState::TimedOut => __('timed out'),
+                                \Gplanchat\Durable\Observation\NexusOperationState::Cancelled => __('cancelled'),
+                            }) ?></span></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -84,7 +91,7 @@ $timeline = $block->getTimeline();
             <style>
                 .durable-frieze { margin: 0 0 1rem; }
                 .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
-                .durable-frieze-name { flex: 0 0 16rem; text-align: right; font-size: 1.2rem; color: #303030; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .durable-frieze-name { flex: 0 0 16rem; text-align: right; font-size: 1.2rem; color: #303030; line-height: 1.2; overflow-wrap: anywhere; }
                 .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.8rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: .3rem; }
                 /* One `min-width` for both, and that is what holds the rule: four milliseconds of
                    queue must not draw wider than six milliseconds of work. A minimum applied to
@@ -183,7 +190,13 @@ $timeline = $block->getTimeline();
                         <td><?= $escaper->escapeHtml($event->kind->value) ?></td>
                         <?php /* Requested, started, failed, settled: what the row did to its
                                 action. A signal or an update is its own action and has none. */ ?>
-                        <td><?= $escaper->escapeHtml($event->phase?->value ?? '') ?></td>
+                        <td><?= $escaper->escapeHtml(match ($event->phase) {
+                            null => '',
+                            \Gplanchat\Durable\Observation\WorkflowRunEventPhase::Requested => __('requested'),
+                            \Gplanchat\Durable\Observation\WorkflowRunEventPhase::Started => __('started'),
+                            \Gplanchat\Durable\Observation\WorkflowRunEventPhase::Failed => __('failed'),
+                            \Gplanchat\Durable\Observation\WorkflowRunEventPhase::Settled => __('settled'),
+                        }) ?></td>
                         <?php /* The name of the action, not of the event: the follow-ups of an
                                 activity carry only a number, and the operator is looking for the
                                 name. It is the same string as the frieze row label. */ ?>

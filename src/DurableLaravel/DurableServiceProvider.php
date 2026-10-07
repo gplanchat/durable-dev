@@ -22,6 +22,7 @@ use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskProcessor;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowClientInterface;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
@@ -69,13 +70,14 @@ use Illuminate\Contracts\Container\Container as ContainerContract;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Binds the four storage ports from a single configuration file.
  *
  * **One choice of backend binds all four ports together.** A journal on one backend and metadata on
- * another is not a configuration, it is a fault — hence a single `match` rather than four
+ * another is not a configuration, it is a fault, hence a single `match` rather than four
  * independent settings.
  *
  * This provider is the **integration** package's. The bridge's own,
@@ -113,9 +115,13 @@ final class DurableServiceProvider extends ServiceProvider
         // so it is the no-op, bound once so the activities and the workers share it.
         $this->app->singleton(ActivityHeartbeatSenderInterface::class, NullActivityHeartbeatSender::class);
 
-        // Laravel has no PSR-20 clock of its own: the core's system clock, which an application
-        // rebinds to read time elsewhere (#617).
+        // Laravel has no PSR-20 clock of its own: the core's system clock under `durable.clock`,
+        // which an application rebinds to read time elsewhere (#617). Everything reads it through
+        // `ClockInterface` (#879), a delegate to that id. Not shared: a shared delegate would keep
+        // the first clock it resolved and miss a rebinding of `durable.clock`. An application that
+        // binds `ClockInterface` itself owns the clock Durable reads.
         $this->app->singletonIf('durable.clock', static fn(): SystemClock => new SystemClock());
+        $this->app->bindIf(ClockInterface::class, static fn($app) => $app->make('durable.clock'));
 
         match ($backend) {
             'illuminate' => $this->bindIlluminate($config),
@@ -143,8 +149,8 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         // §1.3: `null` never locks, in any deployment. The refusal is therefore risk-free at
-        // boot, where `array` — correct inside a single process, and the default cache of the test
-        // environment — can only be judged by the worker command.
+        // boot, where `array` (correct inside a single process, and the default cache of the test
+        // environment) can only be judged by the worker command.
         if ($this->app->bound('cache')) {
             $this->refuseALockStoreThatCannotLock();
         }
@@ -268,7 +274,7 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * The Temporal backend: the journal and the catalog live in the cluster.
      *
-     * The metadata and the parent links stay in memory, as on the Symfony side — Temporal holds the
+     * The metadata and the parent links stay in memory, as on the Symfony side: Temporal holds the
      * durable state, those two are nothing but process cache.
      *
      * Both task queues are the cluster's, and only a worker polling them can take their tasks:
@@ -302,7 +308,7 @@ final class DurableServiceProvider extends ServiceProvider
 
         if (!\is_string($dsn) || '' === $dsn) {
             throw new \InvalidArgumentException(
-                'Durable: the "temporal" backend needs durable.temporal.dsn — the address of the '
+                'Durable: the "temporal" backend needs durable.temporal.dsn: the address of the '
                 . 'cluster, its namespace and its two task queues. Nothing else can supply it.',
             );
         }
@@ -310,7 +316,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (!class_exists(TemporalConnection::class)) {
             throw new \InvalidArgumentException(
                 'Durable: the "temporal" backend needs gplanchat/durable-bridge-temporal, which is '
-                . 'suggested rather than required — it installs a gRPC client and five Symfony '
+                . 'suggested rather than required: it installs a gRPC client and five Symfony '
                 . 'components a Laravel application never loads. Run: composer require '
                 . 'gplanchat/durable-bridge-temporal',
             );
@@ -319,7 +325,7 @@ final class DurableServiceProvider extends ServiceProvider
         $searchAttributes = true === ($temporal['search_attributes'] ?? false);
         $this->app->singleton(TemporalConnection::class, fn() => TemporalConnection::fromDsn($dsn, $searchAttributes));
         $this->app->singleton(
-            'durable.temporal.client',
+            WorkflowServiceClientInterface::class,
             fn($app) => WorkflowServiceClientFactory::create(
                 $app->make(TemporalConnection::class),
                 $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
@@ -331,12 +337,15 @@ final class DurableServiceProvider extends ServiceProvider
                 \is_string($temporal['payload_codec'] ?? null) && '' !== $temporal['payload_codec'] ? $app->make($temporal['payload_codec']) : null,
             ),
         );
+        // The string id predates the class binding (#879) and stays for compatibility.
+        $this->app->alias(WorkflowServiceClientInterface::class, 'durable.temporal.client');
         // The graph is the bridge's (#356); each binding below is one of its objects.
         $this->app->singleton(TemporalRuntimeAssembly::class, fn($app) => new TemporalRuntimeAssembly(
-            $app->make('durable.temporal.client'),
+            $app->make(WorkflowServiceClientInterface::class),
             $app->make(TemporalConnection::class),
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowDefinitionLoader::class),
+            $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
         ));
         $assembly = static fn($app): TemporalRuntimeAssembly => $app->make(TemporalRuntimeAssembly::class);
         // One sender for the activity worker, which binds each task's token onto it, and for the
@@ -354,7 +363,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->app->singleton(WorkflowServiceNexusRpc::class, fn($app) => $assembly($app)->nexusRpc());
         $this->app->singleton(WorkflowClientInterface::class, fn($app) => $assembly($app)->workflowClient());
         // The journal reads through to the cluster, with an in-memory store for the current turn.
-        $this->app->singleton(EventStoreInterface::class, fn($app) => $assembly($app)->readThroughEventStore(new InMemoryEventStore($app->make('durable.clock'))));
+        $this->app->singleton(EventStoreInterface::class, fn($app) => $assembly($app)->readThroughEventStore(new InMemoryEventStore($app->make(ClockInterface::class))));
 
         $this->app->singleton(WorkflowMetadataStore::class, fn() => new InMemoryWorkflowMetadataStore());
         $this->app->singleton(
@@ -365,7 +374,7 @@ final class DurableServiceProvider extends ServiceProvider
         if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
             // Named by a string, and not by `::class`: the class extends
             // `Illuminate\Console\Command`, which cannot enter the root's graph without making
-            // the Symfony 6.4 line unresolvable — see phpstan.neon. A `::class` reference would
+            // the Symfony 6.4 line unresolvable (see phpstan.neon). A `::class` reference would
             // make the analyser follow it into a class it cannot read.
             $this->commands([
                 'Gplanchat\\Durable\\Laravel\\Console\\TemporalWorkerCommand',
@@ -378,8 +387,8 @@ final class DurableServiceProvider extends ServiceProvider
     {
         // The catalog reads the journal it is fed from, so it takes the undecorated one: the
         // decorated journal needs the catalog, and the catalog needs a journal (#458).
-        $this->app->singleton('durable.journal.memory', fn($app) => new InMemoryEventStore($app->make('durable.clock')));
-        $this->app->singleton(InMemoryWorkflowRunCatalog::class, fn($app) => new InMemoryWorkflowRunCatalog($app->make('durable.journal.memory'), $app->make('durable.clock')));
+        $this->app->singleton('durable.journal.memory', fn($app) => new InMemoryEventStore($app->make(ClockInterface::class)));
+        $this->app->singleton(InMemoryWorkflowRunCatalog::class, fn($app) => new InMemoryWorkflowRunCatalog($app->make('durable.journal.memory'), $app->make(ClockInterface::class)));
         $this->app->alias(InMemoryWorkflowRunCatalog::class, WorkflowRunCatalogInterface::class);
         $this->app->alias(InMemoryWorkflowRunCatalog::class, WorkflowRunPickupProjectionInterface::class);
 
@@ -400,7 +409,7 @@ final class DurableServiceProvider extends ServiceProvider
     private function bindActivityTransport(string $backend, array $config): void
     {
         if ($backend === 'temporal') {
-            $this->app->singleton(ActivityTransportInterface::class, fn($app) => new InMemoryActivityTransport($app->make('durable.clock')));
+            $this->app->singleton(ActivityTransportInterface::class, fn($app) => new InMemoryActivityTransport($app->make(ClockInterface::class)));
             // A new run starts on the cluster, as with the Symfony bundle; the server delivers
             // every resume after that (#603).
             $this->app->singleton(WorkflowResumeDispatcher::class, fn($app) => new TemporalWorkflowResumeDispatcher(
@@ -413,8 +422,8 @@ final class DurableServiceProvider extends ServiceProvider
         }
 
         if ($backend !== 'illuminate') {
-            $this->app->singleton(ActivityTransportInterface::class, fn($app) => new InMemoryActivityTransport($app->make('durable.clock')));
-            // The journal lives in this process, so the call that starts a run drives it (#603).
+            $this->app->singleton(ActivityTransportInterface::class, fn($app) => new InMemoryActivityTransport($app->make(ClockInterface::class)));
+            // The journal lives in this process, so the process that starts a run drains it (#603, #881).
             // Resolved late: the handler and the processor both take this dispatcher.
             $this->app->singleton(InProcessWorkflowResumeDispatcher::class, fn($app) => new InProcessWorkflowResumeDispatcher(
                 $app->make(WorkflowMetadataStore::class),
@@ -427,9 +436,14 @@ final class DurableServiceProvider extends ServiceProvider
                     $app->make(WorkflowResumeDispatcher::class),
                     $app->make(WorkflowTimerDispatcher::class),
                 ),
-                clock: $app->make('durable.clock'),
+                clock: $app->make(ClockInterface::class),
             ));
             $this->app->alias(InProcessWorkflowResumeDispatcher::class, WorkflowResumeDispatcher::class);
+
+            if (method_exists($this->app, 'runningInConsole') && $this->app->runningInConsole()) {
+                // Named by a string, as the Temporal worker commands are: see bindTemporal().
+                $this->commands(['Gplanchat\\Durable\\Laravel\\Console\\DrainCommand']);
+            }
 
             return;
         }
@@ -481,7 +495,7 @@ final class DurableServiceProvider extends ServiceProvider
      *
      * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
      * could provide it: this package therefore only has to assemble it, not to rewrite it. A timer,
-     * for its part, is a deferred timer firing — the queue carries the delay, like Messenger's
+     * for its part, is a deferred timer firing: the queue carries the delay, like Messenger's
      * `DelayStamp`.
      *
      * @param array<string, mixed> $config
@@ -529,7 +543,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(RegistryActivityExecutor::class),
             // `distributed: true` because here the drain is not inside the process, it is `queue:work`.
             $maxActivityRetries(),
-            $app->make('durable.clock'),
+            $app->make(ClockInterface::class),
             true,
         ));
 
@@ -552,7 +566,7 @@ final class DurableServiceProvider extends ServiceProvider
             // second start, which a journal backend has no server to make (#590). A container
             // without a cache (a bare test or script) runs one process: nothing to claim against.
             attemptClaim: $app->bound('cache') ? $app->make(ActivityAttemptLock::class) : new NoActivityAttemptClaim(),
-            clock: $app->make('durable.clock'),
+            clock: $app->make(ClockInterface::class),
         ));
 
         $this->app->singleton(ResumeWorkflowHandler::class, fn($app) => new ResumeWorkflowHandler(
@@ -589,7 +603,7 @@ final class DurableServiceProvider extends ServiceProvider
     /**
      * Nexus: the registry always exists, and it knows how to say why it cannot route.
      *
-     * `routedBy('temporal')` under Temporal, `unavailableOn($backend)` elsewhere — and the second
+     * `routedBy('temporal')` under Temporal, `unavailableOn($backend)` elsewhere, and the second
      * refuses **at registration**, not on the first call. It is the core that carries this refusal,
      * precisely because Symfony's compiler pass only catches Symfony: a host that declares a
      * handler on a backend that does not route must be told the reason, wherever it is.
@@ -623,6 +637,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowServiceNexusRpc::class),
             $app->make(TemporalConnection::class),
             $app->make(NexusOperationRegistry::class),
+            $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
         ));
     }
 
@@ -654,7 +669,7 @@ final class DurableServiceProvider extends ServiceProvider
         $name = $queue['connection'] ?? null;
 
         // The **driver name**, not the connection class: `SyncQueue` lives in `illuminate/queue`,
-        // from which Laravel 11+ pulls `symfony/process ^7.2` — requiring it would make this
+        // from which Laravel 11+ pulls `symfony/process ^7.2`, and requiring it would make this
         // package irreconcilable with the Symfony 6.4 line the repository's matrix still tests.
         // Reading the configuration says the same thing, without the dependency, and without
         // having to resolve the connection in order to judge it.
@@ -662,7 +677,7 @@ final class DurableServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" queue connection runs jobs inline, so a resume that dispatches '
                 . 'another resume recurses in the same process until the stack ends. Use a real '
-                . 'queue connection — database, redis, sqs, beanstalkd.',
+                . 'queue connection: database, redis, sqs, beanstalkd.',
                 $name ?? 'default',
             ));
         }
@@ -699,7 +714,7 @@ final class DurableServiceProvider extends ServiceProvider
         if ($store instanceof ArrayStore && ($this->durableConfig()['backend'] ?? 'illuminate') === 'illuminate') {
             throw new \InvalidArgumentException(\sprintf(
                 'Durable: the "%s" cache store only excludes inside one process, and a resume runs '
-                . 'in a worker separate from whatever dispatched it — two workers would replay the '
+                . 'in a worker separate from whatever dispatched it, so two workers would replay the '
                 . 'same execution. Use database, redis, memcached, dynamodb or file.',
                 $name ?? 'default',
             ));

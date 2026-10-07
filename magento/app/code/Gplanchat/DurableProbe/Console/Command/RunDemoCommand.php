@@ -20,9 +20,10 @@ use Symfony\Component\Console\Output\OutputInterface;
  * if the workflow does not return what it must, and the journal it prints says
  * which of the three steps took place.
  *
- * What it does not prove: durability. `MagentoRuntime::run()` executes the
- * workflow here and now, its activities in this single process — so nothing
- * survives the command. Nothing here rides Magento's queue, and nothing of the
+ * What it does not prove without a DSN: durability. `MagentoRuntime::run()` then
+ * executes the workflow here and now, its activities in this single process, so
+ * nothing survives the command. With a DSN, it starts on the cluster and waits
+ * for the workers (#765). Nothing here rides Magento's queue, and nothing of the
  * module ever does: an execution that has to outlive its caller goes to the
  * cluster through `workflowClient()->startAsync()`, as `durable:demo:nexus`
  * does, and `bin/magento durable:worker` advances it.

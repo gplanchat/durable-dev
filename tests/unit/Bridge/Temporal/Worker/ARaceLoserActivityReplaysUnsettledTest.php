@@ -9,6 +9,7 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Durable\ActivityCancellationReason;
+use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\ActivityType;
 use Temporal\Api\Enums\V1\CommandType;
@@ -72,7 +73,7 @@ final class ARaceLoserActivityReplaysUnsettledTest extends TestCase
     {
         return new TemporalWorkflowCommandBuffer(
             TemporalConnection::fromDsn('temporal://127.0.0.1:7233?namespace=default&tls=0'),
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
             TemporalExecutionHistory::fromEvents($events),
         );
     }

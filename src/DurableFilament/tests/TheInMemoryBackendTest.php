@@ -13,7 +13,9 @@ final class TheInMemoryBackendTest extends PanelTestCase
     {
         $this->startRun('memory-run-1');
 
-        $this->get('/admin/durable/runs')->assertOk()->assertSee('memory-run-1')->assertSee('App\\ShipWorkflow');
+        $this->get('/admin/durable/runs')->assertOk()->assertSee('memory-run-1')->assertSee('App\\ShipWorkflow')
+            // The runs live in this process: no worker to ask about.
+            ->assertDontSee('worker polls');
         $this->get('/admin/durable/run?executionId=memory-run-1')->assertOk()->assertSee('App\\ShipWorkflow');
     }
 }

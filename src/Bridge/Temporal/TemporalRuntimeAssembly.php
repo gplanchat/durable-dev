@@ -23,6 +23,7 @@ use Gplanchat\Durable\Transport\NoopActivityTransport;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
+use Psr\Log\LoggerInterface;
 
 /**
  * The Temporal graph every host needs, written once: one client, one history cursor, and what
@@ -51,6 +52,7 @@ final class TemporalRuntimeAssembly
         private readonly TemporalConnection $connection,
         private readonly WorkflowRegistry $registry,
         private readonly WorkflowDefinitionLoader $definitionLoader,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     public function historyCursor(): TemporalHistoryCursor
@@ -70,7 +72,7 @@ final class TemporalRuntimeAssembly
 
     public function workflowTaskProcessor(): WorkflowTaskProcessor
     {
-        return $this->workflowTaskProcessor ??= new WorkflowTaskProcessor($this->client, $this->connection, $this->workflowTaskRunner());
+        return $this->workflowTaskProcessor ??= new WorkflowTaskProcessor($this->client, $this->connection, $this->workflowTaskRunner(), $this->logger);
     }
 
     public function workflowClient(): WorkflowClient
@@ -129,6 +131,7 @@ final class TemporalRuntimeAssembly
             new ActivityMessageProcessor($scratch, new NoopActivityTransport(), $executor, new NullWorkflowResumeDispatcher(), $sender),
             $scratch,
             $sender,
+            $this->logger,
         );
     }
 }

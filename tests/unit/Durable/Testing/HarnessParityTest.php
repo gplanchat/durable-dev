@@ -130,7 +130,7 @@ final class HarnessParityTest extends TestCase
         $scheduled = null;
         foreach ($env->getEventStore()->readStream(ExecutionId::fromString('parent-2')) as $event) {
             if ($event instanceof \Gplanchat\Durable\Event\ChildWorkflowScheduled) {
-                $scheduled = $event->childExecutionId();
+                $scheduled = $event->childExecutionId()->toString();
             }
         }
         self::assertNotNull($scheduled);

@@ -165,6 +165,27 @@
         .durable-nexus-state--completed { background: #dcfce7; color: #166534; }
         .durable-nexus-state--failed, .durable-nexus-state--timed_out { background: #fee2e2; color: #991b1b; }
         .durable-nexus-state--cancelled { background: #f3f4f6; color: #374151; }
+        /* The frieze of the Sylius run page (#819), with the profiler's colour variables: the same
+           drawing of the shared RunTimeline, kind rules first, then the hatching, then the red. */
+        .durable-frieze { margin: 1em 0 1.25em; }
+        .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
+        .durable-frieze-name { flex: 0 0 12rem; text-align: right; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; background: var(--metric-value-background, #e8e8e8); border: 1px solid var(--table-border-color, #ddd); border-radius: 4px; }
+        .durable-frieze-bar { position: absolute; top: .3rem; height: .8rem; min-width: .2rem; border-radius: .4rem; opacity: .35; background: #206bc4; }
+        .durable-frieze-mark { position: absolute; top: .4rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #206bc4; }
+        .durable-frieze-bar.execution, .durable-frieze-mark.execution { background: #4b5563; }
+        .durable-frieze-bar.activity, .durable-frieze-mark.activity { background: #206bc4; }
+        .durable-frieze-bar.signal, .durable-frieze-mark.signal { background: #d63939; }
+        .durable-frieze-bar.update, .durable-frieze-mark.update { background: #7048e8; }
+        .durable-frieze-bar.nexus, .durable-frieze-mark.nexus { background: #f76707; }
+        .durable-frieze-bar.other, .durable-frieze-mark.other { background: #868e96; }
+        .durable-frieze-bar.waiting { opacity: .75; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.9) 0 1px, rgba(255,255,255,0) 1px 3px); }
+        .durable-frieze-bar.failed { background-color: #d63939; opacity: .75; }
+        .durable-frieze-mark.failed { background-color: #d63939; }
+        .durable-frieze-took { flex: 0 0 5rem; font-size: 12px; color: var(--color-muted, #666); }
+        .durable-frieze-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-muted, #666); padding: 0 5.75rem 0 12.75rem; }
+        .durable-frieze-key { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; padding-left: 12.75rem; font-size: 12px; color: var(--color-muted, #666); }
+        .durable-frieze-key .durable-frieze-bar { position: static; top: auto; flex: 0 0 2.5rem; height: .8rem; }
     </style>
 {% endblock %}
 
@@ -404,39 +425,63 @@
                                                         <td>{{ row.phase|default('—') }}</td>
                                                         <td><strong>{{ row.title|default(row.label) }}</strong></td>
                                                         <td class="text-muted">{{ row.subtitle|default('') }}</td>
-                                                        <td><pre class="text-muted" style="max-height:100px;overflow:auto">{{ row.payload|json_encode(128) }}</pre></td>
+                                                        <td>
+                                                            {# Folded, as on the run pages (#820): a disclosure that opens on nothing gets opened again every time. #}
+                                                            {% if row.payload is not empty %}
+                                                                <details><summary>Payload</summary><pre class="text-muted" style="max-height:100px;overflow:auto">{{ row.payload|json_encode(128) }}</pre></details>
+                                                            {% else %}—{% endif %}
+                                                        </td>
                                                     </tr>
                                                 {% endfor %}
                                             </tbody>
                                         </table>
                                     {% endif %}
 
-                                    {% set st = ex.storeTimeline %}
-                                    {% if st is not null and st.bounds is not null and st.segments is not empty %}
-                                        <h4 class="durable-section-title">Journal timeline (sequential)</h4>
-                                        <p class="help">A visual reading of the event order (no wall clock).
-                                            {% if st.truncated %}<strong>Truncated</strong> at 500 events.{% endif %}
-                                        </p>
-                                        <div class="durable-timeframe-wrap">
-                                            <div class="durable-timeframe-legend">
-                                                <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Scheduling</span>
-                                                <span><span class="durable-timeframe-swatch" style="background:#9b59b6"></span> Workflow lifecycle</span>
-                                                <span><span class="durable-timeframe-swatch" style="background:#27ae60"></span> Effects / completions</span>
-                                            </div>
-                                            <div class="durable-timeframe-axis">
-                                                <span>{{ st.eventCount }} event(s)</span>
-                                                <span>journal order</span>
-                                            </div>
-                                            {% for seg in st.segments %}
-                                                {{ _self.timeframe_segment_row(seg) }}
+                                    {# The shared RunTimeline, drawn as the Sylius run page draws it (#819): one line
+                                       per action, placed in time, the wait for a worker hatched, red on what failed. #}
+                                    {% set rt = ex.runTimeline %}
+                                    {% if rt.actions is not empty %}
+                                        <h4 class="durable-section-title">Timeline</h4>
+                                        {% if ex.storeTruncated %}<p class="help">The journal is truncated at 500 events: the timeline stops there.</p>{% endif %}
+                                        {% set scale = rt.span > 0 ? 100 / rt.span : 0 %}
+                                        <div class="durable-frieze">
+                                            {% for action in rt.actions %}
+                                                <div class="durable-frieze-row">
+                                                    <span class="durable-frieze-name" title="{{ action.label }}">{{ action.label }}</span>
+                                                    <div class="durable-frieze-track">
+                                                        {% for segment in action.segments %}
+                                                            <span class="durable-frieze-bar {{ action.kind }}{{ segment.waiting ? ' waiting' }}{{ segment.failed ? ' failed' }}"
+                                                                  style="left: {{ (segment.offset * scale)|number_format(3, '.', '') }}%; width: {{ (segment.duration * scale)|number_format(3, '.', '') }}%"
+                                                                  title="{{ segment.title }}"></span>
+                                                        {% endfor %}
+                                                        {% for mark in action.marks %}
+                                                            <span class="durable-frieze-mark {{ action.kind }}{{ mark.failed ? ' failed' }}"
+                                                                  style="left: {{ (mark.offset * scale)|number_format(3, '.', '') }}%"
+                                                                  title="{{ mark.title }}"></span>
+                                                        {% endfor %}
+                                                    </div>
+                                                    <span class="durable-frieze-took">{{ action.durationLabel }}</span>
+                                                </div>
                                             {% endfor %}
+                                            <div class="durable-frieze-scale">
+                                                <span>0</span>
+                                                <span>{{ rt.spanLabel }}</span>
+                                            </div>
+                                            <div class="durable-frieze-key">
+                                                <span class="durable-frieze-bar waiting other"></span>
+                                                Hatched: waiting to be picked up. The work was asked for, and no worker had started it yet.
+                                            </div>
+                                            <div class="durable-frieze-key">
+                                                <span class="durable-frieze-bar failed"></span>
+                                                Red: what failed. A cancellation stays uncoloured.
+                                            </div>
                                         </div>
                                     {% endif %}
 
                                     {% set ptf = ex.processTimeframe|default({}) %}
                                     {% if ptf.bounds is not null and ptf.segments is not empty %}
                                         <h4 class="durable-section-title">Progress on this request (process timing)</h4>
-                                        <p class="help">What this process was observed doing: the Messenger dispatch, the engine turns (start / resume), the activities run here (an activity worker included). The detailed history stays the journal above.</p>
+                                        <p class="help">This trace shows the time this process spent on the run during this request. The Messenger dispatch, the engine turns (start or resume) and the activities run here are measured in the process. The journal records none of them, so the timeline above does not show them.</p>
                                         <div class="durable-timeframe-wrap">
                                             <div class="durable-timeframe-legend">
                                                 <span><span class="durable-timeframe-swatch" style="background:#4a90d9"></span> Messenger (ResumeWorkflowMessage)</span>
@@ -476,7 +521,9 @@
                                                         <td>
                                                             {% if e.kind == 'dispatch' %}
                                                                 <strong>{{ e.dispatchSummary|default(e.workflowType|default('—')) }}</strong>
-                                                                <pre class="text-muted" style="max-height:80px;overflow:auto">{{ e.payload|default({})|json_encode(128) }}</pre>
+                                                                {% if e.payload|default({}) is not empty %}
+                                                                    <details><summary>Payload</summary><pre class="text-muted" style="max-height:80px;overflow:auto">{{ e.payload|json_encode(128) }}</pre></details>
+                                                                {% endif %}
                                                             {% elseif e.kind == 'workflow' %}
                                                                 {{ e.workflowType }}
                                                             {% elseif e.kind == 'activity' %}
@@ -512,17 +559,6 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-
-                {% for st in tf.store_timelines|default([]) %}
-                    {% if st.bounds is not null and st.segments is not empty %}
-                        <h4>Journal — <code>{{ st.executionId }}</code></h4>
-                        <div class="durable-timeframe-wrap">
-                            {% for seg in st.segments %}
-                                {{ _self.timeframe_segment_row(seg) }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                {% endfor %}
 
                 {% if collector.timeline|length > 0 %}
                     <h4>Messenger dispatches (this request)</h4>

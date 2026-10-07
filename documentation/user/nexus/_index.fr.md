@@ -5,10 +5,9 @@ weight: 29
 
 # Opérations Nexus
 
-Une opération Nexus est une opération servie par un autre service, avec son propre contrat, qu'un
-workflow appelle comme il appelle une activité (voir le [glossaire](../glossary/)). Avec Nexus, un
-workflow appelle une opération qui appartient à une autre équipe, à un autre namespace ou à un
-autre déploiement, et aucun des deux côtés ne connaît les workflows de l'autre. Durable tient les
+Une opération Nexus est une opération qu'une autre équipe, un autre namespace ou un autre
+déploiement sert derrière son propre contrat (voir le [glossaire](../glossary/)). Un workflow
+l'appelle comme il appelle une activité, et aucun des deux côtés ne connaît les workflows de l'autre. Durable tient les
 deux rôles : il **appelle** des opérations et il en **sert**.
 
 Servir demande le **backend Temporal**. Les backends in-memory et DBAL n'ont aucune route entre
@@ -179,8 +178,8 @@ invalide, qu'aucun réessai ne corrige. Pour un échec définitif, indiquez sa n
 | `NOT_FOUND`, `NOT_IMPLEMENTED`, `CONFLICT` | `UNAVAILABLE`, `UPSTREAM_TIMEOUT`, `REQUEST_TIMEOUT` |
 
 Les deux colonnes se séparent selon *à qui revient la faute*. Réessayer ne répare pas une requête
-malformée ou un droit manquant ; cela peut passer une surcharge ou un délai dépassé en amont. La
-table vient de nexus-rpc, et tous les SDK la partagent ; Durable ne l'a pas définie.
+malformée ou un droit manquant ; un nouvel essai peut en revanche venir à bout d'une surcharge ou d'un délai dépassé en amont. La
+table vient de nexus-rpc, et tous les SDK la partagent.
 
 Une opération que personne ne sert reçoit `NOT_IMPLEMENTED`, qui est définitif, et le worker
 continue de servir ses autres opérations.
@@ -233,7 +232,15 @@ Declared by: app.charge.
 
 Le côté appelant se comporte autrement, et c'est voulu. Un appel sur un backend sans route échoue à
 l'appel, et vous l'apprenez tout de suite. Un *gestionnaire* sans route ne reçoit rien, et rien
-n'échoue : aucune requête ne lui parvient. Le contrôle a donc lieu au démarrage de l'application.
+n'échoue : aucune requête ne lui parvient. Sur Symfony et Magento, le contrôle a donc lieu avant toute
+requête : au montage du conteneur, et au démarrage du worker Nexus.
+
+Le message ci-dessus est celui de Symfony. Sur Magento, `bin/magento durable:worker --role=nexus`
+échoue avec `A Nexus worker needs a cluster` quand `app/etc/env.php` n'a pas de DSN.
+Sur Laravel, rien n'échoue au démarrage. Hors de `temporal`, rien ne résout le registre Nexus : un
+gestionnaire listé dans `durable.nexus.handlers` ne lève rien et ne reçoit rien, et
+`php artisan durable:nexus-worker` se termine sur `Command "durable:nexus-worker" is not defined.`,
+qui ne nomme pas le backend (voir [#931](https://github.com/gplanchat/durable-dev/issues/931)).
 
 ---
 
@@ -250,6 +257,9 @@ frameworks.
 | ce qui déclare le gestionnaire | une balise sous `when@demo` | `#[AsNexusServiceHandler]` | rien | six lignes de `config/durable.php` |
 
 Les quatre lisent le même paquet de contrats. Rien d'autre ne circule entre elles.
+
+Le banc Magento ne sert rien, mais le module Magento peut servir des opérations : les gestionnaires listés dans l'argument `nexusHandlers` de `RuntimeFactory`, comme dans
+[Servir une opération](#servir-une-opération).
 
 Le workflow de commande de la boutique appelle les deux formes sur le même stub :
 
@@ -282,8 +292,7 @@ L'historique de l'appelant montre la différence :
 
 Pendant un passage, le worker qui fait avancer le workflow remplissant est resté **éteint quatre
 minutes**. L'opération est restée en `NexusOperationStarted`, l'appelant n'a rien consommé, et
-tout s'est terminé normalement au retour du worker. Ce passage montre, mesure à l'appui, qu'une
-opération en attente ne garde rien d'ouvert.
+tout s'est terminé normalement au retour du worker.
 
 ### Appeler ne demande rien à votre hôte
 
@@ -299,13 +308,13 @@ cœur, du pont Temporal ou de `gplanchat/durable-magento`**.
 
 Les deux côtés ne sont pas symétriques :
 
-- **Appeler** demande un workflow dont le journal est la grappe, et rien d'autre.
+- **Appeler** demande un workflow dont le journal est le cluster, et rien d'autre.
   `WorkflowEnvironment::nexusStub()` lit le contrat par réflexion ; aucun conteneur n'intervient.
 - **Servir** demande à l'hôte d'enregistrer des gestionnaires et d'interroger une file de tâches Nexus.
   C'est du travail d'hôte, écrit une fois par hôte : une passe de compilation en Symfony, un fichier
   de configuration en Laravel, un argument de `di.xml` en Magento.
 
-La grappe montre cette asymétrie : quatre namespaces, **trois endpoints**. Un endpoint dit où
+Le cluster montre cette asymétrie : quatre namespaces, **trois endpoints**. Un endpoint dit où
 un service est servi, donc une application qui ne fait qu'appeler n'en a pas.
 
 ```php
@@ -334,7 +343,7 @@ Messenger. Voici **tout** le câblage d'hôte, sur un framework qui n'a ni l'une
 
 ```php
 // config/durable.php
-'backend' => env('DURABLE_BACKEND', 'temporal'),   // servir du Nexus exige la grappe : c'est elle qui route
+'backend' => env('DURABLE_BACKEND', 'temporal'),   // servir du Nexus exige le cluster : c'est lui qui route
 'temporal' => ['dsn' => env('DURABLE_DSN')],
 'workflows' => [App\Durable\Workflow\ShipWorkflow::class],
 'nexus' => ['handlers' => [
@@ -345,15 +354,17 @@ Messenger. Voici **tout** le câblage d'hôte, sur un framework qui n'a ni l'une
 `DeclaredNexusOperations` lit ce fichier comme `NexusHandlerPass` lit les balises de Symfony, par le
 même `NexusContractResolver` et le même `NexusHandlerInvoker` ; `php artisan durable:nexus-worker`
 interroge la file. La classe du gestionnaire ne contient rien de tout cela : elle implémente
-`DeliveryServed` et ne mentionne pas Nexus.
+`DeliveryServed` et ne mentionne pas Nexus. Magento lit son argument `nexusHandlers` par la même
+classe du cœur que Laravel, `NexusHandlerDeclarations`, et `bin/magento durable:worker --role=nexus`
+interroge la file.
 
 > [!WARNING]
-> **Le contrôle des signatures vit au cœur, partagé par les deux hôtes.** L'enregistrement échoue
+> **Le contrôle des signatures vit au cœur, partagé par tous les hôtes.** L'enregistrement échoue
 > pour un workflow remplissant dont un paramètre obligatoire ne correspond à rien dans la signature
 > du contrat, et le message nomme les deux signatures. La charge est clée par nom de paramètre aux
 > deux bouts : sans ce contrôle, le paramètre recevrait `null`. Symfony appelle le contrôle depuis
-> sa passe de compilation, Laravel depuis `durable.nexus.handlers`. Il a été écrit pour le premier
-> hôte et a rejoint le cœur quand un second hôte est arrivé.
+> sa passe de compilation, Laravel depuis `durable.nexus.handlers`, Magento depuis l'argument
+> `nexusHandlers`. Il a été écrit pour le premier hôte et a rejoint le cœur quand un second hôte est arrivé.
 
 ### Un workflow qui sert peut appeler
 

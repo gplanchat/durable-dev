@@ -65,7 +65,7 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new ExecutionStarted(ExecutionId::fromString('cond-2'), []));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-2'), 'tick', ['n' => 1]));
 
-        self::assertSame([['n' => 1]], $engine->resume('cond-2', $this->tickHandler(1)));
+        self::assertSame([['n' => 1]], $engine->resume(ExecutionId::fromString('cond-2'), $this->tickHandler(1)));
     }
 
     public function testReplayReachesTheSameStateAndSchedulesNothingNew(): void
@@ -77,8 +77,8 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new ExecutionStarted(ExecutionId::fromString('cond-3'), []));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-3'), 'tick', ['n' => 1]));
 
-        $first = $engine->resume('cond-3', $handler);
-        $second = $engine->resume('cond-3', $handler);
+        $first = $engine->resume(ExecutionId::fromString('cond-3'), $handler);
+        $second = $engine->resume(ExecutionId::fromString('cond-3'), $handler);
 
         self::assertSame($first, $second);
         // "nothing new" bears on the scheduled work, not on the whole journal: replaying an
@@ -102,8 +102,8 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new TimerCompleted(ExecutionId::fromString('cond-4'), 'timer-a'));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-4'), 'tick', ['n' => 1]));
 
-        self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()));
-        self::assertSame(['expired'], $engine->resume('cond-4', $this->boundedTickHandler()), 'stable on replay');
+        self::assertSame(['expired'], $engine->resume(ExecutionId::fromString('cond-4'), $this->boundedTickHandler()));
+        self::assertSame(['expired'], $engine->resume(ExecutionId::fromString('cond-4'), $this->boundedTickHandler()), 'stable on replay');
     }
 
     public function testAMessageRecordedBeforeTheDeadlineStillSatisfiesTheCondition(): void
@@ -118,7 +118,7 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-5'), 'tick', ['n' => 1]));
         $store->append(new TimerCompleted(ExecutionId::fromString('cond-5'), 'timer-a'));
 
-        self::assertSame(['satisfied', ['n' => 1]], $engine->resume('cond-5', $this->boundedTickHandler()));
+        self::assertSame(['satisfied', ['n' => 1]], $engine->resume(ExecutionId::fromString('cond-5'), $this->boundedTickHandler()));
     }
 
     // -------------------------------------------------------------------------
@@ -137,7 +137,7 @@ final class WorkflowConditionTest extends TestCase
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-6'), 'tick', ['n' => 1]));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('cond-6'), 'tick', ['n' => 2]));
 
-        $seen = $engine->resume('cond-6', static function (WorkflowEnvironment $wf): array {
+        $seen = $engine->resume(ExecutionId::fromString('cond-6'), static function (WorkflowEnvironment $wf): array {
             $ticks = [];
             $wf->onSignal('tick', static function (array $payload) use (&$ticks): void {
                 $ticks[] = $payload;

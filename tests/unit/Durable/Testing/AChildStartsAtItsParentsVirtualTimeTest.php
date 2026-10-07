@@ -89,7 +89,7 @@ final class AChildStartsAtItsParentsVirtualTimeTest extends TestCase
     {
         foreach ($store->readStream(ExecutionId::fromString($executionId)) as $event) {
             if ($event instanceof ChildWorkflowScheduled) {
-                return $event->childExecutionId();
+                return $event->childExecutionId()->toString();
             }
         }
         self::fail('No child was scheduled.');

@@ -51,7 +51,7 @@ final class OrderActivitiesHandler implements OrderActivities
 }
 ```
 
-Déclarez **`OrderActivitiesHandler`** auprès de votre worker d'activités ou de votre conteneur, pour que le worker, le processus qui exécute les activités, puisse exécuter **`charge-order`** quand le workflow la planifie.
+Déclarez **`OrderActivitiesHandler`** auprès de votre conteneur ou de votre worker d'activités (le processus qui exécute les activités), pour qu'il puisse exécuter **`charge-order`** quand le workflow la planifie.
 
 ## Exemple : appeler une activité depuis un workflow
 
@@ -84,6 +84,9 @@ public function run(
 
 Certains workflows construisent le stub eux-mêmes avec `$env->activityStub(OrderActivities::class)` :
 voyez [Quand construire le stub soi-même](../workflows/#when-to-build-the-stub-yourself).
+[`gplanchat/durable-phpstan`](https://github.com/gplanchat/durable-phpstan) signale un stub
+construit qui pourrait être un paramètre `#[Activities]`, avec l'attribut à écrire, sous
+l'identifiant `durable.activityStubCouldBeParameter`.
 
 Le type **`ActivityStub`** résout les noms de méthode par réflexion sur **`OrderActivities`** et construit les charges utiles **`#[AsActivityMethod]`**. [Écrire un workflow](../workflows/) explique le nom **ActivityInvoker**.
 
@@ -252,7 +255,7 @@ Depuis **`WorkflowEnvironment`** (voir [Écrire un workflow](../workflows/)), ap
 Un stub qui n'a pas besoin d'**`ActivityOptions`** peut aussi se déclarer en argument de la méthode de workflow : un paramètre typé **`ActivityStub`** et marqué **`#[Activities(VotreInterfaceDActivité::class)]`** reçoit le même stub. Voir [Les arguments que fournit Durable](../workflows/#arguments-durable-supplies).
 
 - Pour chaque **`#[AsActivityMethod]`** de l'interface, le stub expose **le même nom de méthode et les mêmes paramètres** ; chaque appel renvoie un **`Awaitable`** que vous passez à **`$environment->await(...)`** (le type de retour synchrone **`T`** de l'interface est ce que vous obtenez après l'**`await`**).
-- L'invocateur **n'exécute pas** d'E/S dans le processus du workflow. Il **planifie** une étape durable et rattache son résultat à l'historique et au rejeu.
+- L'invocateur **n'exécute pas** d'E/S dans le processus du workflow. Il **planifie** une étape durable et rattache son résultat à l'historique et au rejeu (la réexécution de la méthode du workflow depuis sa première ligne, où chaque étape enregistrée renvoie son résultat).
 
 Cette séparation garde le code du workflow déterministe, pendant que les activités font le travail non déterministe.
 

@@ -16,7 +16,7 @@ It serves two things:
 |---|---|
 | PHP | 8.3, Sylius 2.2's floor |
 | database | MySQL in CI and in `.env`; the demonstration uses PostgreSQL |
-| Durable backend | DBAL, on the default Doctrine connection |
+| Durable backend | DBAL, on a Doctrine connection of its own (`durable`) to the same database (DUR054) |
 
 ## Profiles
 
@@ -31,7 +31,9 @@ It serves two things:
 Serving and calling need two profiles: a workflow can schedule a Nexus operation only when its
 journal is the cluster, and the serving profile keeps the DBAL journal the dashboard reads. The
 `stock` handler is tagged in `config/services.yaml` under `when@demo` only, so the environments
-without a cluster declare no handler.
+without a cluster declare no handler. For the same reason, `OrderWorkflow` and
+`durable:demo:bill` are registered under `when@demo_caller` only: on the SQL journal, the Nexus
+call of the workflow's first step fails the run.
 
 Durable messages ride the Doctrine transport; the routing is in `config/packages/messenger.yaml`.
 

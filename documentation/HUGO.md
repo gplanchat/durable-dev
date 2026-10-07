@@ -45,6 +45,29 @@ The build also writes `/llms.txt`, an index of the user guide for coding agents 
 it without an edit. The French home has none: it is an index for coding agents, which read the English guide. The repository's
 root `context7.json` tells Context7 which folder to read if the repository itself is submitted.
 
+## Screenshots of the dashboards
+
+The images of `documentation/user/dashboard/` live in `hugo-docs/static/images/dashboard/` and are
+referenced by `/images/dashboard/<name>.png`. They are real captures of the benches, never
+retouched, at 1280 pixels wide, light theme, each under 200 kB. A surface with a French interface
+(Sylius, Filament) has a `.fr.png` sibling, and its French page uses it.
+
+To reshoot one, run the bench of the surface over runs that a real worker executed: a completed
+order, a failed one (payment declined), one suspended on a timer after its first task waited in the
+queue for a few seconds (the hatched stretch), and one dispatched with no worker at all.
+
+- **Sylius** (`sylius/`): PHP 8.3 and a private PostgreSQL 16, the DBAL backend, `durable:setup`
+  after `doctrine:schema:update`, an administrator per locale. The order workflow of the bench calls
+  Nexus, which the SQL journal does not serve: use a workflow without Nexus.
+- **Filament**: a copy of `laravel/` with `filament/filament`, the plugin and the Illuminate backend
+  on SQLite, a panel with a login.
+- **Magento** (`magento/`): the bench over MySQL 8.4, OpenSearch and a Temporal dev server, the
+  probes of the bench as seeds. The grid is shot at a CSS zoom of 0.9 so that the rows fit, within 120 seconds of stopping the workers so that the banner reports them.
+- **Web profiler** (`symfony/`): a request that dispatches a workflow, then `/_profiler/<token>?panel=durable`.
+
+Shoot with Chromium through puppeteer-core. Chromium is a snap here and cannot write under a hidden
+folder such as `.claude/`: write the PNG under a visible folder, then move it.
+
 ## Deployment configuration
 
 In `hugo-docs/hugo.toml`, set **`baseURL`** to the real site URL and adjust **`params.BookRepo`** / **`BookEditPath`** if the default fork or branch differs.

@@ -44,6 +44,7 @@ use Temporal\Api\Common\V1\RetryPolicy;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
+use Temporal\Api\Sdk\V1\UserMetadata;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 
 /**
@@ -63,20 +64,28 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
     /** @var list<ActivityScheduled|TimerScheduled> what this task scheduled, for the wait's wording (#514) */
     private array $waitJournal = [];
 
+    private readonly ExecutionId $id;
+
+    /** The id as the wire writes it: in the memo and the search attributes. */
+    private readonly string $executionId;
+
     public function __construct(
         private readonly TemporalConnection $connection,
-        private readonly string $executionId,
+        ExecutionId $executionId,
         /**
          * Source of the real `scheduledEventId`s for {@see cancelActivity()}. Absent, targeted
          * activity cancellation is not emitted — see that method's note.
          */
         private readonly ?TemporalExecutionHistory $history = null,
-    ) {}
+    ) {
+        $this->id = $executionId;
+        $this->executionId = $this->id->toString();
+    }
 
     public function scheduleActivity(string $activityId, string $activityName, array $payload, ?ActivityOptions $options): void
     {
         $taskQueueName = ((null !== $options ? $options->taskQueue : null) ?? $this->connection->activityTaskQueue)->name();
-        $this->waitJournal[] = new ActivityScheduled(ExecutionId::fromString($this->executionId), $activityId, $activityName, []);
+        $this->waitJournal[] = new ActivityScheduled($this->id, $activityId, $activityName, []);
 
         $attrs = new ScheduleActivityTaskCommandAttributes();
         $attrs->setActivityId($activityId);
@@ -86,7 +95,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // The worker will read these options back from the activity input: this is the wire, it
         // keeps its flat shape. The server timestamps the queueing itself.
         $scheduled = new ActivityScheduled(
-            ExecutionId::fromString($this->executionId),
+            $this->id,
             $activityId,
             $activityName,
             $payload,
@@ -145,7 +154,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // From this task's start, the clock later tasks read the deadline back from; the worker's own
         // only without a history. No summary: the command does not carry it, so a later task could
         // not word the same wait alike.
-        $this->waitJournal[] = new TimerScheduled(ExecutionId::fromString($this->executionId), $timerId, ($this->history?->taskStartedAt() ?? microtime(true)) + $delay->toSeconds());
+        $this->waitJournal[] = new TimerScheduled($this->id, $timerId, ($this->history?->taskStartedAt() ?? microtime(true)) + $delay->toSeconds());
 
         $attrs = new StartTimerCommandAttributes();
         $attrs->setTimerId($timerId);
@@ -203,9 +212,27 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         $attrs->setParentClosePolicy(TemporalPolicyMapper::parentClosePolicy($options->parentClosePolicy));
         $attrs->setWorkflowIdReusePolicy(TemporalPolicyMapper::idReusePolicy($options->workflowIdReusePolicy));
 
+        if (null !== $options->memo) {
+            $memo = new Memo();
+            // The two keys Durable writes itself are refused by the ChildWorkflowOptions constructor.
+            foreach ($options->memo as $key => $value) {
+                $memo->getFields()[$key] = JsonPlainPayload::encode($value);
+            }
+            $attrs->setMemo($memo);
+        }
+
         $cmd = new Command();
         $cmd->setCommandType(CommandType::COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION);
         $cmd->setStartChildWorkflowExecutionCommandAttributes($attrs);
+        // What the Temporal UI shows for the child. The same "empty means none" rule as the journal.
+        $summary = '' === $options->staticSummary ? null : $options->staticSummary;
+        $details = '' === $options->staticDetails ? null : $options->staticDetails;
+        if (null !== $summary || null !== $details) {
+            $cmd->setUserMetadata(new UserMetadata([
+                'summary' => null === $summary ? null : JsonPlainPayload::encode($summary),
+                'details' => null === $details ? null : JsonPlainPayload::encode($details),
+            ]));
+        }
         $this->commands[] = $cmd;
     }
 
@@ -290,7 +317,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // and the domain event became unreconstructable when reading the history back. It now
         // travels in the ApplicationFailureInfo `details`; `type` stays the exception FQCN, the
         // only field the server matches against nonRetryableErrorTypes.
-        $classified = WorkflowFailureClassifier::classify(ExecutionId::fromString($this->executionId), $reason);
+        $classified = WorkflowFailureClassifier::classify($this->id, $reason);
 
         $info = new ApplicationFailureInfo();
         $info->setType($classified->failureClass());

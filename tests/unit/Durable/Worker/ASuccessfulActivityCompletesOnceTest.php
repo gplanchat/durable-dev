@@ -64,9 +64,9 @@ final class ASuccessfulActivityCompletesOnceTest extends TestCase
     public function testAJournalWrittenBeforeStillReplays(): void
     {
         $context = new ExecutionContext(
-            'exec-1',
-            new EventStoreHistorySource($this->journalWrittenBefore(), 'exec-1'),
-            new EventStoreCommandBuffer($this->journalWrittenBefore(), new NoopActivityTransport(), 'exec-1'),
+            ExecutionId::fromString('exec-1'),
+            new EventStoreHistorySource($this->journalWrittenBefore(), ExecutionId::fromString('exec-1')),
+            new EventStoreCommandBuffer($this->journalWrittenBefore(), new NoopActivityTransport(), ExecutionId::fromString('exec-1')),
         );
 
         $awaitable = $context->activity('charge', ['amount' => 10]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Filament\Pages;
 
+use Gplanchat\Durable\Filament\WorkerPresence;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
 use Livewire\Attributes\Url;
@@ -22,6 +23,10 @@ final class Runs extends DurablePage
 
     #[Url]
     public string $cursor = '';
+
+    /** Named `status` in the URL, as on Sylius; not `$status`, which the view data already carries. */
+    #[Url(as: 'status')]
+    public string $outcome = '';
 
     #[Url]
     public string $workflowName = '';
@@ -51,10 +56,17 @@ final class Runs extends DurablePage
     {
         $filter = new WorkflowRunFilter($this->workflowName, $this->executionIdPrefix);
 
-        return app(RunDashboard::class)->listing(
-            'all',
+        $listing = app(RunDashboard::class)->listing(
+            '' === $this->outcome ? 'all' : $this->outcome,
             '' === $this->cursor ? null : $this->cursor,
             $filter->isEmpty() ? null : $filter,
         );
+        // A missing worker fails nothing: executions stop at their first task of its kind. Asked
+        // only of a backend that answers and keeps runs outside this process, as on Sylius.
+        $listing['workers'] = true === $listing['backend']['available'] && true !== ($listing['backend']['ephemeral'] ?? false)
+            ? app(WorkerPresence::class)->rows()
+            : [];
+
+        return $listing;
     }
 }

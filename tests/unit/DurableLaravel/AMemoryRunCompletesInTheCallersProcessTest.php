@@ -9,6 +9,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Laravel\Queue\InProcessWorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -79,28 +80,35 @@ final class ShortNapWorkflow
 }
 
 /**
- * #603, the user's decision: on Laravel's memory backend, `dispatchNewWorkflowRun()` drives the
- * run in the caller's process, as the Symfony bundle's in-memory mode does. It used to be the null
- * dispatcher, and the run never started.
+ * #603: on Laravel's memory backend, the run is driven in the caller's process, as the Symfony
+ * bundle's in-memory mode does. It used to be the null dispatcher, and the run never started.
+ *
+ * #881, the user's decision (2026-10-01): `dispatchNewWorkflowRun()` only queues the run, and
+ * the run is driven when the queue is drained (`durable:drain`, or `drain()` from code). A
+ * continue-as-new then marks the old run completed before its next run runs.
  */
 final class AMemoryRunCompletesInTheCallersProcessTest extends TestCase
 {
-    public function testARunWithTwoActivitiesCompletesInTheCall(): void
+    public function testARunWithTwoActivitiesCompletesInTheDrain(): void
     {
         TwoStepHandler::$ran = [];
         $app = $this->memory([TwoStepWorkflow::class], [TwoStepHandler::class]);
 
         $app->make(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun(ExecutionId::fromString('run-1'), 'two-step', []);
+        self::assertTrue($app->make(WorkflowMetadataStore::class)->hasActiveWorkflowMetadata(ExecutionId::fromString('run-1')), 'queued, not run');
+        $app->make(InProcessWorkflowResumeDispatcher::class)->drain();
 
         self::assertTrue($app->make(WorkflowMetadataStore::class)->get(ExecutionId::fromString('run-1'))['completed'] ?? false);
         self::assertSame(['first', 'second'], TwoStepHandler::ran());
     }
 
-    public function testARunThatSleepsWakesInTheCall(): void
+    public function testARunThatSleepsWakesInTheDrain(): void
     {
         $app = $this->memory([ShortNapWorkflow::class]);
 
         $app->make(WorkflowResumeDispatcher::class)->dispatchNewWorkflowRun(ExecutionId::fromString('run-2'), 'short-nap', []);
+        self::assertTrue($app->make(WorkflowMetadataStore::class)->hasActiveWorkflowMetadata(ExecutionId::fromString('run-2')), 'queued, not run');
+        $app->make(InProcessWorkflowResumeDispatcher::class)->drain();
 
         self::assertTrue($app->make(WorkflowMetadataStore::class)->get(ExecutionId::fromString('run-2'))['completed'] ?? false);
     }

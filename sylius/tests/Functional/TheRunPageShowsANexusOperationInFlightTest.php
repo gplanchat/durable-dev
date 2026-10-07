@@ -75,7 +75,7 @@ final class TheRunPageShowsANexusOperationInFlightTest extends WebTestCase
                 'identity' => $connection->identity,
             ]), [], ['timeout' => 30_000_000]);
             self::assertNotSame('', (string) $task->getTaskToken(), 'no workflow task came for the run within the poll');
-            $buffer = new TemporalWorkflowCommandBuffer($connection, $executionId);
+            $buffer = new TemporalWorkflowCommandBuffer($connection, ExecutionId::fromString($executionId));
             $buffer->scheduleNexusOperation('op-1', NexusEndpoint::named($endpointName), NexusService::named('stock'), NexusOperationName::named('reserve'), ['order' => 'ORD-1'], new NexusOperationTimeouts(scheduleToClose: Duration::minutes(5)), NexusOperationHeaders::none());
             $grpc->RespondWorkflowTaskCompleted(new RespondWorkflowTaskCompletedRequest([
                 'namespace' => $connection->namespace->name(),

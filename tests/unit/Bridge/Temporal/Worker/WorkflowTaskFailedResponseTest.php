@@ -12,8 +12,10 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\EventType;
@@ -95,6 +97,75 @@ final class WorkflowTaskFailedResponseTest extends TestCase
             $captured->getFailure()?->getMessage() ?? '',
             'The guard message must travel: without it, the task fails without saying why.',
         );
+    }
+
+    /**
+     * #863: the server answers NOT_FOUND when the task has already timed out, and InvalidArgument
+     * when it has already failed and rescheduled the task. Neither leaves anything for this worker
+     * to do on that task, so it logs the rejection and polls again, as on the completion.
+     */
+    #[TestWith([5, 'workflow task not found'])]
+    #[TestWith([3, 'BadSearchAttributes'])]
+    public function testARejectedTaskFailureIsLoggedAndTheLoopPollsAgain(int $code, string $message): void
+    {
+        $registry = new WorkflowRegistry();
+        $registry->registerFactory(
+            'DivergentWorkflow',
+            static fn(array $payload) => static function (WorkflowEnvironment $env): never {
+                throw new WorkflowTaskFailure('replay divergence at activity slot 2');
+            },
+        );
+
+        $this->grpcClient->expects($this->exactly(2))->method('PollWorkflowTaskQueue')->willReturnOnConsecutiveCalls(
+            $this->buildPoll('token-div', 'wf-div', 'DivergentWorkflow'),
+            new PollWorkflowTaskQueueResponse(),
+        );
+        $this->grpcClient->expects($this->once())->method('RespondWorkflowTaskFailed')
+            ->willThrowException(new \RuntimeException("Temporal gRPC error [{$code}]: {$message}", $code));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            self::stringContains('rejected'),
+            self::callback(static fn(array $context): bool => $code === $context['code'] && str_contains($context['message'], $message)),
+        );
+
+        $processor = new WorkflowTaskProcessor(
+            $this->grpcClient,
+            $this->connection,
+            new WorkflowTaskRunner(new TemporalHistoryCursor($this->grpcClient, 'test-namespace'), $registry, $this->connection),
+            $logger,
+        );
+
+        $polls = 0;
+        $processor->run(static function () use (&$polls): bool {
+            return ++$polls < 2;
+        });
+
+        self::assertSame(2, $polls);
+    }
+
+    public function testAnotherErrorOnTheTaskFailureStillStopsTheWorker(): void
+    {
+        $registry = new WorkflowRegistry();
+        $registry->registerFactory(
+            'DivergentWorkflow',
+            static fn(array $payload) => static function (WorkflowEnvironment $env): never {
+                throw new WorkflowTaskFailure('replay divergence at activity slot 2');
+            },
+        );
+
+        $this->grpcClient->method('PollWorkflowTaskQueue')->willReturn($this->buildPoll('token-div', 'wf-div', 'DivergentWorkflow'));
+        $this->grpcClient->method('RespondWorkflowTaskFailed')
+            ->willThrowException(new \RuntimeException('Temporal gRPC error [14]: unavailable', 14));
+
+        $processor = new WorkflowTaskProcessor(
+            $this->grpcClient,
+            $this->connection,
+            new WorkflowTaskRunner(new TemporalHistoryCursor($this->grpcClient, 'test-namespace'), $registry, $this->connection),
+        );
+
+        $this->expectExceptionCode(14);
+        $processor->processOne();
     }
 
     public function testAnOrdinaryThrowStillFailsTheExecution(): void

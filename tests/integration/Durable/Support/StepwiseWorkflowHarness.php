@@ -8,6 +8,7 @@ use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
@@ -68,7 +69,7 @@ final class StepwiseWorkflowHarness
     public function start(string $executionId, callable $handler): bool
     {
         try {
-            $this->lastCompletedResult = $this->engine->start($executionId, $handler);
+            $this->lastCompletedResult = $this->engine->start(ExecutionId::fromString($executionId), $handler);
 
             return false;
         } catch (WorkflowSuspendedException) {
@@ -82,7 +83,7 @@ final class StepwiseWorkflowHarness
     public function resume(string $executionId, callable $handler): bool
     {
         try {
-            $this->lastCompletedResult = $this->engine->resume($executionId, $handler);
+            $this->lastCompletedResult = $this->engine->resume(ExecutionId::fromString($executionId), $handler);
 
             return false;
         } catch (WorkflowSuspendedException) {
@@ -99,11 +100,11 @@ final class StepwiseWorkflowHarness
             return false;
         }
         // Wired the way ExecutionEngine wires it: the context takes the ports, not the store.
-        $history = new EventStoreHistorySource($this->eventStore, $executionId);
+        $history = new EventStoreHistorySource($this->eventStore, ExecutionId::fromString($executionId));
         $context = new ExecutionContext(
-            $executionId,
+            ExecutionId::fromString($executionId),
             $history,
-            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, $executionId, $this->runtime->clock(), $history),
+            new EventStoreCommandBuffer($this->eventStore, $this->activityTransport, ExecutionId::fromString($executionId), $this->runtime->clock(), $history),
         );
         $this->runtime->drainActivityQueueOnce($context);
 

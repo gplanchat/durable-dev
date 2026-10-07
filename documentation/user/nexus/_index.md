@@ -5,10 +5,9 @@ weight: 29
 
 # Nexus operations
 
-A Nexus operation is an operation served by another service, with its own contract, that a
-workflow calls the way it calls an activity (see the [glossary](../glossary/)). With Nexus, a
-workflow calls an operation owned by another team, namespace or deployment, and neither side knows
-the other's workflows. Durable covers both roles: it **calls** operations and it **serves** them.
+A Nexus operation is an operation that another team, namespace or deployment serves behind its own
+contract (see the [glossary](../glossary/)). A workflow calls it the way it calls an activity, and
+neither side knows the other's workflows. Durable covers both roles: it **calls** operations and it **serves** them.
 
 Serving requires the **Temporal backend**. The in-memory and DBAL backends have no cross-namespace
 route, and they report it with an error; see [Backends](../backends/).
@@ -175,7 +174,7 @@ fix. For a terminal failure, state its kind:
 
 The two columns split by *whose fault it is*. Retrying does not fix a malformed request or a
 missing right; it may get past an overload or an upstream timeout. The table comes from nexus-rpc
-and every language SDK shares it; Durable did not define it.
+and every language SDK shares it.
 
 An operation nobody serves gets `NOT_IMPLEMENTED`, which is terminal, and the worker keeps serving
 its other operations.
@@ -226,7 +225,15 @@ Declared by: app.charge.
 
 The caller side behaves differently, by design. A call on a backend with no route fails at the
 call, so you find out immediately. A *handler* with no route receives nothing, and nothing fails:
-no request ever reaches it. The check therefore runs when the application starts.
+no request ever reaches it. On Symfony and Magento, the check therefore runs before any request:
+when the container is built, and when the Nexus worker starts.
+
+The message above is Symfony's. On Magento, `bin/magento durable:worker --role=nexus` fails with
+`A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN.
+On Laravel, nothing fails at boot. Outside `temporal`, nothing resolves the Nexus registry: a
+handler listed in `durable.nexus.handlers` raises nothing and receives nothing, and
+`php artisan durable:nexus-worker` ends with `Command "durable:nexus-worker" is not defined.`, which
+does not name the backend (see [#931](https://github.com/gplanchat/durable-dev/issues/931)).
 
 ---
 
@@ -243,6 +250,9 @@ frameworks.
 | what declares the handler | a tag under `when@demo` | `#[AsNexusServiceHandler]` | nothing | six lines of `config/durable.php` |
 
 All four read the same contract package. Nothing else travels between them.
+
+The Magento bench serves nothing, but the Magento module can serve operations: the handlers listed in the `nexusHandlers` argument of `RuntimeFactory`, as in
+[Serving an operation](#serving-an-operation).
 
 The shop's order workflow calls both forms on the same stub:
 
@@ -275,8 +285,7 @@ difference:
 
 During one run, the worker that advances the fulfilling workflow stayed **off for four minutes**.
 The operation stayed at `NexusOperationStarted`, the caller consumed nothing, and everything
-finished normally when the worker came back. This run is the measured evidence that a waiting
-operation holds nothing open.
+finished normally when the worker came back.
 
 ### Calling asks nothing of your host
 
@@ -338,15 +347,16 @@ whole of the host wiring on a framework that has neither:
 `DeclaredNexusOperations` reads that file the way `NexusHandlerPass` reads Symfony's tags, through
 the same `NexusContractResolver` and the same `NexusHandlerInvoker`; `php artisan durable:nexus-worker`
 polls the queue. The handler class contains none of this: it implements `DeliveryServed` and does
-not mention Nexus.
+not mention Nexus. Magento reads its `nexusHandlers` argument through the same core class as
+Laravel, `NexusHandlerDeclarations`, and `bin/magento durable:worker --role=nexus` polls the queue.
 
 > [!WARNING]
-> **The signature check lives in the core, shared by both hosts.** Registration fails for a
+> **The signature check lives in the core, shared by every host.** Registration fails for a
 > fulfilling workflow whose required parameter matches nothing in the contract's signature, and
 > the message names both signatures. The payload is keyed by parameter name at both ends, so
 > without that check the parameter would receive `null`. Symfony calls the check from its compile
-> pass, Laravel from `durable.nexus.handlers`. It was written for the first host and moved into the
-> core when a second host arrived.
+> pass, Laravel from `durable.nexus.handlers`, Magento from the `nexusHandlers` argument. It was
+> written for the first host and moved into the core when a second host arrived.
 
 ### A workflow that serves can call
 

@@ -13,3 +13,4 @@ services:
 
 rules:
     - Gplanchat\Durable\PHPStan\Rules\ActivitiesParameterRule
+    - Gplanchat\Durable\PHPStan\Rules\ActivityStubCouldBeParameterRule

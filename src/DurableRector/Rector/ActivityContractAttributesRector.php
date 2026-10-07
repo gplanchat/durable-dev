@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Rector\Rector;
 
 use Gplanchat\Durable\Attribute\AsActivity;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
+use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Attribute;
@@ -27,10 +28,10 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  *
  * The SDK's type is `prefix . (AsActivityMethod::$name ?? methodName)` — one concatenation, no
  * separator inserted (`Temporal\Internal\Declaration\Reader\ActivityReader::activityName()`).
- * Durable's is `AsActivity::$name . '.' . AsActivityMethod::$name`, and the dot is not optional
- * ({@see \Gplanchat\Durable\Activity\ActivityContractResolver}). The two agree on exactly two
- * prefixes — the empty one, and one ending in a dot — and this rule refuses the rest rather than
- * rename an activity in flight.
+ * Durable's is `AsActivity::$name . '.' . AsActivityMethod::$name`, or the method name alone when
+ * the contract name is empty ({@see \Gplanchat\Durable\Activity\ActivityContractResolver}). The
+ * two agree on the empty prefix and on one ending in a dot with something before it, and this rule
+ * marks the rest rather than rename an activity in flight.
  *
  * It also adds `#[AsActivityMethod]` to methods that carry none: every public method of an
  * `#[ActivityInterface]` is an activity for the SDK, and only an annotated one is for Durable.
@@ -39,6 +40,9 @@ final class ActivityContractAttributesRector extends AbstractRector
 {
     private const SDK_ACTIVITY_INTERFACE = 'Temporal\Activity\ActivityInterface';
     private const SDK_ACTIVITY_METHOD = 'Temporal\Activity\ActivityMethod';
+
+    private const PREFIX_MARKER = 'activity prefix "%s" cannot become a Durable activity name — name the activities by hand';
+    private const METHOD_MARKER = 'activity method name is not a literal — name this activity by hand';
 
     public function getRuleDefinition(): RuleDefinition
     {
@@ -81,8 +85,8 @@ AFTER,
         $prefix = $this->literalArgument($contract, 'prefix', 0);
         if (false === $prefix) {
             // A computed prefix — a constant, a concatenation. Renaming on a guess is the one
-            // mistake this rule exists to avoid.
-            return null;
+            // mistake this rule exists to avoid, so it is marked, as written in the source.
+            return $this->mark($node, \sprintf(self::PREFIX_MARKER, $this->sourceOf($this->argument($contract, 'prefix', 0))));
         }
 
         // Absent is the SDK's own default, and it is the prefix most contracts carry.
@@ -90,10 +94,11 @@ AFTER,
 
         $contractName = $this->contractNameForPrefix($prefix);
         if (null === $contractName) {
-            return null;
+            return $this->mark($node, \sprintf(self::PREFIX_MARKER, $prefix));
         }
 
         $methodNames = [];
+        $unnamed = [];
         foreach ($node->getMethods() as $method) {
             if (!$method->isPublic() || $method->isStatic()) {
                 continue;
@@ -101,10 +106,22 @@ AFTER,
 
             $name = $this->activityMethodName($method);
             if (false === $name) {
-                return null;
+                $unnamed[] = $method;
+
+                continue;
             }
 
             $methodNames[] = [$method, $name];
+        }
+
+        if ([] !== $unnamed) {
+            // The contract moves as a whole or not at all; the methods that hold it back are marked.
+            $changed = false;
+            foreach ($unnamed as $method) {
+                $changed = null !== $this->mark($method, self::METHOD_MARKER) || $changed;
+            }
+
+            return $changed ? $node : null;
         }
 
         $this->replaceAttribute($node, self::SDK_ACTIVITY_INTERFACE, AsActivity::class, $contractName);
@@ -117,8 +134,9 @@ AFTER,
     }
 
     /**
-     * Durable joins with a dot it always inserts; the SDK inserts nothing. Only an empty prefix and
-     * a dot-terminated one survive the round trip unchanged.
+     * The SDK concatenates prefix and method name; Durable inserts a dot between a non-empty contract
+     * name and the method name, and uses the method name alone when the contract name is empty. Only
+     * an empty prefix and a dot-terminated one with something before the dot keep their names.
      */
     private function contractNameForPrefix(string $prefix): ?string
     {
@@ -132,7 +150,8 @@ AFTER,
 
         $name = substr($prefix, 0, -1);
 
-        return str_contains($name, '.') ? null : $name;
+        // A lone '.' would become an empty contract name, and the dot with it would be lost.
+        return '' === $name ? null : $name;
     }
 
     /**
@@ -170,20 +189,58 @@ AFTER,
 
     private function literalArgument(Attribute $attribute, string $name, int $position): string|false|null
     {
+        $arg = $this->argument($attribute, $name, $position);
+        if (null === $arg) {
+            return null;
+        }
+
+        return $arg->value instanceof String_ ? $arg->value->value : false;
+    }
+
+    private function argument(Attribute $attribute, string $name, int $position): ?Arg
+    {
         $index = 0;
         foreach ($attribute->args as $arg) {
             $matches = null !== $arg->name
                 ? $arg->name->toString() === $name
                 : $index++ === $position;
 
-            if (!$matches) {
-                continue;
+            if ($matches) {
+                return $arg;
             }
-
-            return $arg->value instanceof String_ ? $arg->value->value : false;
         }
 
         return null;
+    }
+
+    /** The expression as the source spells it, not as a printer would re-spell its resolved names. */
+    private function sourceOf(?Arg $arg): string
+    {
+        \assert(null !== $arg);
+
+        return substr(
+            $this->getFile()->getFileContent(),
+            $arg->value->getStartFilePos(),
+            $arg->value->getEndFilePos() - $arg->value->getStartFilePos() + 1,
+        );
+    }
+
+    /**
+     * What this rule cannot rename, it says so above the declaration, as
+     * {@see UnmigratableTemporalCallRector} does above a call. A second pass adds nothing it already wrote.
+     */
+    private function mark(ClassLike|ClassMethod $node, string $finding): ?Node
+    {
+        if (UnmigratableTemporalCallRector::isMarked($node, $finding)) {
+            return null;
+        }
+
+        $node->setAttribute('comments', [
+            ...$node->getComments(),
+            new Comment('// ' . UnmigratableTemporalCallRector::MARKER . ' ' . $finding),
+        ]);
+
+        return $node;
     }
 
     private function replaceAttribute(ClassLike|ClassMethod $node, string $sdkClass, string $durableClass, string $name): void

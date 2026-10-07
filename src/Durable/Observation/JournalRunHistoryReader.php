@@ -61,6 +61,19 @@ final readonly class JournalRunHistoryReader
      */
     public function read(string $runId, string $workflowName = ''): array
     {
+        return self::fromEntries($this->events->readStreamWithRecordedAt(ExecutionId::fromString($runId)), $workflowName);
+    }
+
+    /**
+     * The same history, from journal entries a caller already read: the profiler reads each journal
+     * once and draws its timeline from that read (#819).
+     *
+     * @param iterable<array{event: Event, recordedAt: \DateTimeImmutable|null}> $entries
+     *
+     * @return list<WorkflowRunEvent>
+     */
+    public static function fromEntries(iterable $entries, string $workflowName = ''): array
+    {
         /** @var array<string, string> $activityNames */
         $activityNames = [];
         // The terminal events of a Nexus operation carry nothing but the `scheduledEventId`: the
@@ -76,7 +89,7 @@ final readonly class JournalRunHistoryReader
         $history = [];
         $sequence = 0;
 
-        foreach ($this->events->readStreamWithRecordedAt(ExecutionId::fromString($runId)) as $entry) {
+        foreach ($entries as $entry) {
             $event = $entry['event'];
             $recordedAt = $entry['recordedAt'] ?? null;
 
@@ -87,7 +100,7 @@ final readonly class JournalRunHistoryReader
             }
 
             if ($event instanceof ChildWorkflowScheduled) {
-                $childNames[$event->childExecutionId()] = $event->childWorkflowType();
+                $childNames[$event->childExecutionId()->toString()] = $event->childWorkflowType();
             }
 
             if ($event instanceof TimerScheduled) {
@@ -198,7 +211,7 @@ final readonly class JournalRunHistoryReader
             || $event instanceof ChildWorkflowCompleted
             || $event instanceof ChildWorkflowFailed
         ) {
-            return 'child:' . $event->childExecutionId();
+            return 'child:' . $event->childExecutionId()->toString();
         }
 
         $activityId = self::activityIdOf($event);
@@ -300,8 +313,10 @@ final readonly class JournalRunHistoryReader
     ): string {
         // A frieze row carries the name of its action, and the action of the execution is the
         // execution: "ExecutionStarted" names an event class, not what is running. The journal
-        // does not know that name — it only has a stream — so the caller gives it to it.
-        if ($event instanceof ExecutionStarted && '' !== $workflowName) {
+        // does not know that name — it only has a stream — so the caller gives it to it. Every
+        // event of that action carries it, as an activity's follow-ups carry the activity's name:
+        // the phase says whether it started, ended or failed (#850).
+        if ('' !== $workflowName && self::RUN_ACTION === self::actionKeyOf($event)) {
             return $workflowName;
         }
 
@@ -310,7 +325,7 @@ final readonly class JournalRunHistoryReader
         }
 
         if ($event instanceof ChildWorkflowCompleted || $event instanceof ChildWorkflowFailed) {
-            return $childNames[$event->childExecutionId()] ?? ('child ' . $event->childExecutionId());
+            return $childNames[$event->childExecutionId()->toString()] ?? ('child ' . $event->childExecutionId()->toString());
         }
 
         if ($event instanceof NexusOperationScheduled) {

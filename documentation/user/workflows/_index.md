@@ -47,7 +47,7 @@ final class OrderWorkflow
 }
 ```
 
-`WorkflowEnvironment` provides **`await`**, the assemblers **`all`** / **`any`** / **`some`**, **`async`**, timers, child workflows, signals, and more. The class in the repository has the full API.
+`WorkflowEnvironment` provides **`await`**, the assemblers **`all`** / **`any`** / **`some`**, timers, child workflows, signals, and more. The class in the repository has the full API.
 
 ### Waiting versus assembling
 
@@ -79,8 +79,7 @@ $quotes = $env->await($env->some(3, ...$providers), deadline: Duration::seconds(
 ```
 
 `some()` counts only members that **succeed**. A provider that fails does not bring the quorum
-closer, and once too few members remain to reach it, the wait fails; it does not stay pending
-forever. `all()` is the full quorum, so one failed member fails the whole assembly. `any()` is a
+closer, and once too few members remain to reach it, the wait fails. `all()` is the full quorum, so one failed member fails the whole assembly. `any()` is a
 race, so the first member to settle wins, even when it settles by failing.
 
 Losing branches are cancelled. Their activities are removed from the queue and their timers no
@@ -132,7 +131,7 @@ try {
 }
 ```
 
-This example waits for an approval and gives up after an hour, the canonical saga shape.
+This example waits for an approval and gives up after an hour.
 
 To describe **what a condition waits for** in words, pass a `label`. On the backends that record
 the wait (in-memory, DBAL, Illuminate, Temporal), the run list then shows the label instead of the
@@ -148,7 +147,7 @@ The label is display text. Nothing records it while the workflow waits. If the d
 nothing catches the exception, the label appears in the failure message the journal keeps, written
 once. Replay (running the workflow code again from its first line, with each recorded step returning
 its result) never compares it, so you can add, change or remove a label safely. A timer or an
-activity already names itself, so passing a label to `await()` with one is an error.
+activity already names itself, so passing a label to `await()` with one throws an `InvalidArgumentException`.
 
 #### Declaring the handler and the wait as methods {#the-handler-is-a-method-the-wait-is-a-method}
 
@@ -224,8 +223,7 @@ Durable does **not** detect a condition that breaks this rule, nor any other non
 > `$this` is captured and the property is read through it.
 
 A condition that can never hold, because nothing pending can change the state it reads, is reported
-as an execution that cannot advance, with the condition named by its file and line. The execution
-does not spin.
+as an execution that cannot advance, with the condition named by its file and line.
 
 Whichever branch loses is cancelled. A deadline that elapses cancels the work it bounded, and work
 that settles cancels the deadline, so no dead timer wakes the execution later. Cancelling an
@@ -281,7 +279,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Each one left out keeps its `ActivityOptions` default; with none,
   the stub is the one `activityStub()` builds without options. On Temporal, a stub with no `startToClose` or
-  `scheduleToClose` gets a 30-second bound per attempt.
+  `scheduleToClose` gets a 30-second bound per attempt. `heartbeat` needs Temporal: a journal backend
+  throws `UnsupportedByBackendException` when the stub schedules an activity with it (see
+  [Options and value objects](../options/)).
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
   `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
   exist, one that declares no `#[AsActivityMethod]`, or an impossible option (zero attempts, a
@@ -393,6 +393,8 @@ When you register a workflow class, the runtime indexes it under **two** strings
   - **`#[AsSignalMethod]`** takes external input that updates workflow state deterministically.
   - **`#[AsQueryMethod]`** gives a read-only view of state (no durable side effects from the handler).
   - **`#[AsUpdateMethod]`** carries validated updates with response semantics when supported.
+    On Temporal, updates need Server 1.21 or newer, and a server setting before 1.25: see the
+    [Temporal prerequisites](../backends/#prerequisites) on the Backends page.
 
 Parameters and return types must be **serializable** (see the serialization ADR **DUR007**).
 
@@ -409,15 +411,18 @@ engine keeps for itself are not on it.
 | `any(...$awaitables)` | Settles on the first member to settle; the losers are cancelled. |
 | `some($count, ...$awaitables)` | Settles when `$count` members have **succeeded**, indexed by declaration position. The rest are cancelled. |
 | `timer($duration, $summary = '')` | An awaitable that settles when the duration elapses. Composes like any other. |
-| `sleep($duration, $summary = '')` | Waits, and awaits for you, as its name says. |
+| `sleep($duration, $summary = '')` | Waits for the duration, the same as `await(timer($duration, $summary))`. |
 | `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor, or declare it as an [`#[Activities]` argument](#arguments-durable-supplies), options included; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
+| `nexusStub($contract, $endpoint, $timeouts = null)` | A typed proxy over a Nexus contract served at `$endpoint`. Its calls return awaitables. See [Nexus operations](../nexus/#calling-an-operation). |
+| `nexusOperation($endpoint, $service, $operation, $payload = [], $timeouts = null)` | Calls one Nexus operation by its endpoint, service and operation names, and returns an awaitable. Throws `NexusUnsupportedByBackendException` on a backend that cannot route the call. |
 | `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it; there is no separate wait. The name takes a backed enum, so a typo is a type error instead of a wait that never settles. |
 | `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |
 | `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Whether a handler is registered under that name, for code that registers one only once. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
+| `version($changeId, $minSupported, $maxSupported)` | Declares a change point and returns the version this execution follows, between `$minSupported` and `$maxSupported`. The answer is fixed at the first encounter and read back from the journal afterwards. See [Changing a workflow that is already running](../deploying/#or-declare-a-change-point). |
 | `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
-| `executionId()` | This execution's identifier. |
+| `executionId()` | This execution's identifier, an `ExecutionId`. Call `toString()` to put it in a payload or a log context: the object encodes to `{}` in JSON. |
 
 Activities are **only** reachable through a stub. This surface has no way to name one as a string
 with a free-form payload. A typo there would produce an activity that is never scheduled, where a

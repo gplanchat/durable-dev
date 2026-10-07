@@ -296,9 +296,9 @@ final class ActivityRetryStateTest extends TestCase
         $transport->enqueue(new ActivityMessage('exec-1', 'act-1', 'Boom', [], $options));
 
         $context = new \Gplanchat\Durable\ExecutionContext(
-            'exec-1',
-            new \Gplanchat\Durable\Store\EventStoreHistorySource($store, 'exec-1'),
-            new \Gplanchat\Durable\Store\EventStoreCommandBuffer($store, $transport, 'exec-1'),
+            ExecutionId::fromString('exec-1'),
+            new \Gplanchat\Durable\Store\EventStoreHistorySource($store, ExecutionId::fromString('exec-1')),
+            new \Gplanchat\Durable\Store\EventStoreCommandBuffer($store, $transport, ExecutionId::fromString('exec-1')),
         );
         $runtime->runUntilIdle($context);
 

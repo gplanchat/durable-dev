@@ -40,7 +40,7 @@ final class SignalNameTest extends TestCase
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('signal-enum-1'), 'approve', ['by' => 'alice']));
 
         $result = $engine->resume(
-            'signal-enum-1',
+            ExecutionId::fromString('signal-enum-1'),
             static function (WorkflowEnvironment $wf): array {
                 $approvals = [];
                 $wf->onSignal(SampleSignal::Approve, static function (array $payload) use (&$approvals): void {

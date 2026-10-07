@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Handler;
 
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\ResumeArrivedBeforeItsOutcome;
 use Gplanchat\Durable\Exception\SupersededPassException;
@@ -60,12 +61,24 @@ final readonly class ResumeWorkflowHandler
             return;
         }
         if (($metadata['completed'] ?? false) === true) {
+            // The run continued as new, and the send of its next run may have been lost after the
+            // run was marked completed: a send held until the handler returns (Messenger), or a
+            // chain broken before #881. The journal names that run; it is sent again if not done.
+            // Any later resume of the old run, a timer it never awaited for instance, takes this path
+            // too: one more send of a next run still active, which replays it.
+            foreach ($this->eventStore->readStream($id) as $event) {
+                if ($event instanceof WorkflowContinuedAsNew && null !== $event->newExecutionId()) {
+                    $this->continueAsNew($id, $event->newExecutionId(), $event->nextWorkflowType(), $event->nextPayload());
+                    break;
+                }
+            }
+
             return;
         }
 
         // Sent before the fact it announces (DUR050, DUR052): until that fact is journalled, this
         // resume concludes nothing, and the transport's retry is the wait.
-        if (null !== $message->awaited && !$message->awaited->isJournalledIn($this->eventStore, $executionId)) {
+        if (null !== $message->awaited && !$message->awaited->isJournalledIn($this->eventStore, $id)) {
             throw new ResumeArrivedBeforeItsOutcome($executionId, $message->awaited);
         }
 
@@ -85,7 +98,7 @@ final readonly class ResumeWorkflowHandler
                 $message->pendingUpdates,
             );
 
-            $result = $this->engine->resume($executionId, $handler, $workflowTypeForJournal, $pendingUpdates);
+            $result = $this->engine->resume($id, $handler, $workflowTypeForJournal, $pendingUpdates);
         } catch (WorkflowSuspendedException $e) {
             // The catalog that records pickups usually records waits too (#324): one projection, two facts.
             // Recorded even without words, so that it clears the previous wait instead of leaving it stale.
@@ -98,7 +111,7 @@ final readonly class ResumeWorkflowHandler
                 } else {
                     $ms = TimerWakeDelayCalculator::millisecondsUntilNextTimerDue(
                         $this->eventStore,
-                        $executionId,
+                        $id,
                         $this->engine->getRuntime()->nowSeconds(),
                     );
                     if (null === $ms) {
@@ -110,18 +123,8 @@ final readonly class ResumeWorkflowHandler
 
             return;
         } catch (ContinueAsNewRequested $e) {
-            // Superseded, not deleted (#322): the row is what the old run was started with.
-            $this->metadataStore->markCompleted($id);
-            $newId = null !== $e->nextExecutionId ? ExecutionId::fromString($e->nextExecutionId) : ExecutionId::generate();
-            $newExecutionId = $newId->toString();
-            $nextAlias = $this->workflowDefinitionLoader->aliasForTemporalInterop($e->workflowType);
-            $this->metadataStore->save($newId, $nextAlias, $e->payload);
-            // resume() never writes a start: this one is the only place the new run names its predecessor.
-            $this->eventStore->append(new ExecutionStarted(ExecutionId::fromString($newExecutionId), [
-                'workflowType' => $nextAlias,
-                'continuedFromExecutionId' => $executionId,
-            ]));
-            $this->resumeDispatcher->dispatchNewWorkflowRun($newId, $nextAlias, $e->payload);
+            $newId = $e->nextExecutionId ?? ExecutionId::generate();
+            $this->continueAsNew($id, $newId, $e->workflowType, $e->payload);
 
             return;
         } catch (WorkflowCancelledException $e) {
@@ -150,28 +153,93 @@ final readonly class ResumeWorkflowHandler
         $this->metadataStore->markCompleted($id);
     }
 
+    /**
+     * The old run is marked completed last (#881): until then, a redelivery replays it under the
+     * same next id (#878) and does again whatever a crash left undone. Each step is skipped once
+     * done. A next run that already finished is not touched at all: save() sets `completed` back
+     * to false, which would reopen it. A run that finishes after this read stays finished too: the
+     * dispatchers write its row only when it has none (#918).
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function continueAsNew(ExecutionId $id, ExecutionId $newId, string $workflowType, array $payload): void
+    {
+        $next = $this->metadataStore->get($newId);
+        $parent = $this->childWorkflowParentLinkStore->getParentExecutionId($id);
+        if (($next['completed'] ?? false) !== true) {
+            // The parent link follows the chain (#859), as Temporal does: linked before the next
+            // run can start and finish.
+            if (null !== $parent) {
+                $this->childWorkflowParentLinkStore->link($newId, $parent);
+            }
+            $nextAlias = $this->workflowDefinitionLoader->aliasForTemporalInterop($workflowType);
+            if (null === $next) {
+                $this->metadataStore->save($newId, $nextAlias, $payload);
+            }
+            // resume() never writes a start: this one is the only place the new run names its predecessor.
+            if (0 === $this->eventStore->countEventsInStream($newId)) {
+                $this->eventStore->append(new ExecutionStarted($newId, [
+                    'workflowType' => $nextAlias,
+                    'continuedFromExecutionId' => $id->toString(),
+                ]));
+            }
+            // A second dispatch is a second resume of the same run, which replays.
+            $this->resumeDispatcher->dispatchNewWorkflowRun($newId, $nextAlias, $payload);
+        }
+        // Superseded, not deleted (#322): the row is what the old run was started with.
+        $this->metadataStore->markCompleted($id);
+        if (null !== $parent) {
+            $this->childWorkflowParentLinkStore->unlink($id);
+        }
+    }
+
     private function finalizeAsyncChildOnParentIfLinked(ExecutionId $childId, mixed $result, ?\Throwable $failure): void
     {
         $parent = $this->childWorkflowParentLinkStore->getParentExecutionId($childId);
         if (null === $parent) {
             return;
         }
-        // The events and the awaited fact still carry strings (#638 follow-up).
-        $childExecutionId = $childId->toString();
-        $parentId = $parent->toString();
+        // The parent awaits the id it scheduled: the first run of the chain, whichever run ends it (#859).
+        $scheduledId = $this->firstRunOfTheChain($childId);
 
         // DUR052 §3: announced first, appended once, resumed, and unlinked last. A child resume
         // redelivered after a crash still finds the link, and resumes the parent without a second
         // outcome.
-        $child = AwaitedFact::child($childExecutionId);
-        if (!$child->isJournalledIn($this->eventStore, $parentId)) {
+        // The fact is wire: it carries the child id as a string.
+        $child = AwaitedFact::child($scheduledId->toString());
+        if (!$child->isJournalledIn($this->eventStore, $parent)) {
             $this->resumeDispatcher->dispatchResumeAwaiting($parent, $child);
             $this->eventStore->append(null !== $failure
-                ? AsyncChildWorkflowFailureProjector::toParentJournalEvent($this->eventStore, $parentId, $childExecutionId, $failure)
-                : new ChildWorkflowCompleted(ExecutionId::fromString($parentId), $childExecutionId, $result));
+                ? AsyncChildWorkflowFailureProjector::toParentJournalEvent($this->eventStore, $parent, $scheduledId, $failure, $childId)
+                : new ChildWorkflowCompleted($parent, $scheduledId, $result));
         }
 
         $this->resumeDispatcher->dispatchResume($parent);
         $this->childWorkflowParentLinkStore->unlink($childId);
+    }
+
+    /**
+     * Walks back the `continuedFromExecutionId` each continuation writes into its run's start.
+     *
+     * ponytail: reads the head of every run's stream, at the end of a linked child only; a column on
+     * the parent link would spare the reads if chains of linked children grow long.
+     */
+    private function firstRunOfTheChain(ExecutionId $executionId): ExecutionId
+    {
+        while (true) {
+            $predecessor = null;
+            foreach ($this->eventStore->readStream($executionId) as $event) {
+                // The first start is the run's own: the walk reads no further, and stops at the root.
+                if ($event instanceof ExecutionStarted) {
+                    $from = $event->payload()['continuedFromExecutionId'] ?? null;
+                    $predecessor = \is_string($from) ? ExecutionId::fromString($from) : null;
+                    break;
+                }
+            }
+            if (null === $predecessor) {
+                return $executionId;
+            }
+            $executionId = $predecessor;
+        }
     }
 }

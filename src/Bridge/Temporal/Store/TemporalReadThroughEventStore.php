@@ -75,7 +75,7 @@ final readonly class TemporalReadThroughEventStore implements EventStoreInterfac
         }
 
         // Streamed: a reason never decides whether an event converts, so no marker scan is needed.
-        $converter = new TemporalEventConverter($executionId->toString());
+        $converter = new TemporalEventConverter($executionId);
         $count = 0;
         foreach ($this->historyOf($executionId) as $historyEvent) {
             if (null !== $converter->convert($historyEvent)) {
@@ -95,7 +95,7 @@ final readonly class TemporalReadThroughEventStore implements EventStoreInterfac
         // ponytail: bounded by Temporal's history cap (51,200 events / 50 MB, more as protobuf
         // objects); if it matters, buffer from a *_CANCELED event to the next WORKFLOW_TASK_SCHEDULED.
         $history = iterator_to_array($this->historyOf($executionId), false);
-        $converter = TemporalEventConverter::forHistory($executionId->toString(), $history);
+        $converter = TemporalEventConverter::forHistory($executionId, $history);
 
         foreach ($history as $historyEvent) {
             $durableEvent = $converter->convert($historyEvent);
@@ -114,7 +114,7 @@ final readonly class TemporalReadThroughEventStore implements EventStoreInterfac
         // ponytail: bounded by Temporal's history cap (51,200 events / 50 MB, more as protobuf
         // objects); if it matters, buffer from a *_CANCELED event to the next WORKFLOW_TASK_SCHEDULED.
         $history = iterator_to_array($this->historyOf($executionId), false);
-        $converter = TemporalEventConverter::forHistory($executionId->toString(), $history);
+        $converter = TemporalEventConverter::forHistory($executionId, $history);
 
         foreach ($history as $historyEvent) {
             $durableEvent = $converter->convert($historyEvent);

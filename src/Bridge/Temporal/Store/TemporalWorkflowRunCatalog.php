@@ -213,7 +213,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface, N
         }
 
         $cursor = $this->historyCursor;
-        $converter = new TemporalEventConverter($run->executionId);
+        $converter = new TemporalEventConverter(ExecutionId::fromString($run->executionId));
         $execution = new WorkflowExecution(['workflow_id' => $workflowId, 'run_id' => $run->runId]);
 
         return NexusOperationSummary::of((static function () use ($cursor, $converter, $execution): \Generator {

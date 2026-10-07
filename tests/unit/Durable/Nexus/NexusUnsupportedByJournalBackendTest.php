@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Nexus;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Nexus\NexusEndpoint;
 use Gplanchat\Durable\Nexus\NexusOperationHeaders;
 use Gplanchat\Durable\Nexus\NexusOperationName;
@@ -70,7 +71,7 @@ final class NexusUnsupportedByJournalBackendTest extends TestCase
         return new EventStoreCommandBuffer(
             new InMemoryEventStore(),
             new NoopActivityTransport(),
-            'exec-1',
+            ExecutionId::fromString('exec-1'),
         );
     }
 }

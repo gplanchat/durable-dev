@@ -1,4 +1,12 @@
-# A test-only workflow: TimerDrainedByWorkerTest dispatches it and drains it with durable:worker.
+# Test-only workflows. TimerDrainedByWorkerTest dispatches NapWorkflow and drains it with durable:worker.
 services:
     App\Tests\Functional\Fixture\NapWorkflow:
         tags: [durable.workflow]
+    # AFailedRunStaysFailedTest: a run that fails must stay failed in the journal.
+    App\Tests\Functional\Fixture\FailingWorkflow:
+        tags: [durable.workflow]
+    # AnActivityResumesItsRunInTheSameWorkerTest: one worker runs the activity and the resume after it.
+    App\Tests\Functional\Fixture\StampWorkflow:
+        tags: [durable.workflow]
+    App\Tests\Functional\Fixture\StampActivityHandler:
+        tags: [{ name: durable.activity_handler, contract: App\Tests\Functional\Fixture\StampActivity }]

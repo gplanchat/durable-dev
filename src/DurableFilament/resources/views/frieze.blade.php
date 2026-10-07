@@ -4,7 +4,7 @@
 @php($scale = $timeline->span > 0 ? 100 / $timeline->span : 0)
 <style>
     .durable-frieze-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .3rem; }
-    .durable-frieze-name { flex: 0 0 12rem; text-align: end; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .durable-frieze-name { flex: 0 0 12rem; text-align: end; font-size: .82rem; line-height: 1.2; overflow-wrap: anywhere; }
     .durable-frieze-track { position: relative; flex: 1 1 auto; height: 1.4rem; border: 1px solid rgba(127, 127, 127, .35); border-radius: .375rem; }
     .durable-frieze-bar { position: absolute; top: .3rem; height: .8rem; min-width: .2rem; border-radius: .4rem; opacity: .35; background: #3b82f6; }
     .durable-frieze-mark { position: absolute; top: .4rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #3b82f6; }
