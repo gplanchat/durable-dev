@@ -32,6 +32,7 @@ parameters:
         - tests/unit/DurableRector/Fixture
         # Magento's adapter, loaded at run time from magento/vendor: absent from the root graph.
         - tests/integration/DurableModule/ResumeLock/Fixture
+        - tests/integration/DurableModule/RunProjection/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends
