@@ -991,6 +991,35 @@ new `metadataStore` argument for that; the Symfony bundle passes it.
 only when `get()` returns `null`. No Rector rule: the change is in what the call does, not in its
 signature.
 
+### `WorkflowMetadataStore` gains `insertIfAbsent()` (#946)
+
+**Who is affected**: only whoever **implements** `WorkflowMetadataStore` (a custom store, or a test
+double). The bundled stores (in-memory, DBAL, Illuminate, `ProjectingWorkflowMetadataStore`) have
+it, and so does anything that extends or decorates one of them. The Magento adapter store follows
+with #750.
+
+**Why.** Two passes of the same run can both read the next run of a continue-as-new as having no
+row. Writing it with `save()` then resets a next run that completed in between, because `save()`
+sets `completed` back to false. The continue-as-new path and the three insert-only dispatchers
+(Messenger, Laravel queue, Laravel in-process) now call `insertIfAbsent()`, which writes the row
+only when there is none and leaves an existing row, a completed one included, as it is. `save()`
+is unchanged and still reactivates a row.
+
+**What to write.** Add the method. It must be atomic: a check followed by `save()` brings the race
+back. Return `true` when the row was written, `false` when one existed.
+
+```php
+public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+{
+    // SQL: INSERT and catch the unique violation, or INSERT ... ON CONFLICT DO NOTHING.
+    // In memory: if (isset($this->rows[$id])) { return false; } then store the row.
+}
+```
+
+A decorator forwards the call to the store it wraps. No Rector rule covers this: the body depends on
+the storage. Run `WorkflowMetadataStoreConformanceTestCase` against your store; the two new
+`testInsertingIfAbsent*` cases check the method.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

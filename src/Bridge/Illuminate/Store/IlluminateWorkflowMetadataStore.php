@@ -46,6 +46,19 @@ final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadata
         );
     }
 
+    public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+    {
+        $this->schema->ensure();
+
+        // INSERT IGNORE / ON CONFLICT DO NOTHING: atomic, and it reports the rows it wrote.
+        return 1 === $this->connection->table($this->table)->insertOrIgnore([
+            'execution_id' => $executionId->toString(),
+            'workflow_type' => $workflowType,
+            'payload' => json_encode($payload, \JSON_THROW_ON_ERROR),
+            'completed' => false,
+        ]);
+    }
+
     public function markCompleted(ExecutionId $executionId): void
     {
         $this->schema->ensure();
