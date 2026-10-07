@@ -31,7 +31,8 @@ final class Queues
      */
     public static function decode(string $body, string $class): object
     {
-        $message = unserialize($body);
+        // A body that is not serialized PHP makes `false`, answered below like any other wrong body, not as a notice.
+        $message = @unserialize($body);
         if (!$message instanceof $class) {
             throw new \UnexpectedValueException(\sprintf('A queued body was to carry a %s, it carries %s.', $class, get_debug_type($message)));
         }

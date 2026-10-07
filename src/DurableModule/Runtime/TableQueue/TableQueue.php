@@ -107,4 +107,17 @@ final class TableQueue
     {
         return 1 === $this->connection->query('DELETE FROM ' . self::TABLE . ' WHERE id = ? AND leased_until = ?', [$message->id, $message->leaseToken])->rowCount();
     }
+
+    /**
+     * Gives a taken message back without acknowledging it: it is delivered again after
+     * `$delaySeconds`, instead of when its lease ends. One statement, so it either happens or the
+     * lease still runs. Like {@see ack()}, it answers false when this delivery no longer owns the row.
+     */
+    public function release(QueuedMessage $message, float $delaySeconds = 0.0): bool
+    {
+        return 1 === $this->connection->query(
+            'UPDATE ' . self::TABLE . ' SET leased_until = NULL, available_at = NOW(3) + INTERVAL ? MICROSECOND WHERE id = ? AND leased_until = ?',
+            [max(0, (int) round($delaySeconds * 1_000_000.0)), $message->id, $message->leaseToken],
+        )->rowCount();
+    }
 }
