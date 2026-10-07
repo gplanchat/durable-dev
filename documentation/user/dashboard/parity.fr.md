@@ -14,7 +14,7 @@ surfaces diffèrent encore. Elle change quand un écart se referme.
 | | Sylius | Magento | Filament | Profileur web |
 | --- | --- | --- | --- | --- |
 | Exécutions listées | Toutes | Les 200 plus récentes | Toutes | Celles vues pendant une requête, plus 20 nommées dans `durable_execution` au plus |
-| État du backend | 4 états, dont 3 datés | 3 états, celui du backend en mémoire non daté | 4 états, dont 3 datés | Aucun |
+| État du backend | 4 états, dont 3 datés | 3 états, tous datés | 4 états, dont 3 datés | Aucun |
 | Compteurs | Par issue, sur la page | Par issue, sur la fenêtre | Par issue, sur la page | Aucun |
 | Filtre par issue | Oui | Oui | Oui | Non |
 | Filtre par nom de workflow | Nom entier, là où le backend sait l'appliquer | Nom entier, dans la fenêtre | Nom entier, là où le backend sait l'appliquer | Non |
