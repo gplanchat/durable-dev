@@ -98,6 +98,18 @@ chaque rejeu.
 - **De l'extérieur, sur Temporal.** Lancez `temporal workflow cancel`, ou appelez
   `RequestCancelWorkflowExecution` depuis n'importe quel client. Le serveur enregistre la demande et
   replanifie une tâche de workflow, que le worker traite ensuite.
+- **Depuis votre application, sur Temporal.** Appelez `WorkflowClient::cancel($workflowId)` pour
+  demander l'annulation, ou `WorkflowClient::terminate($workflowId, $reason)` pour terminer
+  l'exécution aussitôt, sans exécuter une ligne de plus du workflow. Les deux prennent l'identifiant
+  que renvoie `WorkflowClient::workflowId()`. Sur une exécution terminée, ou qui n'existe pas, le
+  serveur répond NotFound et les deux méthodes lèvent une `\RuntimeException` de code 5, qui nomme
+  l'identifiant et garde l'échec du serveur comme exception précédente. Rien n'est modifié. Terminer
+  deux fois une exécution lève donc une exception au second appel. Ces méthodes n'existent que sur
+  Temporal. Les backends à journal (InMemory, DBAL, Illuminate, Magento) ne les ont pas encore.
+- **De l'extérieur, sur les autres backends.** L'application n'a aucun point d'entrée pour demander
+  une annulation en mémoire, sur DBAL, sur Illuminate ou sur Magento ; la
+  [matrice de capacités](../backends/#capability-matrix) classe la ligne comme non prise en charge
+  sur les trois premiers et « pas encore » pour la colonne Magento Database.
 
 ---
 

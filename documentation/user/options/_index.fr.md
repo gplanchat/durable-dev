@@ -119,11 +119,23 @@ ActivityTimeouts::attempt(Duration::seconds(30))
 Un battement plus long que `startToClose` est rejeté : la tentative se terminerait avant le premier
 battement manqué, et la borne de battement ne s'appliquerait donc jamais.
 
+La borne de battement n'existe que sur Temporal. Un backend à journal (InMemory, DBAL, Illuminate,
+Magento Database) lève `UnsupportedByBackendException` quand vous planifiez une activité avec une borne de battement.
+
 Hors Temporal, `startToClose` est vérifié quand la tentative se termine ; rien ne l'impose pendant
 qu'elle tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
 et la politique de reprise détermine la suite. Rien n'interrompt une tentative qui ne rend jamais
 la main. Arrêter un worker bloqué revient à ce qui supervise le processus.
 `messenger:consume --time-limit` ne vérifie qu'entre deux messages, il ne peut donc pas l'arrêter.
+
+`scheduleToClose` borne l'activité entière, reprises comprises. Sur Temporal comme sur les backends
+à journal, une tentative échouée dont le délai de reprise dépasserait cette borne n'est pas
+reprise : l'activité échoue avec l'échec de cette tentative et l'état de reprise `Timeout`. Sur les
+backends à journal, la borne est aussi vérifiée quand un worker prend le message, et échoue avec
+« Activity schedule-to-close timeout exceeded. » `scheduleToStart` s'applique à un message qui
+attend dans la file. Sur Temporal, il s'applique à chaque tentative. Sur les backends à journal, il
+ne s'applique qu'à la première, et une reprise qui attend son délai n'est bornée que par
+`scheduleToClose`.
 
 Temporal exige une borne de clôture. Quand aucune n'est posée, le pont en fournit une par défaut.
 Ce repli porte son propre nom, `executionBoundOr()`.
@@ -153,7 +165,7 @@ $options = new ActivityOptions(
     RetryLimit::ofAttempts(3),
     initialInterval: Duration::seconds(1),
     nonRetryableExceptions: [PaymentRefusedException::class],
-    taskQueue: TaskQueue::named('payments'),
+    taskQueue: TaskQueue::named('payments'), // Temporal uniquement ; sur un backend à journal, cette option lève une exception
     timeouts: ActivityTimeouts::attempt(Duration::seconds(30)),
 );
 
@@ -285,7 +297,9 @@ $client->startAsync('CheckoutWorkflow', $input, ExecutionId::fromString($executi
 
 > [!NOTE]
 > `$client` est le `WorkflowClientInterface` de Temporal, et `startAsync()` n'existe que sur
-> Temporal, comme les options de démarrage qu'il prend. Sur tous les backends, une exécution démarre
+> Temporal, comme les options de démarrage qu'il prend. `WorkflowClientInterface::startAsync()` et
+> `startSync()` déclarent l'argument `?WorkflowStartOptions $options` : le code typé contre l'interface
+> peut le passer. Sur tous les backends, une exécution démarre
 > par `WorkflowResumeDispatcher::dispatchNewWorkflowRun()` ([Premiers pas](../getting-started/#4--le-déclencher-depuis-un-contrôleur-ou-un-service)),
 > qui ne prend pas d'options de démarrage.
 
@@ -330,8 +344,9 @@ que le précédent n'est pas terminé, et une occurrence manquée est **sautée*
 Les workflows enfants acceptent la même planification par `ChildWorkflowOptions`.
 
 > [!NOTE]
-> Le cron est une capacité de Temporal. Le backend en mémoire n'a pas d'ordonnanceur et ne le prend
-> pas en charge.
+> Le cron est une capacité de Temporal. Les backends à journal (mémoire, DBAL, Illuminate, Magento Database)
+> n'ont pas d'ordonnanceur : le `cronSchedule`, le `namespace` ou le `taskQueue` d'un workflow enfant y échoue
+> avec `UnsupportedByBackendException`.
 
 ---
 
@@ -386,7 +401,7 @@ immédiatement, avec une erreur.
 | `scheduleToStartTimeoutSeconds`, `scheduleToCloseTimeoutSeconds`, `heartbeatTimeoutSeconds` | arguments nommés d'`ActivityTimeouts` |
 | `workflowRunTimeoutSeconds: 600.0` | `timeouts: WorkflowTimeouts::run(Duration::minutes(10))` |
 | `workflowExecutionTimeoutSeconds`, `workflowTaskTimeoutSeconds` | arguments nommés de `WorkflowTimeouts` |
-| `taskQueue: 'payments'` | `taskQueue: TaskQueue::named('payments')` |
+| `taskQueue: 'payments'` | `taskQueue: TaskQueue::named('payments')` (sur les options d'activité : Temporal uniquement ; sur un backend à journal, cette option lève une exception) |
 | `namespace: 'billing'` | `namespace: WorkflowNamespace::named('billing')` |
 | `cronSchedule: '0 9 * * *'` | `cronSchedule: CronSchedule::parse('0 9 * * *')` |
 | `searchAttributes: ['OrderId' => 'x']` | `SearchAttributes::none()->keyword('OrderId', 'x')` |
