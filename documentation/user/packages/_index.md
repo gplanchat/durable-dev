@@ -125,7 +125,10 @@ temporal server start-dev --namespace durable-test --port 7233
 
 > [!NOTE]
 > Cron schedules and search attributes are Temporal capabilities with no in-process equivalent. The
-> in-memory backend rejects them with an explicit error instead of ignoring them silently.
+> journal backends do not run them. A child workflow's `cronSchedule` fails with
+> `UnsupportedByBackendException` there, and so do its `namespace` and `taskQueue`. Its search
+> attributes are written into the journal and nothing acts on them, and the start options of a root
+> workflow exist only on the Temporal client.
 
 ---
 
@@ -472,8 +475,12 @@ exception. A workflow that waits on a signal waits the whole budget instead of f
 
 The result comes back decoded from JSON: an object the workflow returns arrives as an array.
 
-To start a workflow without waiting, from a web request for example, call
-`workflowClient()->startAsync()`.
+To start a workflow from an observer, call `RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()`.
+With a DSN, it starts the workflow on the cluster and returns at once. Without one, it runs the
+workflow in the calling process, within `budgetSeconds`, and the request waits for it: it blocks
+like `run()`. A workflow that fails does not throw from the call, as on the cluster; the failure goes
+to the logger the factory holds. An undeclared workflow does throw. To start on the cluster only,
+call `workflowClient()->startAsync()`.
 
 **Workers are `bin/magento` commands**, not queue consumers. Supervise them like any other
 long-running process:
@@ -513,11 +520,33 @@ points to a missing worker.
 > Durable's goes through `MessageQueue`. Tune them for your own consumers.
 
 > [!NOTE]
-> Start executions **on the cluster**, outside the request that triggers them. An observer on
-> `sales_order_place_after` that calls `RuntimeFactory::workflowClient()->startAsync()` hands the
-> execution to Temporal and returns. `workflowClient()` needs the cluster, because `startAsync()`
-> exists only on Temporal. An execution started inline would end with the request, which is the
-> failure this integration exists to remove.
+> Start executions **on the cluster**, outside the request that triggers them. With a DSN, an
+> observer on `sales_order_place_after` hands the execution to Temporal and returns. A start can
+> still throw (an undeclared workflow), so catch it: an exception that leaves the observer aborts the
+> shop's own flow.
+>
+> ```php
+> public function execute(Observer $observer): void
+> {
+>     $incrementId = $observer->getEvent()->getData('order')->getIncrementId();
+>
+>     try {
+>         $this->runtimeFactory->resumeDispatcher()->dispatchNewWorkflowRun(
+>             ExecutionId::fromString('order-' . $incrementId),
+>             PlaceOrder::class,
+>             ['orderId' => $incrementId],
+>         );
+>     } catch (\Throwable $exception) {
+>         $this->logger->error('The workflow did not start: ' . $exception->getMessage());
+>     }
+> }
+> ```
+>
+> The same observer runs without a cluster, with a difference: the workflow runs inside the request,
+> which waits for it, for up to `budgetSeconds` (10 by default). A workflow that waits on a signal or
+> a long timer holds the request for the whole budget. The in-memory journal ends with the request,
+> so a run that is not finished by then is lost. That is acceptable in development; in production,
+> configure the DSN.
 
 ---
 
@@ -578,7 +607,9 @@ Every backend runs the **same fiber driver** and the **same activity execution p
 you tested in memory behaves the same way against DBAL or Temporal, including retry counting,
 failure classification, cancellation and compensation.
 
-When a capability has no equivalent on a backend, that backend **fails with an explicit message**.
+Some capabilities have no equivalent on a backend. Nexus fails with an explicit message there; a
+child workflow's `namespace`, `taskQueue` and `cronSchedule` fail with
+`UnsupportedByBackendException`, and its search attributes are recorded and not acted on.
 [Backends](../backends/#capability-matrix) lists the differences.
 
 ---
