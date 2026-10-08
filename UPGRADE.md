@@ -957,8 +957,13 @@ retry policy. An undecodable payload (#775) stays retryable, since its key can c
 When a Nexus operation handler throws, a non-JSON input included, the Nexus worker still answers a
 retryable `INTERNAL` error with the message only. It now also logs it.
 
-Both log an `error` record whose `exception` is the original error, with its stack trace, and whose
-`event_id` is `null`. The activity record also carries `activity_id`.
+Both log an `error` record whose `exception` is the original error, with its stack trace, whose
+`event_id` is `null` and whose `rpc` is the answer sent (`RespondActivityTaskFailed` or
+`RespondNexusTaskFailed`). The activity record also carries `workflow_id`, `run_id` and
+`activity_id`, since an `activity_id` is unique only within its workflow. The Nexus record carries
+`service`, `operation` and `request_id`. The undecodable-payload records (#936, #939) name their
+task the same way: a Nexus task gets `service` and `operation`, and `request_id` for a start
+request, and an activity task gets `workflow_id` and `run_id` besides `activity_id` (#949).
 
 `TemporalActivityWorker` gains an optional sixth constructor argument, and `TemporalNexusWorker` an
 optional fourth one, `?LoggerInterface $logger`. The Symfony bundle, the Laravel provider and the
@@ -1136,6 +1141,120 @@ journal backends. Temporal keeps sending the queue. Nothing is affected when you
 Temporal environment loads. If you relied on it to split work between two groups of workers on a
 journal backend, that split never happened. No Rector rule applies: nothing in the code tells
 whether the queue was relied on.
+
+### Changed: the gRPC unary client moves to `gplanchat/grpc-client`
+
+`GrpcTransport`, `GrpcWire`, `CurlGrpcTransport` and `GuzzleGrpcTransport` leave the Temporal bridge
+for a package of their own, `gplanchat/grpc-client`, which the bridge now requires. The package
+has no Temporal or Messenger dependency: it sends one unary call over HTTP/2 and reads the status
+from the trailers.
+
+**Who is affected:** code that names these four classes, or that catches the exception of a
+transport obtained from `WorkflowServiceClientFactory::createTransport()`. Applications that only
+configure `durable.temporal.dsn` are not affected.
+
+**What to do:**
+
+- Run the Rector set `durable-upgrade.php`: it renames the four classes
+  (`Gplanchat\Bridge\Temporal\Grpc\GrpcTransport` and `Gplanchat\Bridge\Temporal\Http\{GrpcWire,CurlGrpcTransport,GuzzleGrpcTransport}`
+  become `Gplanchat\GrpcClient\...`).
+- Rector does not change constructor arguments. `CurlGrpcTransport` and `GuzzleGrpcTransport` now
+  take a `Gplanchat\GrpcClient\GrpcEndpoint`. Pass `$connection->endpoint()` where you passed the
+  `TemporalConnection`; the same goes for `CurlGrpcTransport::tlsOptions()`.
+- A transport now throws `Gplanchat\GrpcClient\GrpcException` (a `\RuntimeException`, the gRPC status
+  code as its code, the server message in `statusMessage`). `GrpcWorkflowServiceClient` and
+  `JsonGatewayWorkflowServiceClient` still throw Messenger's `TransportException`, so a caller of
+  the Temporal client changes nothing.
+
+### `durable-rector`: `Workflow::getVersion()` becomes `version()` (#894)
+
+The `temporal-sdk` set rewrites `yield Workflow::getVersion($changeId, $min, $max)` to
+`$this->environment->version($changeId, $min, $max)`, with positional or named arguments, and no
+`await()` around it. Until now, `UnmigratableTemporalCallRector` marked every `getVersion()` call
+as having no equivalent, and the facade rule wrapped a yielded call in `await()`. In a workflow
+class, `Workflow::DEFAULT_VERSION` becomes `ChangePoint::DEFAULT_VERSION`, with a
+`use Gplanchat\Durable\Versioning\ChangePoint;` import. Both constants are `-1`.
+
+`gplanchat/durable-rector` now requires `rector/rector` `^2.4.7`, the first version with the
+import API the rule uses.
+
+Three shapes stay as written and get a `durable-rector:` marker:
+
+- a `getVersion()` call with a number of arguments other than three;
+- a `getVersion()` call that is not yielded where it is made: the SDK returns a promise there, and
+  `version()` returns the int;
+- a reference to `Workflow::DEFAULT_VERSION` outside a workflow class.
+
+**Who is affected:** a project that migrates off the Temporal PHP SDK with the `temporal-sdk` set,
+and whose workflows call `Workflow::getVersion()`.
+
+**What to do:** update `rector/rector` to 2.4.7 or later, then run the set again. At each marker,
+write the call by hand. One runtime case differs: a run that went past the point before the call
+existed and has no recorded work after it, for example one waiting only on a condition or a
+signal, gets `$maxSupported` from `version()`, where the SDK returns `DEFAULT_VERSION`. The
+docblock of `ExecutionContext::version()` describes this limit.
+
+A `Workflow::getVersion() — no equivalent yet` marker written by an earlier run of the set is
+removed where the set rewrites the call to `version()`, and replaced by the new marker where the
+call stays unmapped. Other comments on the statement stay.
+
+### `WorkflowMetadataStore` gains `insertIfAbsent()` (#946)
+
+**Who is affected**: only whoever **implements** `WorkflowMetadataStore` (a custom store, or a test
+double). The bundled stores (in-memory, DBAL, Illuminate, `ProjectingWorkflowMetadataStore`) have
+it, and so does anything that extends or decorates one of them. The Magento adapter store follows
+with #750.
+
+**Why.** Two passes of the same run can both read the next run of a continue-as-new as having no
+row. Writing it with `save()` then resets a next run that completed in between, because `save()`
+sets `completed` back to false. The continue-as-new path and the three insert-only dispatchers
+(Messenger, Laravel queue, Laravel in-process) now call `insertIfAbsent()`, which writes the row
+only when there is none and leaves an existing row, a completed one included, as it is. `save()`
+is unchanged and still reactivates a row.
+
+**What to write.** Add the method. It must be atomic: a check followed by `save()` brings the race
+back. Return `true` when the row was written, `false` when one existed.
+
+```php
+public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+{
+    // SQL: INSERT and catch the unique violation, or INSERT ... ON CONFLICT DO NOTHING.
+    // In memory: if (isset($this->rows[$id])) { return false; } then store the row.
+}
+```
+
+A decorator forwards the call to the store it wraps. No Rector rule covers this: the body depends on
+the storage. Run `WorkflowMetadataStoreConformanceTestCase` against your store; the two new
+`testInsertingIfAbsent*` cases check the method.
+
+### The journal records workflow tasks (#850)
+
+**Who is affected**: an application that reads the journal and lists its event types or counts its
+events, a test that asserts the exact sequence of a run's events after a resume, and a deployment
+where an older Durable version reads a journal that a newer one writes.
+
+The resume handler now appends `WorkflowTaskStarted` when a worker takes a resume and
+`WorkflowTaskCompleted` when the pass ends. Each place that dispatches a plain resume (activity
+outcome, timer, signal, update, child, parent close, and the pass's own follow-up) first appends
+`WorkflowTaskScheduled`, unless the last task event of the run is already a `WorkflowTaskScheduled`.
+`dispatchResumeAwaiting()` writes nothing, and neither does a `dispatchNewWorkflowRun()` that your
+own code calls to start a run, so the first task of a run has no `WorkflowTaskScheduled`. The in-memory test harness drives passes
+without a queue and writes none of the three. A run costs three more events per pass.
+
+`EventDataMapper::toDomainEvent()` throws `Unknown event type` for these classes on an older
+version. **Upgrade every reader (dashboards, `durable:execution:diagnose`, the profiler, any worker
+that replays) before the writers**, then upgrade the workers that run `ResumeWorkflowHandler`.
+`DeliverWorkflowUpdateHandler` takes the journal as a required second argument,
+`__construct(WorkflowResumeDispatcher $resumeDispatcher, EventStoreInterface $eventStore)`. The
+bundle passes it. No Rector rule: the argument is a service of your application, which a rewrite
+cannot name. If you build the handler yourself (a custom container definition or a test), add the
+event store you already pass to `DeliverWorkflowSignalHandler` as the second argument. The Laravel
+and Magento hosts do not build this handler. A custom `EventStoreInterface`
+needs no change: it stores the event class and payload like any other event.
+
+**What to do:** in a test, filter the three classes out of the sequence you compare, or add them
+where the run passes through a worker. Journals written before this change replay as they did.
+No Rector rule: no signature changes.
 
 ### Laravel: `durable-laravel` no longer requires the Illuminate bridge (#845)
 

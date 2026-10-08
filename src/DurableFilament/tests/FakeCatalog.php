@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Filament\Tests;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -37,6 +38,7 @@ final class FakeCatalog implements WorkflowRunCatalogInterface, NexusOperationCa
         public bool $reachable = true,
         public bool $filterable = true,
         public array $histories = [],
+        public ?Message $healthMessage = null,
     ) {}
 
     public function listRuns(?WorkflowRunStatus $status = null, ?string $cursor = null, int $limit = 20, ?WorkflowRunFilter $filter = null): WorkflowRunPage
@@ -79,6 +81,6 @@ final class FakeCatalog implements WorkflowRunCatalogInterface, NexusOperationCa
 
     public function checkHealth(): BackendHealth
     {
-        return new BackendHealth('fake', $this->reachable, $this->reachable ? 'The fake answers.' : 'The fake is down.', new \DateTimeImmutable('2026-09-29 10:00:00'));
+        return new BackendHealth('fake', $this->reachable, $this->reachable ? 'The fake answers.' : 'The fake is down.', new \DateTimeImmutable('2026-09-29 10:00:00'), localized: $this->healthMessage);
     }
 }

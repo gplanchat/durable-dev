@@ -13,6 +13,7 @@
         <directory name="src/Durable" />
         <directory name="src/DurableBundle" />
         <directory name="src/DurablePlugin" />
+        <directory name="src/GrpcClient" />
         <directory name="src/Bridge/Temporal" />
         <directory name="src/Bridge/Dbal" />
         <directory name="src/Bridge/Illuminate" />

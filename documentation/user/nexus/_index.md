@@ -225,15 +225,13 @@ Declared by: app.charge.
 
 The caller side behaves differently, by design. A call on a backend with no route fails at the
 call, so you find out immediately. A *handler* with no route receives nothing, and nothing fails:
-no request ever reaches it. On Symfony and Magento, the check therefore runs before any request:
-when the container is built, and when the Nexus worker starts.
+no request ever reaches it. On every host, the check therefore runs before any request:
+when the container is built (Symfony), at boot (Laravel), and when the Nexus worker starts (Magento).
 
 The message above is Symfony's. On Magento, `bin/magento durable:worker --role=nexus` fails with
 `A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN.
-On Laravel, nothing fails at boot. Outside `temporal`, nothing resolves the Nexus registry: a
-handler listed in `durable.nexus.handlers` raises nothing and receives nothing, and
-`php artisan durable:nexus-worker` ends with `Command "durable:nexus-worker" is not defined.`, which
-does not name the backend (see [#931](https://github.com/gplanchat/durable-dev/issues/931)).
+On Laravel, the provider fails at boot with `NexusUnsupportedByBackendException` when a handler is listed in
+`durable.nexus.handlers` and the backend is not `temporal`. The message names the backend.
 
 ---
 

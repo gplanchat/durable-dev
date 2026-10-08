@@ -54,6 +54,7 @@
         <include>
             <directory>src/Durable</directory>
             <directory>src/DurableBundle</directory>
+            <directory>src/GrpcClient</directory>
             <directory>src/Bridge/Temporal</directory>
             <directory>src/Bridge/Dbal</directory>
             <directory>src/DurablePlugin</directory>

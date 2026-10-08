@@ -8,6 +8,7 @@ use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\WorkflowTaskJournal;
 use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\DeliverWorkflowSignalMessage;
 
@@ -38,6 +39,7 @@ final readonly class DeliverWorkflowSignalHandler
                 $message->requestId,
             ));
         }
+        WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, $id);
         $this->resumeDispatcher->dispatchResume($id);
     }
 }

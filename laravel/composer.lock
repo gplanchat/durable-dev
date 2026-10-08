@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "011181ca6eaaf35963d8d5256b85cf62",
+    "content-hash": "429bfe9e491c1e884bdbd6b6ba173f37",
     "packages": [
         {
             "name": "brick/math",
@@ -691,11 +691,12 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "68b84b432beae47c836b579e9c813457d563a47c"
+                "reference": "8dc4267bb27a2cf3fb0253d3827c83513edded00"
             },
             "require": {
                 "php": ">=8.2",
-                "psr/cache": "^3.0"
+                "psr/cache": "^3.0",
+                "psr/clock": "^1.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.5"
@@ -748,7 +749,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Bridge/Illuminate",
-                "reference": "56fcda92fa4ca572d14b214876b96dc81b26c711"
+                "reference": "02825406625a0fbcf1598996592d13f30d652307"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -785,7 +786,7 @@
                     "email": "gregory@gyroscops.com"
                 }
             ],
-            "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on the connection Laravel already owns",
+            "description": "Illuminate (Laravel) journal, metadata and run stores for gplanchat/durable — durable execution on one SQL database through Laravel's database layer",
             "keywords": [
                 "durable-execution",
                 "eloquent",
@@ -807,13 +808,14 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Bridge/Temporal",
-                "reference": "1559f34e88bb4fa0bf0b5550e6172ad37732bc6c"
+                "reference": "0514c5a5b151151c37180a63c43fc4358a78a8ad"
             },
             "require": {
                 "ext-filter": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
                 "gplanchat/durable": "self.version",
+                "gplanchat/grpc-client": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
                 "psr/log": "^1.1 || ^2.0 || ^3.0",
@@ -904,7 +906,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableLaravel",
-                "reference": "7df8b342ab1ef50bb87dc0445dbf89a563d832c2"
+                "reference": "780d1e180944dfc36328276532fc6160a315e954"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -914,6 +916,7 @@
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
                 "illuminate/support": "^11.0 || ^12.0 || ^13.0",
                 "php": ">=8.2",
+                "psr/clock": "^1.0",
                 "psr/log": "^1.1 || ^2.0 || ^3.0"
             },
             "suggest": {
@@ -954,6 +957,54 @@
                 "queue",
                 "saga",
                 "workflow"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/grpc-client",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/GrpcClient",
+                "reference": "c257b2ee4d44eb7510c9959575e91ba4eaf2cb06"
+            },
+            "require": {
+                "google/protobuf": "^4.31",
+                "php": ">=8.2"
+            },
+            "suggest": {
+                "ext-curl": "For CurlGrpcTransport: one HTTP/2 POST per unary call",
+                "guzzlehttp/guzzle": "For GuzzleGrpcTransport (7.14 or newer, cURL handler): gRPC over the application's Guzzle client"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\GrpcClient\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "gRPC unary client over HTTP/2 without ext-grpc: curl or Guzzle, the status read from the trailers",
+            "keywords": [
+                "grpc",
+                "http2",
+                "protobuf",
+                "trailers"
             ],
             "transport-options": {
                 "symlink": true,
@@ -9348,7 +9399,8 @@
         "gplanchat/durable-bridge-illuminate": 20,
         "gplanchat/durable-bridge-temporal": 20,
         "gplanchat/durable-demo-contracts": 20,
-        "gplanchat/durable-laravel": 20
+        "gplanchat/durable-laravel": 20,
+        "gplanchat/grpc-client": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

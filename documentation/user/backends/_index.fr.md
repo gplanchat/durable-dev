@@ -482,8 +482,7 @@ workflow le traite ; l'émetteur ne reçoit aucune réponse. Une requête n'y a 
 côté application.
 
 Aucun backend hors Temporal n'a d'ordonnanceur ou de frontière entre espaces de noms : cron et Nexus
-n'ont donc pas d'équivalent sur les trois autres. Nexus échoue explicitement, à une lacune près sur
-Laravel, décrite plus bas. Le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant
+n'ont donc pas d'équivalent sur les trois autres. Nexus échoue explicitement. Le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant
 échouent aussi explicitement : un backend à journal échoue avec `UnsupportedByBackendException` en
 nommant l'option. Les attributs de recherche font exception : ceux d'un workflow enfant sont écrits
 au journal et rien ne les lit hors de Temporal, et les options de démarrage d'un workflow racine
@@ -492,10 +491,9 @@ sans route ne voit jamais d'appel échouer : c'est un service qui ne reçoit jam
 le montage du conteneur échoue quand `durable.temporal.dsn` n'est pas renseigné. Sur Magento,
 `bin/magento durable:worker --role=nexus` échoue avec `A Nexus worker needs a cluster` quand
 `app/etc/env.php` n'a pas de DSN.
-Sur Laravel, rien n'échoue au démarrage. Hors de `temporal`, rien ne résout le registre Nexus : un
-gestionnaire listé dans `durable.nexus.handlers` ne lève rien et ne reçoit rien, et
-`php artisan durable:nexus-worker` se termine sur `Command "durable:nexus-worker" is not defined.`,
-qui ne nomme pas le backend (voir [#931](https://github.com/gplanchat/durable-dev/issues/931)).
+Sur Laravel, le fournisseur de services échoue au démarrage avec `NexusUnsupportedByBackendException` quand
+un gestionnaire est listé dans `durable.nexus.handlers` et que le backend n'est pas `temporal`. Le message
+nomme le backend.
 
 ### Démarrer une exécution depuis un observateur Magento {#magento-start-blocks}
 

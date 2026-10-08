@@ -33,6 +33,14 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  */
 return RectorConfig::configure()
     ->withConfiguredRule(RenameClassRector::class, [
+        // Unreleased — the gRPC unary client leaves the Temporal bridge for gplanchat/grpc-client.
+        // The constructors of the two transports now take a GrpcEndpoint instead of a
+        // TemporalConnection: `$connection->endpoint()` gives it, and no rename expresses that.
+        'Gplanchat\Bridge\Temporal\Grpc\GrpcTransport' => 'Gplanchat\GrpcClient\GrpcTransport',
+        'Gplanchat\Bridge\Temporal\Http\GrpcWire' => 'Gplanchat\GrpcClient\GrpcWire',
+        'Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport' => 'Gplanchat\GrpcClient\CurlGrpcTransport',
+        'Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport' => 'Gplanchat\GrpcClient\GuzzleGrpcTransport',
+
         // Unreleased — the history event converter moves next to the store that uses it: the
         // profiler never did (#372).
         'Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter' => 'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter',

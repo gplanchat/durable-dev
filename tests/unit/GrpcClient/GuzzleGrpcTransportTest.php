@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\Temporal\Http;
+namespace unit\Gplanchat\GrpcClient;
 
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
-use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
-use Gplanchat\Bridge\Temporal\TemporalConnection;
+use Google\Protobuf\StringValue;
+use Gplanchat\GrpcClient\GrpcEndpoint;
+use Gplanchat\GrpcClient\GrpcException;
+use Gplanchat\GrpcClient\GrpcWire;
+use Gplanchat\GrpcClient\GuzzleGrpcTransport;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Promise\Create;
@@ -14,8 +16,6 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
-use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
-use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
 
 /**
  * A Guzzle handler stands in for the server: it sees what the cURL handler would send, and hands
@@ -23,22 +23,22 @@ use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
  */
 final class GuzzleGrpcTransportTest extends TestCase
 {
-    private const METHOD = '/temporal.api.workflowservice.v1.WorkflowService/DescribeWorkflowExecution';
+    private const METHOD = '/helloworld.Greeter/SayHello';
 
     public function testAnOkCallIsAnHttp2PostOfTheFrameAndReadsTheBody(): void
     {
-        $reply = new DescribeWorkflowExecutionResponse();
+        $reply = new StringValue();
         $seen = null;
-        $transport = $this->transport('temporal://127.0.0.1:7233', function (RequestInterface $request, array $options) use ($reply, &$seen): PromiseInterface {
+        $transport = $this->transport('127.0.0.1:7233', function (RequestInterface $request, array $options) use ($reply, &$seen): PromiseInterface {
             $seen = [$request, $options];
 
             return $this->reply($options, GrpcWire::frame($reply->serializeToString()), ['grpc-status' => ['0']]);
         });
 
-        $request = new DescribeWorkflowExecutionRequest(['namespace' => 'default']);
-        $response = $transport->unary(self::METHOD, $request, DescribeWorkflowExecutionResponse::class, ['x-trace' => ['1']], 2_500);
+        $request = new StringValue(['value' => 'default']);
+        $response = $transport->unary(self::METHOD, $request, StringValue::class, ['x-trace' => ['1']], 2_500);
 
-        self::assertInstanceOf(DescribeWorkflowExecutionResponse::class, $response);
+        self::assertInstanceOf(StringValue::class, $response);
         [$sent, $options] = $seen;
         self::assertSame('POST', $sent->getMethod());
         self::assertSame('http://127.0.0.1:7233' . self::METHOD, (string) $sent->getUri());
@@ -55,13 +55,13 @@ final class GuzzleGrpcTransportTest extends TestCase
     public function testOverTlsHttp2IsNegotiated(): void
     {
         $seen = null;
-        $transport = $this->transport('temporal+tls://temporal.example:7233', function (RequestInterface $request, array $options) use (&$seen): PromiseInterface {
+        $transport = $this->transport('temporal.example:7233', function (RequestInterface $request, array $options) use (&$seen): PromiseInterface {
             $seen = [$request, $options];
 
             return $this->reply($options, GrpcWire::frame(''), ['grpc-status' => ['0']]);
-        });
+        }, tls: true);
 
-        $transport->unary(self::METHOD, new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], null);
+        $transport->unary(self::METHOD, new StringValue(), StringValue::class, [], null);
 
         self::assertSame('https://temporal.example:7233' . self::METHOD, (string) $seen[0]->getUri());
         self::assertSame(\CURL_HTTP_VERSION_2_0, $seen[1]['curl'][\CURLOPT_HTTP_VERSION]);
@@ -70,12 +70,12 @@ final class GuzzleGrpcTransportTest extends TestCase
 
     public function testAStatusInTheTrailersSurfacesAsTheExceptionCode(): void
     {
-        $transport = $this->transport('temporal://127.0.0.1:7233', fn(RequestInterface $r, array $o): PromiseInterface => $this->reply($o, '', ['grpc-status' => ['5'], 'grpc-message' => ['workflow%20not%20found']]));
+        $transport = $this->transport('127.0.0.1:7233', fn(RequestInterface $r, array $o): PromiseInterface => $this->reply($o, '', ['grpc-status' => ['5'], 'grpc-message' => ['workflow%20not%20found']]));
 
         try {
-            $transport->unary(self::METHOD, new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], null);
+            $transport->unary(self::METHOD, new StringValue(), StringValue::class, [], null);
             self::fail('NOT_FOUND was in the trailers.');
-        } catch (\RuntimeException $e) {
+        } catch (GrpcException $e) {
             self::assertSame(5, $e->getCode());
             self::assertStringContainsString('workflow not found', $e->getMessage());
         }
@@ -84,12 +84,12 @@ final class GuzzleGrpcTransportTest extends TestCase
     public function testATimeoutIsDeadlineExceededAndARefusedConnectionIsUnavailable(): void
     {
         foreach ([28 => GrpcWire::DEADLINE_EXCEEDED, 7 => GrpcWire::UNAVAILABLE] as $errno => $code) {
-            $transport = $this->transport('temporal://127.0.0.1:7233', static fn(RequestInterface $r): PromiseInterface => Create::rejectionFor(new ConnectException('cURL error ' . $errno, $r, null, ['errno' => $errno])));
+            $transport = $this->transport('127.0.0.1:7233', static fn(RequestInterface $r): PromiseInterface => Create::rejectionFor(new ConnectException('cURL error ' . $errno, $r, null, ['errno' => $errno])));
 
             try {
-                $transport->unary(self::METHOD, new DescribeWorkflowExecutionRequest(), DescribeWorkflowExecutionResponse::class, [], 100);
+                $transport->unary(self::METHOD, new StringValue(), StringValue::class, [], 100);
                 self::fail('The transfer failed.');
-            } catch (\RuntimeException $e) {
+            } catch (GrpcException $e) {
                 self::assertSame($code, $e->getCode(), 'cURL errno ' . $errno);
             }
         }
@@ -98,9 +98,9 @@ final class GuzzleGrpcTransportTest extends TestCase
     /**
      * @param callable(RequestInterface, array<string, mixed>): PromiseInterface $handler
      */
-    private function transport(string $dsn, callable $handler): GuzzleGrpcTransport
+    private function transport(string $target, callable $handler, bool $tls = false): GuzzleGrpcTransport
     {
-        return new GuzzleGrpcTransport(TemporalConnection::fromDsn($dsn), new Client(['handler' => $handler]));
+        return new GuzzleGrpcTransport(new GrpcEndpoint($target, $tls), new Client(['handler' => $handler]));
     }
 
     /**
