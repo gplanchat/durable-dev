@@ -325,11 +325,12 @@ durable:
     max_activity_retries: 3
 ```
 
-Ceiling on automatic retries, applied to every activity on the `in_memory` and `dbal` backends: an activity's own `RetryLimit` can only be stricter. A negative value is a configuration error. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit). On the `temporal` backend no host reads it: the cluster retries from each activity's own `RetryLimit`.
+Ceiling on automatic retries, applied to every activity on the `in_memory` and `dbal` backends, and on the Magento Database backend: an activity's own `RetryLimit` can only be stricter. A negative value is a configuration error. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit). On the `temporal` backend no host reads it: the cluster retries from each activity's own `RetryLimit`.
 
 On Laravel, the same key in `config/durable.php`; on Magento, the `maxActivityRetries` argument of
-`RuntimeFactory` in `di.xml`, which only `MagentoRuntime::run()` reads, and only without a DSN (see
-[the host table](#host-table)).
+`RuntimeFactory` in `di.xml`, which `MagentoRuntime::run()` reads without a DSN and the Magento Database backend reads in its
+activity and journal workers (see [the host table](#host-table)). Magento workers on Temporal leave
+retries to the cluster.
 
 ---
 
@@ -401,7 +402,8 @@ when@test:
 
 One row per setting. The last column is a **proposal** under review (#357): *same* (the setting
 exists on each host that can use it), *host-specific* (with the reason), or *to add*. Magento
-reaches two journals only, in memory and Temporal, so the SQL rows do not apply there.
+reaches three journals: memory, Temporal and its own database backend. The DBAL and Illuminate
+rows do not apply there.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposal |
 |---|---|---|---|
@@ -420,7 +422,7 @@ reaches two journals only, in memory and Temporal, so the SQL rows do not apply 
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | none (activities run in the process, or on Temporal's task queue) | host-specific: each host's own queue |
 | `messenger.buses` | none | none | host-specific: Messenger only |
 | `profiler.enabled` | none | none | host-specific: the Symfony web profiler |
-| `max_activity_retries` | `max_activity_retries` | `maxActivityRetries` argument, read by `MagentoRuntime::run()` without a DSN only; Temporal workers ignore it | same on Symfony and Laravel; host-specific on Magento, whose workers leave retries to the cluster. On Temporal, no host reads it |
+| `max_activity_retries` | `max_activity_retries` | `maxActivityRetries` argument, read by `MagentoRuntime::run()` without a DSN and by the Magento Database backend's workers; Temporal workers ignore it | same on Symfony and Laravel; host-specific on Magento, whose Temporal workers leave retries to the cluster. On Temporal, no host reads it |
 | none | none | `budgetSeconds` argument | host-specific: bounds `MagentoRuntime::run()`, the in-process run without a DSN and the wait for the cluster's result with one |
 | none | none | `maxContinuations` argument (default 10) | host-specific: caps the continue-as-new chain that `MagentoRuntime::run()` follows without a DSN; past it, the call throws `ContinuationCapReachedException` |
 | `activity_contracts.cache`, `activity_contracts.contracts` | none | none | to add on Laravel and Magento |

@@ -108,7 +108,7 @@ backlog someone else keeps.
 |---|---|---|
 | **Workflow versioning** (`Workflow::getVersion()`) | A probe, then wiring | The significant one. Second behind the divergence guard, because a version marker is the sanctioned exception to that guard, and an exception needs a rule to except. |
 | **Nexus handler side** | **Built** — see [DUR045](../adr/DUR045-serving-a-nexus-operation.md) | §2. No other PHP implementation offers it, the SDK included. |
-| **Saga helper** | **Built** — `Gplanchat\Durable\Workflow\Saga` | Sequential compensations, stop on first error. See [Cancellation](../user/cancellation/). |
+| **Compensation helper** | **Built** — `Gplanchat\Durable\Workflow\Compensation` | Sequential compensations, stop on first error. See [Cancellation](../user/cancellation/). |
 | **`Workflow::now()`, `Workflow::uuid4()`** | Nothing to build | Both are `sideEffect()` on this side, recorded once and replayed. Not a gap; a different spelling. It matters in §6. |
 
 ---
