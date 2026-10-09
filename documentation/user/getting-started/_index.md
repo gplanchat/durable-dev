@@ -20,7 +20,7 @@ term.
 - For local development and production **without a cluster**: one SQL database, through the **DBAL** backend on Symfony or the **Illuminate** backend on Laravel. No extension to compile.
 - With a cluster, for production **at scale** or realistic integration tests: a **Temporal** cluster (Docker image available) and the **`ext-grpc`** PHP extension. In a container image, copy the extension from a [prebuilt image](../container-images/) instead of compiling it.
 
-The four backends run the same workflow code. [Backends](../backends/) compares what each one
+The five backends run the same workflow code. [Backends](../backends/) compares what each one
 offers.
 
 ---
@@ -38,7 +38,7 @@ application before you run anything:
 | **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Packages](../packages/#gplanchatdurable-magento--the-magento-integration) |
 | **No framework** | `gplanchat/durable` | [Packages](../packages/#gplanchatdurable--the-library) |
 
-The concepts, the workflow API and the activity API are the same on all four. Only the wiring below
+The concepts, the workflow API and the activity API are the same on all five. Only the wiring below
 is specific to Symfony.
 
 Each block below starts with two `composer config` lines. Durable is on its beta line, and each
@@ -287,7 +287,7 @@ the way Symfony supplies a controller's services. See
 ### 4. Dispatch from a controller or service {#4--dispatch-from-a-controller-or-service}
 
 Start a run with `WorkflowResumeDispatcher::dispatchNewWorkflowRun()`. It is the only way to start a
-run that works on every backend: in-memory, DBAL and Temporal. On Temporal, it calls the client's `startAsync()` for you. Call
+run that works on every backend: in-memory, DBAL, Illuminate, Magento Database and Temporal. On Temporal, it calls the client's `startAsync()` for you. Call
 `startAsync()` yourself only when you need its start options (timeouts, search attributes, cron). It
 belongs to the Temporal client and exists on no other backend.
 

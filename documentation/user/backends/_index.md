@@ -5,9 +5,9 @@ weight: 15
 
 # Backends
 
-Durable has four execution backends. A backend is where the journal lives and what schedules the
+Durable has five execution backends. A backend is where the journal lives and what schedules the
 work; the journal is the append-only record of everything an execution decided and received (see
-the [glossary](../glossary/)). One backend is In-Memory; the other three are the bridges you choose
+the [glossary](../glossary/)). One backend is In-Memory; the other four are the bridges you choose
 between.
 
 | Backend | Use case |
@@ -26,8 +26,9 @@ between.
 > `durable/temporal/dsn` is declared, else memory. Declaring both `resource/durable` and a DSN
 > fails with `BackendSelectionException`.
 
-All four run the **same fiber driver** and the same workflow and activity code. You select three
-of them with `durable.backend` (and `DURABLE_DSN` for Temporal). **Illuminate is not one of its
+All five run the **same fiber driver** and the same workflow and activity code. You select three
+of them with `durable.backend` (and `DURABLE_DSN` for Temporal). On Magento, `app/etc/env.php`
+selects the backend. **Illuminate is not one of the `durable.backend`
 values** and never will be; [the Illuminate backend](#illuminate-backend) describes what binds it
 instead.
 
@@ -415,7 +416,7 @@ like bugs and are not.
 | Integration tests | In-Memory (`DurableBundleTestTrait` + `KernelTestCase`) |
 | CI with Temporal | Temporal (`temporal-integration` group) |
 | Local dev | Any: In-Memory for speed, a journal backend for realism |
-| Production, no cluster | DBAL on Symfony, Illuminate on Laravel |
+| Production, no cluster | DBAL on Symfony, Illuminate on Laravel, the Magento Database backend (`resource/durable`) on Magento |
 | Production, at scale | Temporal |
 
 ---
@@ -430,10 +431,17 @@ sit on, so their answers match on every row except the transport and what the ho
 The Magento Database column is the backend of `gplanchat/durable-magento` that
 `resource/durable` in `app/etc/env.php` selects (epic [#740](https://github.com/gplanchat/durable-dev/issues/740)).
 It runs the core's journal, activity and workflow handlers on tables of the connection that
-`resource/durable` names, with a table queue that `bin/magento durable:worker` drains. Its
-integration tests run only under `phpunit.magento.xml`, and no CI job runs that configuration yet
-([#738](https://github.com/gplanchat/durable-dev/issues/738)). A cell reads "not yet" when the
-capability is absent and nothing in the module provides it.
+`resource/durable` names, with a table queue (a message queue stored in a database table; see the
+[glossary](../glossary/)) that `bin/magento durable:worker` drains.
+
+> [!NOTE]
+> Integration tests of the Magento Database backend run only under `phpunit.magento.xml`, and no CI
+> job runs that configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+
+In the table, ✅ means the capability exists and ❌ means it is absent. "not yet" marks the one
+capability that is absent but planned: sending a signal or an update from the application on the
+Magento Database backend. "n/a" means the row does not apply: single-process serialisation on the
+In-Memory backend, and Nexus serving on the Magento Database backend, which has no Nexus role.
 
 | Capability | In-Memory | DBAL | Illuminate | Temporal | Magento Database |
 |---|---|---|---|---|---|
@@ -452,7 +460,7 @@ capability is absent and nothing in the module provides it.
 | Task serialisation per execution | n/a (single process) | application lock | application lock | ✅ server-side | application lock (`GET_LOCK`) |
 | Search attributes | journaled only | journaled only | journaled only | ✅ indexed and queryable | journaled only |
 | Cron schedules | ❌ no scheduler | ❌ no scheduler | ❌ no scheduler | ✅ | ❌ no scheduler |
-| History retention / visibility API | ❌ | your SQL table | your SQL table | ✅ | run catalogue table, shown in the admin grid |
+| History retention / visibility API | ❌ | your SQL table | your SQL table | ✅ | run catalog table, shown in the admin grid |
 | Calling a Nexus operation | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Serving a Nexus operation | ✅ with `temporal.dsn` (Symfony) | ✅ with `temporal.dsn` (Symfony) | ❌ | ✅ (Symfony, Laravel, Magento) | n/a |
 
@@ -461,7 +469,7 @@ or an update sent from the application is journaled, and the workflow's next pas
 sender gets no answer. A query has no application-side entry point there at all.
 
 No backend but Temporal has a scheduler or a cross-namespace boundary, so cron and Nexus have no
-equivalent on the other three. Nexus fails explicitly.
+equivalent on the other four. Nexus fails explicitly.
 A child workflow's `namespace`, `taskQueue` and `cronSchedule` fail explicitly too: a journal
 backend fails with `UnsupportedByBackendException` naming the option. Search attributes are the
 exception: a child workflow's are written into the journal and nothing reads them outside Temporal,
@@ -469,15 +477,17 @@ and the start options of a root workflow exist only on the Temporal client. A Ne
 the call. A Nexus *handler* with no route never sees a failing call: it is a service that never
 receives anything. On Symfony, the container build fails when
 `durable.temporal.dsn` is not set. On Magento, `bin/magento durable:worker --role=nexus` fails with
-`A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN.
+`A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN. With `resource/durable`, the same
+command fails with `The database backend has no Nexus role`: the database backend serves no Nexus
+operation, and `--role=journal`, `--role=activity` or no `--role` start a worker.
 On Laravel, the provider fails at boot with `NexusUnsupportedByBackendException` when a handler is listed in
 `durable.nexus.handlers` and the backend is not `temporal`. The message names the backend.
 
 ### Starting a run from a Magento observer {#magento-start-blocks}
 
-`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` has the same signature and the same
-failure behaviour on the memory and Temporal backends of Magento: a workflow that fails does not throw from the call, and
-an undeclared workflow does. One difference remains, and it is named here as an exception to the
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` has the same signature on every Magento backend. On the memory and Temporal backends, a workflow
+that fails does not throw from the call, and an undeclared workflow does
+(`UndeclaredWorkflowException`). One difference remains, and it is named here as an exception to the
 rule that the application behaves the same on every backend. On Temporal, the call starts the run
 and returns. On the Magento memory backend, the run executes in the calling process, so the request
 waits for it, for up to `budgetSeconds` (10 by default), and a workflow that waits on a signal or a
@@ -485,7 +495,10 @@ long timer holds the request for the whole budget. Nothing else can advance an i
 the wait cannot be removed. Set `durable/temporal/dsn` where a request must not wait.
 
 On the Magento database backend, the call records the run's metadata, queues a resume and
-returns. A `bin/magento durable:worker` carries the run.
+returns. A `bin/magento durable:worker` carries the run. The call does not check the workflow
+registry: an undeclared workflow does not throw `UndeclaredWorkflowException` from the call, which
+only `MagentoRuntime` and the in-process dispatcher raise. The failure appears when a worker takes
+the resume, and the request has already returned.
 
 A second difference concerns a failure that the call swallows. The in-memory journal ends with the
 request, so the log line is the only trace of it, and only when a logger is configured. On Temporal,
@@ -497,9 +510,10 @@ the failure also stays in the cluster history.
 
 An activity with no attempt bound retries **indefinitely** on every backend, which is the Temporal default.
 
-`max_activity_retries` is the exception. On the in-memory and journal backends (DBAL, Illuminate),
+`max_activity_retries` is the exception. On the in-memory and journal backends (DBAL, Illuminate) and on the Magento Database backend,
 the worker narrows the activity's own `RetryLimit` to that ceiling, and the stricter of the two
-applies; at `0` it caps nothing. On Temporal, the cluster retries from the activity's own
+applies; at `0` it caps nothing. On Magento, the ceiling is the `maxActivityRetries` argument of
+`RuntimeFactory`. On Temporal, the cluster retries from the activity's own
 `RetryLimit` and the setting is not read: an activity that the ceiling stops on the other backends
 keeps retrying on Temporal.
 
