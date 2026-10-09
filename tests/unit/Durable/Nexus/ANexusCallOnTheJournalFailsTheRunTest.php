@@ -30,7 +30,7 @@ final class ANexusCallOnTheJournalFailsTheRunTest extends TestCase
         );
 
         try {
-            $engine->start('nexus-1', static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->nexusOperation('billing-endpoint', 'billing', 'charge')));
+            $engine->start(ExecutionId::fromString('nexus-1'), static fn(WorkflowEnvironment $wf): mixed => $wf->await($wf->nexusOperation('billing-endpoint', 'billing', 'charge')));
             self::fail('the run was to fail');
         } catch (NexusUnsupportedByBackendException) {
         }

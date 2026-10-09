@@ -139,9 +139,10 @@ final class CheckoutV2Workflow { … }
 Une exécution résout son gestionnaire par le type enregistré à son démarrage : celles qui sont déjà
 en vol ne voient donc jamais la nouvelle classe. Les nouvelles démarrent sur `checkout-v2`.
 
-Cela coûte deux classes et une fenêtre d'écoulement, et c'est aujourd'hui la seule façon de modifier
-un workflow sans attendre. Une primitive de versionnage par point de changement est un chantier à
-part.
+Cela coûte deux classes et une fenêtre d'écoulement. Prenez cette voie quand le changement est **trop
+grand pour s'exprimer en branche**, par exemple un autre ensemble d'activités et une forme
+entièrement différente, là où un point de changement ferait seulement porter deux workflows à un
+seul.
 
 ## Ce qui n'est pas vérifié
 
@@ -154,13 +155,17 @@ bouge avec lui, le contrôle du nom de l'activité le détecte.
 
 ## Sur les backends sans tâches de workflow
 
-Les backends à journal (en mémoire, DBAL et Illuminate) n'ont pas de notion de *tâche* de workflow,
-il n'y a donc rien à faire échouer puis à réessayer. Là, une divergence met fin à l'exécution au
+Les backends à journal (en mémoire, DBAL et Illuminate) enregistrent une *tâche* de workflow sous
+forme de trois événements, mais aucun serveur n'y fait échouer puis réessayer une tâche. Là, une divergence met fin à l'exécution au
 lieu de résoudre en silence la mauvaise valeur enregistrée, et revenir en arrière ne ramène pas
 l'exécution.
 
 ---
 
-La décision qui sous-tend tout ceci, y compris la raison pour laquelle le contrôle ne s'appuie que
-sur ce que le journal enregistre déjà, est
-[DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md).
+Deux décisions couvrent cette page :
+[DUR042](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR042-replay-divergence-guard.md)
+pour la raison pour laquelle le contrôle ne s'appuie que sur ce que le journal enregistre déjà, et
+[DUR044](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR044-declared-change-points.md)
+pour les points de changement, y compris pourquoi une exécution antérieure au point est reconnue
+plutôt que marquée, et pourquoi l'attribut de recherche fait partie de la primitive au lieu d'être
+un ajout.

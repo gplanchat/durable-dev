@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Worker;
 
+use Gplanchat\Bridge\Temporal\Codec\PayloadDecodeFailure;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Awaitable\Awaitable;
@@ -62,6 +63,7 @@ final readonly class WorkflowTaskRunner
      *
      * @throws \InvalidArgumentException if no handler is found for the workflow type
      * @throws \RuntimeException         on fiber or protocol errors
+     * @throws PayloadDecodeFailure      when the history does not read, its started memo included (#890)
      */
     public function run(PollWorkflowTaskQueueResponse $poll): WorkflowTaskResult
     {
@@ -70,8 +72,23 @@ final readonly class WorkflowTaskRunner
             return new WorkflowTaskResult([], null);
         }
 
-        $events = $this->historyCursor->eventsFromPoll($poll);
-        $history = TemporalExecutionHistory::fromEvents($events);
+        // The id of the event being read, for the failure below (#936).
+        $eventId = null;
+        $events = (function () use ($poll, &$eventId): \Generator {
+            foreach ($this->historyCursor->eventsFromPoll($poll) as $event) {
+                $eventId = (int) $event->getEventId();
+                yield $event;
+            }
+        })();
+
+        try {
+            $history = TemporalExecutionHistory::fromEvents($events);
+        } catch (\JsonException $e) {
+            // A memo or payload that does not read, on any history page (#890): fail the task, as an
+            // undecodable payload does (#824), so the worker answers it and polls again instead of
+            // dying on it.
+            throw new PayloadDecodeFailure(\sprintf('Workflow history cannot be read: %s', $e->getMessage()), 0, $e, $eventId);
+        }
 
         $executionId = $this->resolveExecutionId($poll, $history);
 
@@ -112,11 +129,11 @@ final readonly class WorkflowTaskRunner
                     $journal->append($event);
                 }
 
-                return WaitReason::describe($pending, $journal, $executionId->toString());
+                return WaitReason::describe($pending, $journal, $executionId);
             },
         );
 
-        (new WorkflowFiberDriver($lifecycle))->run($executionId->toString(), $context, $environment, $handler);
+        (new WorkflowFiberDriver($lifecycle))->run($context, $environment, $handler);
 
         $commands = $commandBuffer->flush();
 
@@ -133,7 +150,7 @@ final readonly class WorkflowTaskRunner
         TemporalExecutionHistory $history,
     ): ExecutionId {
         $fromMemo = $history->durableExecutionId();
-        if (null !== $fromMemo && '' !== $fromMemo) {
+        if (null !== $fromMemo) {
             return ExecutionId::fromString($fromMemo);
         }
 

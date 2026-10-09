@@ -546,11 +546,12 @@ boundary.
 One limit is deliberate:
 
 - **Temporal backend only.** Nexus routes to an endpoint served elsewhere. A backend that keeps its
-  journal in one database has no such route and no fallback that keeps the call's meaning. The DBAL backend
-  therefore
-  **fails immediately** with `NexusUnsupportedByBackendException`, which names the backend and
-  what to do instead, so the workflow does not wait for a result nobody will produce. On the
-  handler side, the same check fails **when the container is built**, not at request time, because
+  journal itself, in memory or in one database, has no such route and no fallback that keeps the call's meaning. The in-memory, DBAL
+  and Illuminate backends therefore
+  **fail immediately** with `NexusUnsupportedByBackendException`, whose message says to use the
+  Temporal backend, so the workflow does not wait for a result nobody will produce. On the
+  handler side, on Symfony, the check fails **when the container is built** if
+  `durable.temporal.dsn` is not set, not at request time, because
   a handler with no route never receives a request at all.
 
 [DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)
@@ -577,7 +578,7 @@ and it is still a breaking change.
 
 **Use the Temporal PHP SDK** when you already operate a Temporal cluster, want the officially
 maintained client with cross-language parity, need **worker** versioning (build ids, pinning a run
-to a worker version) or a Nexus **handler**, and RoadRunner is acceptable in your deployment.
+to a worker version), and RoadRunner is acceptable in your deployment.
 
 **Coming from the SDK?** `gplanchat/durable-rector` does the mechanical part of the migration. It
 converts the attributes and the failure classes, and keeps the workflow and activity **type
@@ -590,7 +591,7 @@ open to you at all.
 
 **Use Durable** when you want durable execution without adding a second runtime to your
 application, when a single SQL database is the right operational footprint, when you want workflow
-logic covered by unit tests that need no infrastructure, or when you need to **call** Nexus
+logic covered by unit tests that need no infrastructure, or when you need to **call or serve** Nexus
 operations from PHP at all. In each case, you need to be able to accept a pre-release, with possible
 breaking changes between releases.
 

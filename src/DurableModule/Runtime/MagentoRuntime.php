@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Runtime;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
+use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 
 /**
@@ -40,6 +43,8 @@ final class MagentoRuntime
          * @var (\Closure(class-string, array<string, mixed>, string): mixed)|null
          */
         private readonly ?\Closure $runOnBackend = null,
+        /** Without a DSN: told of each run `run()` starts in this process, so the catalogue lists it (#985). */
+        private readonly ?WorkflowRunProjectionInterface $projection = null,
     ) {}
 
     /** @var list<string> */
@@ -78,7 +83,9 @@ final class MagentoRuntime
             return ($this->runOnBackend)($workflowClass, $input, $executionId);
         }
 
-        return $this->runner->run($executionId, $this->workflows->getHandler($workflowClass, $input));
+        $this->projection?->recordStart(ExecutionId::fromString($executionId), (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowClass));
+
+        return $this->runner->run(ExecutionId::fromString($executionId), $this->workflows->getHandler($workflowClass, $input));
     }
 
     /**

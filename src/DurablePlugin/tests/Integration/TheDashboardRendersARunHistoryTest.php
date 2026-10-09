@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Plugin\Tests\Integration;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationState;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunDashboard;
@@ -159,6 +160,32 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('Outcome:', $page);
     }
 
+    public function testTheRunPageSaysWhatARunWaitsOnAsTheListDoes(): void
+    {
+        // #822: the list carried the line, and the page of the run did not.
+        $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42', waitingOn: 'signal approve')))->run('order/42');
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', ['backend' => $run['backend'], 'selectedRun' => $run['run']]);
+
+        self::assertStringContainsString('waiting on signal approve', $page);
+    }
+
+    public function testARunWithoutAWaitReasonHasNoWaitLineOnItsPage(): void
+    {
+        $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42')))->run('order/42');
+        $page = $this->twig()->render('@DurablePlugin/admin/dashboard/_dashboard.html.twig', ['backend' => $run['backend'], 'selectedRun' => $run['run']]);
+
+        self::assertStringNotContainsString('waiting on', $page);
+    }
+
+    public function testTheStartDateOfARunThatHasNoneIsADashAndNotABlankCell(): void
+    {
+        // The overview: a blank cell reads as a rendering that failed.
+        $twig = $this->twig();
+
+        self::assertSame('—', trim($twig->render('@DurablePlugin/admin/grid/field/date.html.twig', ['data' => null])));
+        self::assertSame('2023-11-14 22:13:20', trim($twig->render('@DurablePlugin/admin/grid/field/date.html.twig', ['data' => new \DateTimeImmutable('@1700000000')])));
+    }
+
     public function testAFrenchRunPageUsesTheSameWords(): void
     {
         $run = (new RunDashboard(new RenderingCatalog(executionId: 'order/42')))->run('order/42');
@@ -289,6 +316,21 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('deadline exceeded', $page);
         self::assertStringNotContainsString('--role=', $page);
         self::assertStringNotContainsString('alert-danger', $page);
+    }
+
+    /**
+     * Messenger keeps no list of its consumers: the page says it could not ask, and why, rather
+     * than blaming a worker it cannot see.
+     */
+    public function testABackendThatKeepsNoListOfItsWorkersSaysItCouldNotAsk(): void
+    {
+        $unlisted = [['role' => 'queue', 'pollers' => 0, 'polling' => false, 'error' => null, 'seconds' => 120, 'unlisted' => true]];
+
+        $page = $this->renderWorkers($unlisted);
+        self::assertStringContainsString('Could not ask the backend whether a queue worker polls: Messenger keeps no list of the processes that run bin/console durable:worker.', $page);
+        self::assertStringNotContainsString('alert-danger', $page);
+
+        self::assertStringContainsString('Messenger ne tient aucune liste des processus qui lancent bin/console durable:worker.', $this->renderWorkers($unlisted, 'fr'));
     }
 
     public function testAnEphemeralJournalIsNeitherAFailureNorASuccess(): void
@@ -422,6 +464,27 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
     public function testARunWithNoRecordedWaitSaysNothingOfTheKind(): void
     {
         self::assertStringNotContainsString('waiting on', $this->render());
+    }
+
+    public function testTheCoreTextsAreTranslatedFromTheirKeyAndFallBackToEnglish(): void
+    {
+        // #850: the core hands a key and its parameters beside the English string.
+        $french = $this->render(waiting: true, waitingOn: 'timer due at 2026-09-24T10:00:00+00:00', locale: 'fr');
+        self::assertStringContainsString('En attente d’un worker · ', $french);
+        self::assertStringContainsString('En attente de timer due at 2026-09-24T10:00:00+00:00', $french);
+        self::assertStringContainsString('La base SQL répond.', $french);
+        self::assertStringNotContainsString('waiting for a worker', $french);
+        self::assertStringNotContainsString('The fake backend answers.', $french);
+
+        // The grid column reads the same keys.
+        $notes = $this->twig('fr')->render('@DurablePlugin/admin/grid/field/notes.html.twig', ['data' => ['waitingForWorker' => 'waiting for a worker · 1 min', 'localizedWaitingForWorker' => new Message('run.waiting_for_worker', ['elapsed' => '1 min'])]]);
+        self::assertStringContainsString('En attente d’un worker · 1 min', $notes);
+
+        // A locale with no entry for the key shows the English string, as before.
+        $other = $this->render(waiting: true, waitingOn: 'timer due at 2026-09-24T10:00:00+00:00', locale: 'de');
+        self::assertStringContainsString('waiting for a worker · ', $other);
+        self::assertStringContainsString('waiting on timer due at 2026-09-24T10:00:00+00:00', $other);
+        self::assertStringContainsString('The fake backend answers.', $other);
     }
 
     public function testTheWholePageSpeaksFrenchWhenTheAdminDoes(): void
@@ -592,6 +655,7 @@ final class RenderingCatalog implements WorkflowRunCatalogInterface, NexusOperat
             'The fake backend answers.',
             new \DateTimeImmutable('@1700000000'),
             $this->ephemeral,
+            new Message('backend.sql.answers'),
         );
     }
 }

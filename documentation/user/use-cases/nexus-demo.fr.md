@@ -107,9 +107,9 @@ rejouer la même commande rend le même verdict et ne retient pas de stock une s
 table est écrite à la main.
 
 **Durable ne fournit pas de couche anticorruption.** Vous l'écrivez vous-même, et la boutique en a désormais une.
-`OrderWorkflow` invoque un cas d'usage `PlaceOrder` à travers un port `Payments`, et
-`NexusPayments` est la seule classe de `sylius/` qui lise le champ `accepted`
-d'une charge. Les trois bancs qui appellent sans cette couche montrent ce que coûte de s'en passer : `OrderNexusWorkflow`
+`OrderWorkflow` invoque un cas d'usage `PlaceOrder` à travers un port `Payments`. `NexusPayments`
+implémente le port et passe la charge de `verify` à `Authorisation::fromWire()`, la seule méthode
+de `sylius/src/` qui lise son champ `accepted`. Les trois bancs qui appellent sans cette couche montrent ce que coûte de s'en passer : `OrderNexusWorkflow`
 lit cinq charges par clé, dans le code qui décide. Les contrats portent des scalaires et des
 tableaux parce que le fil est du JSON nu, et il faut que quelque chose en fasse un modèle.
 

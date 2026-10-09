@@ -100,8 +100,9 @@ writes its verdict to `app_durable_stock_reservation`, keyed by order id: replay
 returns the same verdict and does not hold stock twice. You write that table by hand.
 
 **Durable does not provide an anti-corruption layer.** You write it yourself, and the shop now has one. `OrderWorkflow`
-invokes a `PlaceOrder` use case through a `Payments` port, and `NexusPayments` is the only class in
-`sylius/` that reads a payload's `accepted` field. The three benches that call without
+invokes a `PlaceOrder` use case through a `Payments` port. `NexusPayments` implements the port and
+hands `verify`'s payload to `Authorisation::fromWire()`, the only method in `sylius/src/` that reads
+its `accepted` field. The three benches that call without
 that layer show the cost of skipping it: `OrderNexusWorkflow` reads five payloads by key, in the code
 that decides. The contracts carry scalars and arrays because the wire is plain JSON, and something
 has to turn them into a model.

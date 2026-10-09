@@ -1,4 +1,5 @@
 {# The dashboard itself, without a page around it: the admin hooks place it (index.html.twig). #}
+{% import '@DurablePlugin/admin/_message.html.twig' as message %}
 <style>
         .durable-kpi-value { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
         .durable-run-row { border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); padding: .65rem; text-decoration: none; display: block; color: inherit; }
@@ -69,7 +70,7 @@
                    one whose journal does not outlive the request. The third answers, and its answer
                    is empty — painting it as a success would teach that nothing ran, which is false. #}
                 <div class="alert {% if not backend.available %}alert-warning{% elseif backend.ephemeral %}alert-info{% else %}alert-success{% endif %}" role="alert">
-                    <div>{{ backend.message }}</div>
+                    <div>{{ backend.localizedMessage is defined ? message.say(backend.localizedMessage, backend.message) : backend.message }}</div>
                     {# The backend is named only when there is one: with no catalog, naming a
                        server would send the operator down a false trail. #}
                     {% if backend.name is defined %}
@@ -78,12 +79,13 @@
                 </div>
 
                 {# A missing worker fails nothing: executions stop at their first task of its kind.
-                   Named by its `durable:worker` role, and blamed only when the backend answered. #}
+                   Named by its `durable:worker` role, and blamed only when the backend answered.
+                   An unlisted row comes from a backend that keeps no list of its workers. #}
                 {% for worker in workers|default([]) %}
                     {% if worker.polling %}
                         <div class="alert alert-success" role="status">{{ 'dashboard.worker_polling'|trans({'%role%': worker.role}, 'durable') }}</div>
-                    {% elseif worker.error is not null %}
-                        <div class="alert alert-warning" role="status">{{ 'dashboard.worker_unknown'|trans({'%role%': worker.role, '%error%': worker.error}, 'durable') }}</div>
+                    {% elseif worker.error is not null or worker.unlisted|default(false) %}
+                        <div class="alert alert-warning" role="status">{{ 'dashboard.worker_unknown'|trans({'%role%': worker.role, '%error%': worker.error ?? 'dashboard.workers_unlisted'|trans({}, 'durable')}, 'durable') }}</div>
                     {% else %}
                         <div class="alert alert-danger" role="alert">{{ 'dashboard.worker_missing'|trans({'%role%': worker.role, '%seconds%': worker.seconds}, 'durable') }}</div>
                     {% endif %}
@@ -176,9 +178,9 @@
                                                     {% if run.startedAt is defined %}<span>{{ run.startedAt|date('Y-m-d H:i:s', false) }}</span>{% endif %}
                                                     {% if run.groupId is defined %}<span>{{ 'runs.group'|trans({}, 'durable') }} <code>{{ run.groupId }}</code></span>{% endif %}
                                                     {# Dispatched, and no worker has taken it: usually no worker is running (#447). #}
-                                                    {% if run.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ run.waitingForWorker }}</span>{% endif %}
+                                                    {% if run.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ message.say(run.localizedWaitingForWorker, run.waitingForWorker) }}</span>{% endif %}
                                                     {# What a suspended run last waited on, worded by the core (#324). #}
-                                                    {% if run.waitingOn is defined %}<span class="text-secondary-emphasis">{{ run.waitingOn }}</span>{% endif %}
+                                                    {% if run.waitingOn is defined %}<span class="text-secondary-emphasis">{{ message.say(run.localizedWaitingOn, run.waitingOn) }}</span>{% endif %}
                                                 </div>
                                             </a>
                                         {% endfor %}
@@ -213,6 +215,9 @@
                                         <p><strong>{{ 'details.workflow'|trans({}, 'durable') }}</strong> {{ selectedRun.workflowName }}</p>
                                         <p><strong>{{ 'details.run'|trans({}, 'durable') }}</strong> <code>{{ selectedRun.executionId }}</code>{% if selectedRun.runId != selectedRun.executionId %} <small class="text-secondary">{{ 'details.backend_run'|trans({'%id%': selectedRun.runId}, 'durable') }}</small>{% endif %}</p>
                                         <p><strong>{{ 'details.outcome'|trans({}, 'durable') }}</strong> {{ ('outcome.' ~ selectedRun.status)|trans({}, 'durable')|upper }}</p>
+                                        {# What the run waits on, as the list says it (#324, #447, #822). #}
+                                        {% if selectedRun.waitingForWorker is defined %}<p class="text-warning-emphasis">{{ message.say(selectedRun.localizedWaitingForWorker, selectedRun.waitingForWorker) }}</p>{% endif %}
+                                        {% if selectedRun.waitingOn is defined %}<p class="text-secondary-emphasis">{{ message.say(selectedRun.localizedWaitingOn, selectedRun.waitingOn) }}</p>{% endif %}
 
                                         {# The waits served by someone else (#671): where each one is, and whether it is
                                            over. In flight is not a failure, and it must not read like one. #}

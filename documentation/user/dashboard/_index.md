@@ -72,6 +72,13 @@ Magento grid, whose backends are the in-memory one, empty from the admin, and Te
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
 table created before it existed.
 
+After the first pickup, the journal backends record each wait for a worker as events, as Temporal
+does: `WorkflowTaskScheduled` when a resume is dispatched, `WorkflowTaskStarted` when a worker takes
+it, `WorkflowTaskCompleted` when the pass ends. On the run's line, the interval from scheduled to
+started is the hatched wait described under section 4. The first task of a run has no
+`WorkflowTaskScheduled`: the application dispatches it through `dispatchNewWorkflowRun()`, which
+writes nothing to the journal, and the `waiting for a worker` line above covers that first wait.
+
 A running run also says **what it waits on**, as of its last suspension:
 `waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
 `waiting on activity charge attempt 2 in flight`, or `waiting on condition at src/…/OrderWorkflow.php:42`.
@@ -81,8 +88,7 @@ it a label (`await(…, label: 'signal approve')` shows `waiting on signal appro
 backends tell it, on a runs table that has the `waiting_on` column. Temporal tells it too, the
 Magento grid included, from a `durableWaitingOn` memo the worker updates at each suspension. It
 leaves out the attempt, since no workflow task runs when an activity attempt starts, and a timer's
-summary, which is never sent to the server. Sylius shows the line in the list, Filament in the list
-and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
+summary, which is never sent to the server. Sylius and Filament show the line in the list and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
 
 ### 3. Counters, over what you are looking at
 
@@ -95,7 +101,7 @@ whole history. Each surface says which set that is, because it depends on how th
   window whatever the grid filters say, and the screen says so as soon as the window is full.
 
 A heading reading `Total` above a twenty would teach you that an application with five hundred runs
-has twenty. The Magento counters carry a `Total` column: it counts the window, not the history.
+has twenty. The Magento counters head their first column `In the window`, and the heading above them says that the grid filters do not change them.
 The profiler has no counters, since it lists only the runs of one request.
 
 ### 4. A run's recorded history, one line per *action* {#4-a-runs-recorded-history--one-line-per-action}
@@ -151,8 +157,7 @@ Two absences look alike and are not:
   queues.
 - **This run does not have this fact.** A run still going has no end date. The column exists for
   its neighbours, so in a table it reads as an explicit em dash. A blank cell reads as a rendering
-  that failed. Magento and the profiler apply this rule. The Sylius grid still leaves the start
-  date of such a run blank, and the Filament Notes column leaves an empty note blank.
+  that failed. Every surface applies this rule.
 
 ## What differs between surfaces {#what-differs-between-hosts}
 

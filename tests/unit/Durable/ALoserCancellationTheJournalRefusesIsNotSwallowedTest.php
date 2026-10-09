@@ -63,7 +63,7 @@ final class ALoserCancellationTheJournalRefusesIsNotSwallowedTest extends TestCa
         $engine = new ExecutionEngine($store, new ExecutionRuntime($store, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true));
 
         $this->expectExceptionMessage('journal unavailable');
-        $engine->resume('race-1', static function (WorkflowEnvironment $wf): string {
+        $engine->resume(ExecutionId::fromString('race-1'), static function (WorkflowEnvironment $wf): string {
             $ticks = [];
             $wf->onSignal('tick', static function (array $payload) use (&$ticks): void {
                 $ticks[] = $payload;

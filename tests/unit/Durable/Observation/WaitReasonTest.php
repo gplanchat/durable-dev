@@ -34,7 +34,7 @@ final class WaitReasonTest extends TestCase
 
         self::assertSame(
             'timer "grace period" due at 2026-09-24T10:00:00+00:00',
-            WaitReason::describe(new TimerAwaitable((new Deferred())->awaitable(), 'timer-1'), $store, 'exec'),
+            WaitReason::describe(new TimerAwaitable((new Deferred())->awaitable(), 'timer-1'), $store, ExecutionId::fromString('exec')),
         );
     }
 
@@ -44,11 +44,11 @@ final class WaitReasonTest extends TestCase
         $store->append(new ActivityScheduled(ExecutionId::fromString('exec'), 'act-1', 'charge', []));
         $activity = new ActivityAwaitable((new Deferred())->awaitable(), 'act-1');
 
-        self::assertSame('activity charge', WaitReason::describe($activity, $store, 'exec'));
+        self::assertSame('activity charge', WaitReason::describe($activity, $store, ExecutionId::fromString('exec')));
 
         $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec'), 'act-1', 'charge', 1));
         $store->append(new ActivityTaskStarted(ExecutionId::fromString('exec'), 'act-1', 'charge', 2));
-        self::assertSame('activity charge attempt 2 in flight', WaitReason::describe($activity, $store, 'exec'));
+        self::assertSame('activity charge attempt 2 in flight', WaitReason::describe($activity, $store, ExecutionId::fromString('exec')));
     }
 
     public function testAnAllNamesTheActivityStillPendingNotTheOneAlreadyDone(): void
@@ -63,7 +63,7 @@ final class WaitReasonTest extends TestCase
             new ActivityAwaitable((new Deferred())->awaitable(), 'act-2'),
         ], 2);
 
-        self::assertSame('activity charge', WaitReason::describe($all, $store, 'exec'));
+        self::assertSame('activity charge', WaitReason::describe($all, $store, ExecutionId::fromString('exec')));
     }
 
     public function testAWaitWithADeadlineNamesTheConditionFirst(): void
@@ -75,7 +75,7 @@ final class WaitReasonTest extends TestCase
             new TimerAwaitable((new Deferred())->awaitable(), 'timer-1'),
         ]);
 
-        self::assertStringStartsWith('condition at ' . __FILE__, (string) WaitReason::describe($any, $store, 'exec'));
+        self::assertStringStartsWith('condition at ' . __FILE__, (string) WaitReason::describe($any, $store, ExecutionId::fromString('exec')));
     }
 
     public function testAnAttemptThatStartsRefreshesTheRunList(): void

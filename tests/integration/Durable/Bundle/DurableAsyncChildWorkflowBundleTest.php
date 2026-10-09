@@ -203,7 +203,7 @@ final class DurableAsyncChildWorkflowBundleTest extends KernelTestCase
                 break;
             }
             // Wired the way ExecutionEngine wires it: the context takes the ports, not the store.
-            $history = new EventStoreHistorySource($eventStore, $peek->executionId);
+            $history = new EventStoreHistorySource($eventStore, ExecutionId::fromString($peek->executionId));
             $ctx = new ExecutionContext(
                 ExecutionId::fromString($peek->executionId),
                 $history,

@@ -90,6 +90,20 @@ The bundle registers these workers itself, from `durable.temporal.dsn`: `messeng
 them by name, and `messenger.yaml` declares no Temporal transport. A third one, `durable_nexus`,
 exists when the application [serves a Nexus operation](../nexus/).
 
+### Waiting for the result with `pollForCompletion()` {#waiting-for-the-result}
+
+`WorkflowClient::pollForCompletion()` reads the run's close event until it arrives, then returns the
+result or throws. Two things differ from a run on the journal backends:
+
+- A workflow that lets an activity failure escape throws `DurableWorkflowAlgorithmFailureException`,
+  as on the journal backends. Its previous exception is an `ActivityFailureCauseException` that
+  carries the original class and message, not the original exception object. Any other workflow
+  failure throws a plain `\RuntimeException` whose message starts with `Workflow "<execution id>"
+  failed:`, not the workflow's own exception.
+- A workflow that waits on a signal nobody sends fails at once in memory, because nothing else can
+  make it progress. On Temporal the run stays open, and `pollForCompletion()` waits until its polls
+  run out, then throws `WorkflowStuckException`.
+
 ### Prerequisites
 
 - **`ext-grpc`** PHP extension compiled against the `grpc/grpc` package version required by the bridge.
@@ -260,14 +274,17 @@ with a private CA, `ca=`. See [the DSN parameters](../configuration/#dsn-format)
 
 ## DBAL backend
 
-The DBAL backend persists the journal, the resume metadata and the parent/child links in a **single
-SQL database** through Doctrine DBAL. There is no orchestration server, no sidecar and no
-`ext-grpc`. See **DUR030**.
+The DBAL backend persists the journal, the resume metadata, the parent/child links and the run
+catalog (the list of executions a dashboard reads) in a **single SQL database** through Doctrine
+DBAL. There is no orchestration server, no sidecar and no `ext-grpc`. See **DUR030**.
 
 ### How it works
 
-- The three process-local stores become SQL tables; everything else (replay, command buffer,
-  lifecycle) is the code the In-Memory backend already runs.
+- The four process-local stores become SQL tables: the event journal, the workflow metadata, the
+  parent links between child workflows, and the run catalog. A fifth table,
+  `durable_execution_heads`, holds a counter per execution that stops a superseded resume from
+  writing to the journal (DUR053). Everything else (replay, command
+  buffer, lifecycle) is the code the In-Memory backend already runs.
 - Resumes and activities ride **Symfony Messenger**, so use a durable transport (Doctrine, Redis,
   AMQP). An `in-memory://` transport throws away what the SQL journal just persisted.
 - Timers ride Messenger `DelayStamp` through `FireWorkflowTimersHandler`.
@@ -285,7 +302,7 @@ connection at a database (or a schema) and a database user of Durable's own, so 
 cannot reach the journal's tables at all.
 
 ```yaml
-# config/packages/doctrine.yaml — the journal on a connection of its own
+# config/packages/doctrine.yaml: the journal on a connection of its own
 doctrine:
     dbal:
         default_connection: default
@@ -405,38 +422,77 @@ like bugs and are not.
 
 All four backends run the **same fiber driver** and the same activity execution path. What differs
 is what the surrounding platform can offer. The two SQL columns differ only in the connection they
-sit on, so their answers match on every row except the transport.
+sit on, so their answers match on every row except the transport and what the host delivers
+(signals, updates and Nexus serving).
 
-| Capability | In-Memory | DBAL | Illuminate | Temporal |
-|---|---|---|---|---|
-| Activities, retries, timeouts | ✅ | ✅ | ✅ | ✅ |
-| Timers, side effects | ✅ | ✅ (Messenger delays) | ✅ (queue delays) | ✅ |
-| Signals, updates, queries | ✅ | ✅ | ✅ | ✅ |
-| Child workflows | ✅ | ✅ | ✅ | ✅ |
-| `ParentClosePolicy` cascade | ✅ | ✅ | ✅ | ✅ (server-driven) |
-| Continue-as-new | ✅ | ✅ | ✅ | ✅ |
-| Cancellation with compensation | ✅ | ✅ | ✅ | ✅ |
-| Survives process restart | ❌ | ✅ | ✅ | ✅ |
-| Task serialisation per execution | n/a (single process) | application lock | application lock | ✅ server-side |
-| Search attributes | journaled only | journaled only | journaled only | ✅ indexed and queryable |
-| Cron schedules | ❌ no scheduler | ❌ no scheduler | ❌ no scheduler | ✅ |
-| History retention / visibility API | ❌ | your SQL table | your SQL table | ✅ |
-| Nexus operations (call **and** serve) | ❌ | ❌ | ❌ | ✅ |
+The Magento Database column is not a backend of the current release. Its code is in
+development (epic [#740](https://github.com/gplanchat/durable-dev/issues/740)), and none of it is
+on `main`. A cell reads "not yet" until the capability merges.
+
+| Capability | In-Memory | DBAL | Illuminate | Temporal | Magento Database |
+|---|---|---|---|---|---|
+| Activities, retries, timeouts | ✅ | ✅ | ✅ | ✅ | not yet |
+| Timers, side effects | ✅ | ✅ (Messenger delays) | ✅ (queue delays) | ✅ | not yet |
+| Signal, update and query handlers in a workflow | ✅ | ✅ | ✅ | ✅ | not yet |
+| Sending a signal or an update from the application | ✅ (Symfony message) | ✅ (Symfony message) | ❌ (Laravel delivers none) | ✅ (client or Symfony message) | not yet |
+| The update's result returned to the caller | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::update()`) | not yet |
+| Reading a query from the application | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::query()`) | not yet |
+| Child workflows | ✅ | ✅ | ✅ | ✅ | not yet |
+| `ParentClosePolicy` cascade | ✅ | ✅ | ✅ | ✅ (server-driven) | not yet |
+| Continue-as-new | ✅ | ✅ | ✅ | ✅ | not yet |
+| Cancellation with compensation (a parent's `RequestCancel`) | ✅ | ✅ | ✅ | ✅ | not yet |
+| Cancellation requested from outside | ❌ | ❌ | ❌ | ✅ | not yet |
+| Survives process restart | ❌ | ✅ | ✅ | ✅ | not yet |
+| Task serialisation per execution | n/a (single process) | application lock | application lock | ✅ server-side | not yet |
+| Search attributes | journaled only | journaled only | journaled only | ✅ indexed and queryable | not yet |
+| Cron schedules | ❌ no scheduler | ❌ no scheduler | ❌ no scheduler | ✅ | not yet |
+| History retention / visibility API | ❌ | your SQL table | your SQL table | ✅ | not yet |
+| Calling a Nexus operation | ❌ | ❌ | ❌ | ✅ | not yet |
+| Serving a Nexus operation | ✅ with `temporal.dsn` (Symfony) | ✅ with `temporal.dsn` (Symfony) | ❌ | ✅ (Symfony, Laravel, Magento) | not yet |
+
+`gplanchat/durable-magento` ships no signal or update delivery. On the journal backends, a signal
+or an update sent from the application is journaled, and the workflow's next pass handles it; the
+sender gets no answer. A query has no application-side entry point there at all.
 
 No backend but Temporal has a scheduler or a cross-namespace boundary, so cron and Nexus have no
-equivalent on the other three. A missing capability **fails explicitly** and is never silently
-ignored. A Nexus *call* fails at the call. A Nexus *handler* fails when the container is built,
-because a handler with no route never sees a failing call: it is a service that never receives
-anything.
+equivalent on the other three. Nexus fails explicitly.
+A child workflow's `namespace`, `taskQueue` and `cronSchedule` fail explicitly too: a journal
+backend fails with `UnsupportedByBackendException` naming the option. Search attributes are the
+exception: a child workflow's are written into the journal and nothing reads them outside Temporal,
+and the start options of a root workflow exist only on the Temporal client. A Nexus *call* fails at
+the call. A Nexus *handler* with no route never sees a failing call: it is a service that never
+receives anything. On Symfony, the container build fails when
+`durable.temporal.dsn` is not set. On Magento, `bin/magento durable:worker --role=nexus` fails with
+`A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN.
+On Laravel, the provider fails at boot with `NexusUnsupportedByBackendException` when a handler is listed in
+`durable.nexus.handlers` and the backend is not `temporal`. The message names the backend.
+
+### Starting a run from a Magento observer {#magento-start-blocks}
+
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` has the same signature and the same
+failure behaviour on the memory and Temporal backends of Magento: a workflow that fails does not throw from the call, and
+an undeclared workflow does. One difference remains, and it is named here as an exception to the
+rule that the application behaves the same on every backend. On Temporal, the call starts the run
+and returns. On the Magento memory backend, the run executes in the calling process, so the request
+waits for it, for up to `budgetSeconds` (10 by default), and a workflow that waits on a signal or a
+long timer holds the request for the whole budget. Nothing else can advance an in-memory run, so
+the wait cannot be removed. Set `durable/temporal/dsn` where a request must not wait.
+
+A second difference concerns a failure that the call swallows. The in-memory journal ends with the
+request, so the log line is the only trace of it, and only when a logger is configured. On Temporal,
+the failure also stays in the cluster history.
 
 ---
 
-## Retry semantics are identical
+## Retry limits differ on one setting {#retry-semantics-are-identical}
 
 An activity with no attempt bound retries **indefinitely** on every backend, which is the Temporal default.
-The bundle's `max_activity_retries` still acts as a ceiling when an activity does not set its own,
-on the in-memory and DBAL backends; at `0` it caps nothing. On Temporal, the cluster retries from the
-activity's own `RetryLimit` and does not read the ceiling.
+
+`max_activity_retries` is the exception. On the in-memory and journal backends (DBAL, Illuminate),
+the worker narrows the activity's own `RetryLimit` to that ceiling, and the stricter of the two
+applies; at `0` it caps nothing. On Temporal, the cluster retries from the activity's own
+`RetryLimit` and the setting is not read: an activity that the ceiling stops on the other backends
+keeps retrying on Temporal.
 
 See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
 

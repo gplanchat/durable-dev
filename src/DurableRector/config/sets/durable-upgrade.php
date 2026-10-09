@@ -8,6 +8,7 @@ use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Observation\RunDashboard;
 use Gplanchat\Durable\Rector\Rector\ExecutionIdArgumentRector;
 use Gplanchat\Durable\Rector\Rector\ExecutionIdEventArgumentRector;
+use Gplanchat\Durable\Rector\Rector\WorkflowFiberDriverRunRector;
 use Gplanchat\Durable\Timer\TimerWakeDelayCalculator;
 use Gplanchat\Durable\Workflow\AsyncChildWorkflowFailureProjector;
 use Rector\Config\RectorConfig;
@@ -32,6 +33,14 @@ use Rector\Renaming\Rector\Name\RenameClassRector;
  */
 return RectorConfig::configure()
     ->withConfiguredRule(RenameClassRector::class, [
+        // Unreleased — the gRPC unary client leaves the Temporal bridge for gplanchat/grpc-client.
+        // The constructors of the two transports now take a GrpcEndpoint instead of a
+        // TemporalConnection: `$connection->endpoint()` gives it, and no rename expresses that.
+        'Gplanchat\Bridge\Temporal\Grpc\GrpcTransport' => 'Gplanchat\GrpcClient\GrpcTransport',
+        'Gplanchat\Bridge\Temporal\Http\GrpcWire' => 'Gplanchat\GrpcClient\GrpcWire',
+        'Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport' => 'Gplanchat\GrpcClient\CurlGrpcTransport',
+        'Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport' => 'Gplanchat\GrpcClient\GuzzleGrpcTransport',
+
         // Unreleased — the history event converter moves next to the store that uses it: the
         // profiler never did (#372).
         'Gplanchat\Bridge\Temporal\Profiler\TemporalEventConverter' => 'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter',
@@ -85,4 +94,10 @@ return RectorConfig::configure()
     // Unreleased — the ports take an `ExecutionId` rather than a string (#638). This rule wraps the
     // string arguments it can prove; a class that implements a port, and code that reads an id a
     // port now returns, are migrated by hand (UPGRADE.md).
-    ->withRules([AddParamBasedOnParentClassMethodRector::class, ExecutionIdArgumentRector::class, ExecutionIdEventArgumentRector::class]);
+    // `WorkflowFiberDriver::run()` reads the id from its context; the rule drops it from a call (#682).
+    ->withRules([
+        AddParamBasedOnParentClassMethodRector::class,
+        ExecutionIdArgumentRector::class,
+        ExecutionIdEventArgumentRector::class,
+        WorkflowFiberDriverRunRector::class,
+    ]);

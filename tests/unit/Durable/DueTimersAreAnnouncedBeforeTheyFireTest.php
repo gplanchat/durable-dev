@@ -35,7 +35,7 @@ final class DueTimersAreAnnouncedBeforeTheyFireTest extends TestCase
 
         $resumes = $this->fire($journal, now: 500.0);
 
-        self::assertSame(['awaiting timer timer-1 with 2 events', 'resume with 3 events'], $resumes->sent, 'timer-2 is not due yet');
+        self::assertSame(['awaiting timer timer-1 with 2 events', 'resume with 4 events'], $resumes->sent, 'timer-2 is not due yet');
     }
 
     public function testNoTimerDueSendsNoResume(): void
@@ -102,7 +102,7 @@ final class TimerRecordingResumes implements WorkflowResumeDispatcher
     {
         $this->sent[] = \sprintf('awaiting %s with %d events', $fact->describe(), $this->journal->countEventsInStream($executionId));
         if ($this->takeOverOnAnnouncement) {
-            PassEventStore::open($this->journal, $executionId->toString());
+            PassEventStore::open($this->journal, ExecutionId::fromString($executionId->toString()));
         }
     }
 

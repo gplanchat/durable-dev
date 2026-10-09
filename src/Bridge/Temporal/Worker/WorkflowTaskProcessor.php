@@ -52,7 +52,17 @@ final readonly class WorkflowTaskProcessor
         try {
             $result = $this->runner->run($poll);
         } catch (WorkflowTaskFailure|PayloadDecodeFailure $e) {
-            // A payload on a later history page is decoded here, during replay, not at poll time (#824).
+            // A payload on a later history page is decoded here, during replay, not at poll time (#824);
+            // a history that does not read, its started memo included, fails the same way (#890).
+            if ($e instanceof PayloadDecodeFailure) {
+                // The server gets the message only: the original error and its event stay here (#936).
+                $this->logger?->error('A workflow task payload cannot be read; the worker answers the task as failed.', [
+                    'exception' => $e->getPrevious() ?? $e,
+                    'event_id' => $e->eventId,
+                    'workflow_id' => $poll->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $poll->getWorkflowExecution()?->getRunId(),
+                ]);
+            }
             $this->respondTaskFailed($poll->getTaskToken(), $e);
 
             return true;

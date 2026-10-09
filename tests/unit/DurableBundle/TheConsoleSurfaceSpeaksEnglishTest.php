@@ -52,6 +52,16 @@ final class TheConsoleSurfaceSpeaksEnglishTest extends TestCase
     }
 
     /**
+     * The configuration page prints these strings verbatim, and the docs carry no em dash (#842).
+     */
+    public function testTheConfigurationReferenceHasNoEmDash(): void
+    {
+        $tree = (new Configuration())->getConfigTreeBuilder()->buildTree();
+
+        self::assertSame([], array_values(array_filter(self::infos($tree), static fn(string $t): bool => str_contains($t, '—'))));
+    }
+
+    /**
      * @return list<string>
      */
     private static function infos(NodeInterface $node): array

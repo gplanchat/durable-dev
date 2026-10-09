@@ -32,7 +32,7 @@ final class UnknownSuspensionFailsTheExecutionTest extends TestCase
         );
 
         try {
-            $engine->start('unknown-1', static function (WorkflowEnvironment $wf): string {
+            $engine->start(ExecutionId::fromString('unknown-1'), static function (WorkflowEnvironment $wf): string {
                 \Fiber::suspend(['not' => 'an awaitable']);
 
                 return 'unreachable';

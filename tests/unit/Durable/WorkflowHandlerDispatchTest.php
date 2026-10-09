@@ -87,7 +87,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         $factory = (new WorkflowDefinitionLoader())->load(ApprovalWorkflow::class)['factory'];
 
-        self::assertSame([['by' => 'alice']], $engine->resume('disp-1', $factory([])));
+        self::assertSame([['by' => 'alice']], $engine->resume(ExecutionId::fromString('disp-1'), $factory([])));
     }
 
     public function testAWorkflowExpressedAsACallableRegistersTheSameHandler(): void
@@ -98,7 +98,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store->append(new ExecutionStarted(ExecutionId::fromString('disp-2'), []));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-2'), 'approve', ['by' => 'alice']));
 
-        $result = $engine->resume('disp-2', static function (WorkflowEnvironment $wf): array {
+        $result = $engine->resume(ExecutionId::fromString('disp-2'), static function (WorkflowEnvironment $wf): array {
             $approvals = [];
             $wf->onSignal(DispatchSignal::Approve, static function (array $payload) use (&$approvals): void {
                 $approvals[] = $payload;
@@ -126,7 +126,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store->append(new ExecutionStarted(ExecutionId::fromString('disp-3'), []));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-3'), 'nobody-waits-for-it', ['x' => 1]));
 
-        self::assertSame('done', $engine->resume('disp-3', static fn(WorkflowEnvironment $wf): string => 'done'));
+        self::assertSame('done', $engine->resume(ExecutionId::fromString('disp-3'), static fn(WorkflowEnvironment $wf): string => 'done'));
         self::assertCount(1, $this->eventsOf($store, 'disp-3', WorkflowSignalReceived::class));
     }
 
@@ -145,8 +145,8 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         $handler = $this->accumulating(2);
 
-        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume('disp-4', $handler));
-        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume('disp-4', $handler), 'same order on every replay');
+        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume(ExecutionId::fromString('disp-4'), $handler));
+        self::assertSame([['n' => 1], ['n' => 2]], $engine->resume(ExecutionId::fromString('disp-4'), $handler), 'same order on every replay');
     }
 
     public function testEachDeliveryReachesTheHandlerExactlyOncePerPass(): void
@@ -173,11 +173,11 @@ final class WorkflowHandlerDispatchTest extends TestCase
             return $seen;
         };
 
-        self::assertSame(3, $engine->resume('disp-5', $handler), 'three deliveries, three calls');
+        self::assertSame(3, $engine->resume(ExecutionId::fromString('disp-5'), $handler), 'three deliveries, three calls');
         self::assertSame(3, $calls);
 
         $calls = 0;
-        self::assertSame(3, $engine->resume('disp-5', $handler));
+        self::assertSame(3, $engine->resume(ExecutionId::fromString('disp-5'), $handler));
         /** @psalm-suppress TypeDoesNotContainType incremented by reference inside the handler, which Psalm reads as never run */
         self::assertSame(3, $calls, 'a replay replays the three, no more and no less');
     }
@@ -191,7 +191,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $store->append(new ExecutionStarted(ExecutionId::fromString('disp-6'), []));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('disp-6'), 'tick', ['n' => 7]));
 
-        $result = $engine->resume('disp-6', static function (WorkflowEnvironment $wf): array {
+        $result = $engine->resume(ExecutionId::fromString('disp-6'), static function (WorkflowEnvironment $wf): array {
             $ticks = [];
             $wf->onSignal(DispatchSignal::Tick, static function (array $payload) use (&$ticks): void {
                 $ticks[] = $payload;
@@ -237,7 +237,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         // The update arrives outside the journal, for this pass only — as on the Temporal task.
         $pending = new PendingUpdate('approve', ['by' => 'alice']);
 
-        self::assertSame('done', $engine->resume('upd-1', $handler, null, [$pending]));
+        self::assertSame('done', $engine->resume(ExecutionId::fromString('upd-1'), $handler, null, [$pending]));
         self::assertTrue($pending->handled);
         self::assertSame(['ok' => true, 'by' => 'alice'], $pending->result);
         self::assertNull($pending->failure);
@@ -248,7 +248,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
 
         // Replayed with no pending update: the update is read back from the journal, the handler
         // rebuilds the state, and the workflow takes the same path again.
-        self::assertSame('done', $engine->resume('upd-1', $handler));
+        self::assertSame('done', $engine->resume(ExecutionId::fromString('upd-1'), $handler));
     }
 
     public function testARaisingUpdateHandlerDoesNotFailTheWorkflow(): void
@@ -257,7 +257,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $engine = $this->engine($store);
         $store->append(new ExecutionStarted(ExecutionId::fromString('upd-2'), []));
 
-        $result = $engine->resume('upd-2', static function (WorkflowEnvironment $wf): string {
+        $result = $engine->resume(ExecutionId::fromString('upd-2'), static function (WorkflowEnvironment $wf): string {
             $attempts = 0;
             $wf->onUpdate('approve', static function (array $args) use (&$attempts): never {
                 ++$attempts;
@@ -296,7 +296,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         ));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('upd-3'), 'tick', ['n' => 1]));
 
-        $result = $engine->resume('upd-3', static function (WorkflowEnvironment $wf): string {
+        $result = $engine->resume(ExecutionId::fromString('upd-3'), static function (WorkflowEnvironment $wf): string {
             $ticks = [];
             $wf->onUpdate('refuse', static function (array $args): never {
                 throw new \DomainException('approval refused');
@@ -323,7 +323,7 @@ final class WorkflowHandlerDispatchTest extends TestCase
         $engine = $this->engine($store);
         $store->append(new ExecutionStarted(ExecutionId::fromString('upd-4'), []));
 
-        $engine->resume('upd-4', static function (WorkflowEnvironment $wf): string {
+        $engine->resume(ExecutionId::fromString('upd-4'), static function (WorkflowEnvironment $wf): string {
             $approved = false;
             $wf->onUpdate('approve', static function (array $args) use (&$approved): string {
                 $approved = true;

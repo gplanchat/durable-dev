@@ -30,8 +30,8 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 final class ExecutionIdEventArgumentRector extends AbstractRector
 {
     /**
-     * Class => its static factories whose first argument is the execution id: the events' own,
-     * and the two helpers that build a failure event.
+     * Class => its static methods that take an execution id: the events' factories, the two
+     * helpers that build a failure event, the one that opens a pass, and the timer and wait readers.
      */
     public const FACTORIES = [
         'Gplanchat\Durable\Event\ActivityCatastrophicFailure' => ['fromStoredPayload', 'forThrowable'],
@@ -45,6 +45,10 @@ final class ExecutionIdEventArgumentRector extends AbstractRector
         'Gplanchat\Durable\Failure\WorkflowFailureClassifier' => ['classify'],
         'Gplanchat\Durable\Failure\ActivityFailureEventFactory' => ['fromActivityThrowable'],
         'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter' => ['forHistory'],
+        'Gplanchat\Durable\Store\PassEventStore' => ['open'],
+        'Gplanchat\Durable\Timer\PendingTimers' => ['of', 'dueAt'],
+        'Gplanchat\Durable\Timer\TimerWakeDelayCalculator' => ['millisecondsUntilNextTimerDue'],
+        'Gplanchat\Durable\Observation\WaitReason' => ['describe'],
     ];
 
     /** Classes other than events whose constructor takes the execution id. */
@@ -53,6 +57,8 @@ final class ExecutionIdEventArgumentRector extends AbstractRector
         'Gplanchat\Durable\Store\EventStoreCommandBuffer',
         'Gplanchat\Bridge\Temporal\Store\TemporalEventConverter',
         'Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer',
+        'Gplanchat\Durable\Store\EventStoreHistorySource',
+        'Gplanchat\Durable\Exception\ContinueAsNewRequested',
     ];
 
     public function getRuleDefinition(): RuleDefinition
@@ -61,7 +67,7 @@ final class ExecutionIdEventArgumentRector extends AbstractRector
             'Wrap a string execution id passed to a Durable journal event in ExecutionId::fromString()',
             [new CodeSample(
                 'new TimerCompleted($executionId, $timerId);',
-                'new TimerCompleted(\Gplanchat\Durable\ExecutionId::fromString($executionId), $timerId);',
+                'new TimerCompleted(ExecutionId::fromString($executionId), $timerId);',
             )],
         );
     }

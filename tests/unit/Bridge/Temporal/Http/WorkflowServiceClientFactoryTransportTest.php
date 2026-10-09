@@ -7,11 +7,11 @@ namespace unit\Gplanchat\Bridge\Temporal\Http;
 use Gplanchat\Bridge\Temporal\Grpc\ExtGrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\GrpcWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\CurlGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\GuzzleGrpcTransport;
 use Gplanchat\Bridge\Temporal\Http\JsonGatewayWorkflowServiceClient;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
+use Gplanchat\GrpcClient\CurlGrpcTransport;
+use Gplanchat\GrpcClient\GuzzleGrpcTransport;
 use PHPUnit\Framework\TestCase;
 
 final class WorkflowServiceClientFactoryTransportTest extends TestCase

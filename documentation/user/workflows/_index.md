@@ -47,7 +47,7 @@ final class OrderWorkflow
 }
 ```
 
-`WorkflowEnvironment` provides **`await`**, the assemblers **`all`** / **`any`** / **`some`**, **`async`**, timers, child workflows, signals, and more. The class in the repository has the full API.
+`WorkflowEnvironment` provides **`await`**, the assemblers **`all`** / **`any`** / **`some`**, timers, child workflows, signals, and more. The class in the repository has the full API.
 
 ### Waiting versus assembling
 
@@ -279,7 +279,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Each one left out keeps its `ActivityOptions` default; with none,
   the stub is the one `activityStub()` builds without options. On Temporal, a stub with no `startToClose` or
-  `scheduleToClose` gets a 30-second bound per attempt.
+  `scheduleToClose` gets a 30-second bound per attempt. `heartbeat` needs Temporal: a journal backend
+  throws `UnsupportedByBackendException` when the stub schedules an activity with it (see
+  [Options and value objects](../options/)).
 - Mistakes fail when the workflow is **registered** (container compilation, with the bundle): an
   `ActivityStub` without `#[Activities]`, `#[Activities]` on another type, a contract that does not
   exist, one that declares no `#[AsActivityMethod]`, or an impossible option (zero attempts, a
@@ -412,10 +414,13 @@ engine keeps for itself are not on it.
 | `sleep($duration, $summary = '')` | Waits for the duration, the same as `await(timer($duration, $summary))`. |
 | `activityStub($contract, $options = null)` | A typed proxy over an activity contract. Build it in the constructor, or declare it as an [`#[Activities]` argument](#arguments-durable-supplies), options included; every call it makes carries `$options`. |
 | `childWorkflowStub($class, $options = null)` | The same, for a child workflow: resolved from the child's class, and its calls compose like any other. |
+| `nexusStub($contract, $endpoint, $timeouts = null)` | A typed proxy over a Nexus contract served at `$endpoint`. Its calls return awaitables. See [Nexus operations](../nexus/#calling-an-operation). |
+| `nexusOperation($endpoint, $service, $operation, $payload = [], $timeouts = null)` | Calls one Nexus operation by its endpoint, service and operation names, and returns an awaitable. Throws `NexusUnsupportedByBackendException` on a backend that cannot route the call. |
 | `onSignal($name, $handler)` | Registers a signal handler. The handler mutates workflow state and `await()` observes it; there is no separate wait. The name takes a backed enum, so a typo is a type error instead of a wait that never settles. |
 | `onUpdate($name, $handler)` | The same for an update, whose handler's return value is the caller's response. |
 | `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Whether a handler is registered under that name, for code that registers one only once. |
 | `sideEffect($closure)` | Runs non-deterministic local work once and journals its result, so replay reproduces it. |
+| `version($changeId, $minSupported, $maxSupported)` | Declares a change point and returns the version this execution follows, between `$minSupported` and `$maxSupported`. The answer is fixed at the first encounter and read back from the journal afterwards. See [Changing a workflow that is already running](../deploying/#or-declare-a-change-point). |
 | `continueAsNew($type, $payload = [], $options = null)` | Ends this run and starts the next with a fresh history. |
 | `executionId()` | This execution's identifier, an `ExecutionId`. Call `toString()` to put it in a payload or a log context: the object encodes to `{}` in JSON. |
 

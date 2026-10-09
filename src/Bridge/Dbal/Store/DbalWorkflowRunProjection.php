@@ -111,12 +111,14 @@ final readonly class DbalWorkflowRunProjection implements WorkflowRunProjectionI
     {
         $this->schema->ensure();
 
+        // A run that has ended waits on nothing: the last wait is cleared, on a table that has the
+        // column (#851).
         $this->connection->update(
             $this->table,
             [
                 'status' => $status->value,
                 'ended_at' => new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
-            ],
+            ] + ($this->schema->runsTableTracksWait() ? ['waiting_on' => null] : []),
             ['execution_id' => $executionId->toString()],
             ['ended_at' => 'datetime_immutable'],
         );

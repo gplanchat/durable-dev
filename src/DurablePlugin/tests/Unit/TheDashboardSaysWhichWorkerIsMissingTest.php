@@ -29,7 +29,8 @@ use Twig\Loader\ArrayLoader;
 
 /**
  * The list page hands the template one row per `durable:worker` role, from the bundle's
- * WorkerPresence, and nothing when the backend does not answer or has no such roles.
+ * WorkerPresence; one "could not ask" row on a backend that keeps no list of its workers; and
+ * nothing when the backend does not answer or forgets its journal with the request.
  */
 final class TheDashboardSaysWhichWorkerIsMissingTest extends TestCase
 {
@@ -43,9 +44,30 @@ final class TheDashboardSaysWhichWorkerIsMissingTest extends TestCase
         ], $rows);
     }
 
-    public function testWithoutWorkerPresenceThereIsNoRow(): void
+    public function testWithoutWorkerPresenceOneRowSaysTheBackendCannotBeAsked(): void
     {
-        self::assertSame([], $this->workers(null));
+        self::assertSame([
+            ['role' => 'queue', 'pollers' => 0, 'polling' => false, 'error' => null, 'seconds' => 120, 'unlisted' => true],
+        ], $this->workers(null));
+    }
+
+    /**
+     * A DBAL journal with a Nexus handler on a cluster: the cluster says who polls the Nexus queue,
+     * and Messenger still keeps no list of the workers that resume the runs.
+     */
+    public function testANexusRoleOnTheClusterLeavesTheJournalWorkersUnlisted(): void
+    {
+        $rows = $this->workers(new WorkerPresence($this->probe([TaskQueueType::TASK_QUEUE_TYPE_NEXUS => time()]), ['nexus']));
+
+        self::assertSame([
+            ['role' => 'nexus', 'pollers' => 1, 'polling' => true, 'error' => null, 'seconds' => 120],
+            ['role' => 'queue', 'pollers' => 0, 'polling' => false, 'error' => null, 'seconds' => 120, 'unlisted' => true],
+        ], $rows);
+    }
+
+    public function testAnEphemeralBackendHasNoRow(): void
+    {
+        self::assertSame([], $this->workers(null, ephemeral: true));
     }
 
     public function testABackendThatDoesNotAnswerIsNotAskedWhoPolls(): void
@@ -56,14 +78,14 @@ final class TheDashboardSaysWhichWorkerIsMissingTest extends TestCase
     /**
      * @return list<array<string, mixed>>
      */
-    private function workers(?WorkerPresence $presence, bool $reachable = true): array
+    private function workers(?WorkerPresence $presence, bool $reachable = true, bool $ephemeral = false): array
     {
         $twig = new Environment(new ArrayLoader([
             '@SyliusAdmin/shared/layout/base.html.twig' => '',
             '@DurablePlugin/admin/dashboard/index.html.twig' => '{{ workers|json_encode|raw }}',
         ]));
-        $catalog = new class ($reachable) implements WorkflowRunCatalogInterface {
-            public function __construct(private readonly bool $reachable) {}
+        $catalog = new class ($reachable, $ephemeral) implements WorkflowRunCatalogInterface {
+            public function __construct(private readonly bool $reachable, private readonly bool $ephemeral) {}
 
             public function canFilterRuns(?WorkflowRunFilter $filter = null): bool
             {
@@ -87,7 +109,7 @@ final class TheDashboardSaysWhichWorkerIsMissingTest extends TestCase
 
             public function checkHealth(): BackendHealth
             {
-                return new BackendHealth('Temporal', $this->reachable, 'checked', new \DateTimeImmutable('@1700000000'));
+                return new BackendHealth('Temporal', $this->reachable, 'checked', new \DateTimeImmutable('@1700000000'), $this->ephemeral);
             }
         };
 

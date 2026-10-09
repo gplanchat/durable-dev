@@ -21,7 +21,7 @@ final class TheWorkflowReadsItsExecutionIdTest extends TestCase
     {
         $runner = new InMemoryWorkflowRunner(new InMemoryEventStore(), new InMemoryActivityTransport(), new RegistryActivityExecutor());
 
-        $id = $runner->run('exec-1', static fn(WorkflowEnvironment $env): ExecutionId => $env->executionId());
+        $id = $runner->run(ExecutionId::fromString('exec-1'), static fn(WorkflowEnvironment $env): ExecutionId => $env->executionId());
 
         self::assertInstanceOf(ExecutionId::class, $id);
         self::assertSame('exec-1', $id->toString());

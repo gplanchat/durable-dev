@@ -227,14 +227,12 @@ AFTER,
 
     /**
      * What this rule cannot rename, it says so above the declaration, as
-     * {@see UnmigratableTemporalCallRector} does above a call. A second pass adds nothing.
+     * {@see UnmigratableTemporalCallRector} does above a call. A second pass adds nothing it already wrote.
      */
     private function mark(ClassLike|ClassMethod $node, string $finding): ?Node
     {
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), UnmigratableTemporalCallRector::MARKER)) {
-                return null;
-            }
+        if (UnmigratableTemporalCallRector::isMarked($node, $finding)) {
+            return null;
         }
 
         $node->setAttribute('comments', [

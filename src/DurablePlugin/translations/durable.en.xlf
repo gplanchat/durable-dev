@@ -9,6 +9,7 @@
             <trans-unit id="dashboard.worker_polling"><source>dashboard.worker_polling</source><target>The %role% worker is polling.</target></trans-unit>
             <trans-unit id="dashboard.worker_missing"><source>dashboard.worker_missing</source><target>No %role% worker has polled in %seconds% seconds: executions stop at their first %role% task. Start bin/console durable:worker --role=%role%.</target></trans-unit>
             <trans-unit id="dashboard.worker_unknown"><source>dashboard.worker_unknown</source><target>Could not ask the backend whether a %role% worker polls: %error%</target></trans-unit>
+            <trans-unit id="dashboard.workers_unlisted"><source>dashboard.workers_unlisted</source><target>Messenger keeps no list of the processes that run bin/console durable:worker.</target></trans-unit>
             <trans-unit id="dashboard.outcomes_heading"><source>dashboard.outcomes_heading</source><target>Outcomes across the %count% runs on this page</target></trans-unit>
             <trans-unit id="kpi.on_this_page"><source>kpi.on_this_page</source><target>On this page</target></trans-unit>
             <trans-unit id="kpi.waiting_for_worker"><source>kpi.waiting_for_worker</source><target>Waiting for a worker</target></trans-unit>
@@ -57,6 +58,16 @@
             <trans-unit id="nexus.state.failed"><source>nexus.state.failed</source><target>failed</target></trans-unit>
             <trans-unit id="nexus.state.timed_out"><source>nexus.state.timed_out</source><target>timed out</target></trans-unit>
             <trans-unit id="nexus.state.cancelled"><source>nexus.state.cancelled</source><target>cancelled</target></trans-unit>
+            <trans-unit id="run.waiting_for_worker"><source>run.waiting_for_worker</source><target>waiting for a worker · %elapsed%</target></trans-unit>
+            <trans-unit id="run.waiting_on"><source>run.waiting_on</source><target>waiting on %reason%</target></trans-unit>
+            <trans-unit id="backend.not_configured"><source>backend.not_configured</source><target>No readable durable backend is configured for this application.</target></trans-unit>
+            <trans-unit id="backend.sql.answers"><source>backend.sql.answers</source><target>The SQL database answers.</target></trans-unit>
+            <trans-unit id="backend.sql.unreachable"><source>backend.sql.unreachable</source><target>The SQL database is unreachable: %error%</target></trans-unit>
+            <trans-unit id="backend.database.answers"><source>backend.database.answers</source><target>The database answers.</target></trans-unit>
+            <trans-unit id="backend.database.unreachable"><source>backend.database.unreachable</source><target>The database is unreachable: %error%</target></trans-unit>
+            <trans-unit id="backend.temporal.connected"><source>backend.temporal.connected</source><target>Connected to Temporal namespace "%namespace%".</target></trans-unit>
+            <trans-unit id="backend.temporal.unreachable"><source>backend.temporal.unreachable</source><target>Temporal namespace "%namespace%" is unreachable: %error%</target></trans-unit>
+            <trans-unit id="backend.memory.ephemeral"><source>backend.memory.ephemeral</source><target>The in-memory catalog answers, and it only ever sees runs from this process: an empty list means nothing ran here, not that nothing ran. Configure a backend that records outside this process, a SQL database or a Temporal cluster, to read the runs of every other one.</target></trans-unit>
         </body>
     </file>
 </xliff>

@@ -20,4 +20,13 @@ final class TheIlluminateBackendTest extends PanelTestCase
             ->assertSee('Could not ask the backend whether a queue worker polls');
         $this->get('/admin/durable/run?executionId=sql-run-1')->assertOk()->assertSee('App\\ShipWorkflow');
     }
+
+    public function testTheQueueRowReadsAsOneFrenchSentence(): void
+    {
+        $this->app->make(Kernel::class)->call('migrate', ['--force' => true]);
+        $this->app->setLocale('fr');
+
+        $this->get('/admin/durable/runs')->assertOk()
+            ->assertSee('Impossible de demander au backend si un worker queue est à l’écoute : la file de Laravel ne tient aucune liste', false);
+    }
 }

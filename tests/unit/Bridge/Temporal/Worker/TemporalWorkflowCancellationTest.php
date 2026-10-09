@@ -245,7 +245,7 @@ final class TemporalWorkflowCancellationTest extends TestCase
         );
 
         (new WorkflowFiberDriver(new TemporalWorkflowLifecycle($buffer, $history->cancellationRequestedCause())))
-            ->run('exec-1', $context, new WorkflowEnvironment($context, $runtime), $handler);
+            ->run($context, new WorkflowEnvironment($context, $runtime), $handler);
 
         return $buffer->peek();
     }

@@ -141,12 +141,11 @@ final class WorkflowFiberDriverTest extends TestCase
         $runtime = new ExecutionRuntime($store, $transport, new RegistryActivityExecutor(), 0, null, true);
         $context = new ExecutionContext(
             ExecutionId::fromString('exec-1'),
-            new EventStoreHistorySource($store, 'exec-1'),
+            new EventStoreHistorySource($store, ExecutionId::fromString('exec-1')),
             new EventStoreCommandBuffer($store, $transport, ExecutionId::fromString('exec-1')),
         );
 
         return (new WorkflowFiberDriver($lifecycle))->run(
-            'exec-1',
             $context,
             new WorkflowEnvironment($context, $runtime),
             $handler,
