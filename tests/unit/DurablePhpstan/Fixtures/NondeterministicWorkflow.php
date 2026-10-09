@@ -161,10 +161,13 @@ final class NondeterministicWorkflow
     {
         StampHelper::stamp(); // reported
         (new Nested())->outer(); // reported
+        array_map(static fn(): int => StampHelper::stamp(), [1]); // reported
     }
 
     public function whatIsJournalledStaysJournalled(WorkflowEnvironment $env): void
     {
+        $env->sleep(1); // the framework's own clock reads are not the workflow's
+        $env->await($env->timer(1));
         JournalledHelper::stamp($env);
         $env->sideEffect(static fn(): int => StampHelper::stamp());
         (new Nested())->loops();

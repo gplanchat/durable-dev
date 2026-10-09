@@ -55,7 +55,9 @@ final class NondeterminismRulesTest extends TestCase
         $root = \dirname(__DIR__, 3);
         $config = tempnam(sys_get_temp_dir(), 'durable-phpstan-') . '.neon';
         file_put_contents($config, 'includes:' . "\n    - " . $root . "/src/DurablePhpstan/extension.neon\n"
-            . "parameters:\n    level: 5\n    paths:\n        - " . self::FIXTURE . "\n");
+            // The two framework files are analysed too: the call graph only knows the files it was handed,
+            // and the framework reads the clock legitimately behind await() and sleep().
+            . "parameters:\n    level: 5\n    paths:\n        - " . self::FIXTURE . "\n        - " . $root . "/src/Durable/WorkflowEnvironment.php\n        - " . $root . "/src/Durable/ExecutionRuntime.php\n");
 
         // No shell: the arguments go to PHPStan as they are. PHPStan exits 1 when it reports errors.
         $process = proc_open(
