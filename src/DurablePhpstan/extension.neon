@@ -7,6 +7,10 @@
 
 services:
     -
+        class: Gplanchat\Durable\PHPStan\Rules\SideEffectMarker
+        tags:
+            - phpstan.parser.richParserNodeVisitor
+    -
         class: Gplanchat\Durable\PHPStan\Reflection\StubMethodsExtension
         tags:
             - phpstan.broker.methodsClassReflectionExtension
@@ -14,3 +18,4 @@ services:
 rules:
     - Gplanchat\Durable\PHPStan\Rules\ActivitiesParameterRule
     - Gplanchat\Durable\PHPStan\Rules\ActivityStubCouldBeParameterRule
+    - Gplanchat\Durable\PHPStan\Rules\NondeterministicCallRule
