@@ -191,8 +191,17 @@ $deadline = new \DateTimeImmutable('+3 days');                                //
 $deadline = $env->sideEffect(static fn () => new \DateTimeImmutable('+3 days')); // journalled
 ```
 
-The whole class is checked, signal and query handlers and private helpers included. A helper
-class called from the workflow is not: the rule reads the workflow class only.
+The whole class is checked, signal and query handlers and private helpers included. A read in a
+helper that the workflow calls is reported too, at the workflow's call, with the calls in between:
+
+```
+Via App\Billing\Stamp::today → App\Billing\Stamp::now: ->now() on a clock reads the current time …
+```
+
+The walk follows method and constructor calls. It stops at an interface (the implementations are not
+followed), at plain functions, at callbacks and at classes under `vendor/`. Calls to Durable itself
+(`$env->await()`, `$env->sleep()`) are not followed: they are the API a workflow is meant to call.
+Calls made through an activity stub run in an activity, where the clock may be read.
 
 ## What it does not do
 
