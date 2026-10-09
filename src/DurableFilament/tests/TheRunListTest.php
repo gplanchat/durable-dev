@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Filament\Tests;
 
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -31,6 +32,40 @@ final class TheRunListTest extends PanelTestCase
             ->assertSee('waiting on payment-received')
             ->assertSee('App\\RefundWorkflow')
             ->assertSee('/admin/durable/run?executionId=refund-7', false)
+            ->assertSee('The fake answers.');
+    }
+
+    public function testARunWithNothingToSayAndNoStartDateShowsDashesNotBlankCells(): void
+    {
+        // run-2 has no start date and no note; run-1 has both. Two dashes, from run-2 only.
+        $html = $this->get('/admin/durable/runs')->assertOk()->getContent();
+
+        self::assertSame(2, substr_count((string) $html, '>—</td>'));
+    }
+
+    public function testTheCoreTextsAreTranslatedFromTheirKey(): void
+    {
+        // #850: the core hands a key and its parameters beside the English string.
+        $this->catalog->runs[] = new WorkflowRunDescription('run-3', 'App\\ShipWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('2026-09-29 09:00:00'), waitingForWorkerSince: new \DateTimeImmutable('2026-09-29 09:00:00'), executionId: 'ship-1');
+        $this->catalog->healthMessage = new Message('backend.sql.answers');
+        $this->app->setLocale('fr');
+
+        $this->get('/admin/durable/runs')
+            ->assertOk()
+            ->assertSee('En attente de payment-received')
+            ->assertSee('En attente d’un worker · ')
+            ->assertSee('La base SQL répond.')
+            ->assertDontSee('waiting on payment-received');
+    }
+
+    public function testTheCoreTextsStayEnglishInALocaleWithoutTheKey(): void
+    {
+        // A key no locale carries: 'de' falls back to 'en', which does have backend.sql.answers.
+        $this->catalog->healthMessage = new Message('backend.fake.answers');
+        $this->app->setLocale('de');
+
+        $this->get('/admin/durable/runs')
+            ->assertSee('waiting on payment-received')
             ->assertSee('The fake answers.');
     }
 

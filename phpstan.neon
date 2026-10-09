@@ -7,6 +7,7 @@ parameters:
         - src/Durable
         - src/DurableBundle
         - src/DurablePlugin
+        - src/GrpcClient
         - src/Bridge/Temporal
         - src/Bridge/Dbal
         - src/Bridge/Illuminate
@@ -34,6 +35,9 @@ parameters:
         - tests/integration/DurableModule/ResumeLock/Fixture
         - tests/integration/DurableModule/RunProjection/Fixture
         - tests/integration/DurableModule/TableQueue/Fixture
+        - tests/integration/DurableModule/TableQueue/Fixture
+        - tests/integration/DurableModule/RunProjection/Fixture
+        - tests/integration/DurableModule/ResumeLock/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # ServiceProvider::$app is typed by PHPDoc as the full application. This package depends

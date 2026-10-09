@@ -20,6 +20,13 @@
         },
         {
             "type": "path",
+            "url": "../src/GrpcClient",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
             "url": "../src/Bridge/Temporal",
             "options": {
                 "symlink": true
@@ -40,6 +47,7 @@
         "doctrine/doctrine-bundle": ">=2.19.0",
         "gplanchat/durable": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/grpc-client": "@dev",
         "gplanchat/durable-bundle": "@dev",
         "gplanchat/durable-demo-contracts": "@dev",
         "symfony/console": "^7.4.17 || ^8.0",

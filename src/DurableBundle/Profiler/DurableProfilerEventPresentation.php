@@ -23,6 +23,9 @@ use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\Event\WorkflowTaskCompleted;
+use Gplanchat\Durable\Event\WorkflowTaskScheduled;
+use Gplanchat\Durable\Event\WorkflowTaskStarted;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 
 /**
@@ -119,6 +122,19 @@ final class DurableProfilerEventPresentation
             return [
                 'title' => 'Execution started',
                 'subtitle' => 'The engine replays the workflow from the journal (event sourcing).',
+                'category' => 'lifecycle',
+                'technical' => $technical,
+            ];
+        }
+
+        if ($event instanceof WorkflowTaskScheduled || $event instanceof WorkflowTaskStarted || $event instanceof WorkflowTaskCompleted) {
+            return [
+                'title' => match (true) {
+                    $event instanceof WorkflowTaskScheduled => 'Workflow task queued',
+                    $event instanceof WorkflowTaskStarted => 'Workflow task picked up',
+                    default => 'Workflow task done',
+                },
+                'subtitle' => 'The time from queued to picked up is the wait for a worker.',
                 'category' => 'lifecycle',
                 'technical' => $technical,
             ];

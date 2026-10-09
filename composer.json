@@ -22,6 +22,10 @@
         },
         {
             "type": "path",
+            "url": "src/GrpcClient"
+        },
+        {
+            "type": "path",
             "url": "src/Bridge/Temporal"
         },
         {
@@ -54,6 +58,7 @@
         "gplanchat/durable-bridge-dbal": "@dev",
         "gplanchat/durable-bridge-illuminate": "@dev",
         "gplanchat/durable-laravel": "@dev",
+        "gplanchat/grpc-client": "@dev",
         "roadrunner-php/roadrunner-api-dto": "^1.17"
     },
     "require-dev": {
@@ -77,6 +82,7 @@
             "Gplanchat\\Durable\\": "src/Durable/",
             "Gplanchat\\Durable\\Bundle\\": "src/DurableBundle/",
             "Gplanchat\\Durable\\Plugin\\": "src/DurablePlugin/",
+            "Gplanchat\\GrpcClient\\": "src/GrpcClient/",
             "Gplanchat\\Bridge\\Temporal\\": "src/Bridge/Temporal/",
             "Gplanchat\\Bridge\\Dbal\\": "src/Bridge/Dbal/",
             "Gplanchat\\Bridge\\Illuminate\\": "src/Bridge/Illuminate/",
