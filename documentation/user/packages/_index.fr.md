@@ -492,10 +492,16 @@ appelant. Avec un DSN, il démarre le workflow sur le cluster et attend son rés
 les workers ci-dessous. L'attente dure environ `budgetSeconds` et se termine par
 `WorkflowStuckException`.
 
-Un workflow qui échoue, expire ou est terminé arrive autrement chez l'appelant avec un DSN : sous la
-forme d'une `\RuntimeException` simple, dont le message commence par `Workflow "<execution id>"`,
-sans exception précédente. Un workflow qui attend un signal attend tout le budget au lieu d'échouer
-aussitôt.
+Avec un DSN, un workflow qui échoue arrive chez l'appelant avec la classe que lève le backend en
+mémoire. L'exception du workflow est reconstruite par `new $class($message, $code)` : elle porte le
+message et le code enregistrés, sans exception précédente ni autre propriété. Il faut pour cela que
+sa classe se charge dans le processus appelant et que son constructeur accepte `(message, code)` ;
+sinon, l'appelant reçoit une `WorkflowFailedException`, dont le message commence par
+`Workflow "<execution id>" failed:`. Un échec d'activité arrive sous la forme d'une
+`DurableWorkflowAlgorithmFailureException`, avec l'exception de l'activité comme exception
+précédente. Seul le DSN ajoute deux issues : `WorkflowTimedOutException`
+quand un délai fixé sur le cluster expire, et `WorkflowTerminatedException` quand quelqu'un termine
+l'exécution. Un workflow qui attend un signal attend tout le budget au lieu d'échouer aussitôt.
 
 Le résultat revient décodé du JSON : un objet que le workflow renvoie arrive sous forme de tableau.
 
@@ -519,6 +525,15 @@ Chaque processus sert un rôle sur une file. Les rôles journal et activité uti
 Temporal distinctes, et vous réglez leur parallélisme séparément. Rien ne passe par le `MessageQueue` de Magento : sur
 Temporal, une activité est une commande Temporal et une reprise une tâche de workflow, donc un topic
 Magento ne ferait qu'ajouter une seconde file à superviser.
+
+**Avec `resource/durable` dans `env.php`**, la même commande vide les files de la base au lieu
+d'interroger Temporal. Sans `--role`, un processus sert les files de reprise, de minuteur et
+d'activité ; `--role=journal` sert les reprises et les minuteurs, `--role=activity` sert les
+activités. Ce backend n'a pas de `--role=nexus`, et la commande le refuse. Un message est acquitté
+une fois traité. Quand un autre worker tient l'exécution, quand une reprise arrive avant le
+résultat de son activité, ou quand MySQL répond par un délai d'attente de verrou ou un
+interblocage, le message reste dans la file et est livré de nouveau peu après. `SIGTERM` et
+`SIGINT` arrêtent le worker entre deux messages.
 
 **Une boutique qui sert des [opérations Nexus](../nexus/#servir-une-opération)** liste ses
 gestionnaires dans un tableau de plus de la même fabrique, `nexusHandlers` : un objet par

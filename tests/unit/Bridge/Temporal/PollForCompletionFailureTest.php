@@ -11,7 +11,6 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Event\ActivityCatastrophicFailure;
-use Gplanchat\Durable\Exception\ActivityFailureCauseException;
 use Gplanchat\Durable\Exception\ActivitySupersededException;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\DurableCatastrophicActivityFailureException;
@@ -66,9 +65,8 @@ final class PollForCompletionFailureTest extends TestCase
 
         self::assertSame($prefix . $cause->getMessage(), $thrown->getMessage());
         $previous = $thrown->getPrevious();
-        self::assertInstanceOf(ActivityFailureCauseException::class, $previous, 'the original failure travels as previous');
-        self::assertSame($cause::class, $previous->originalExceptionClass());
-        self::assertStringEndsWith($cause->getMessage(), $previous->getMessage());
+        self::assertInstanceOf($cause::class, $previous, 'the real activity exception travels as previous, as on the journal');
+        self::assertSame($cause->getMessage(), $previous->getMessage());
     }
 
     /** The history a worker writes when the workflow lets this cause escape. */

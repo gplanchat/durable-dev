@@ -104,6 +104,21 @@ final class IntegrationWorkflows
             return ['first' => $first, 'second' => $second];
         });
 
+        // Continues as new `n` times, then ends the chain: with its result, or with a failure.
+        foreach (['CountsDown' => false, 'CountsDownThenFails' => true] as $type => $fails) {
+            $registry->registerFactory($type, static fn(array $input) => static function (WorkflowEnvironment $env) use ($input, $type, $fails): array {
+                $n = (int) ($input['n'] ?? 0);
+                if ($n > 0) {
+                    $env->continueAsNew($type, ['n' => $n - 1]);
+                }
+                if ($fails) {
+                    throw new \DomainException('chain ended in failure');
+                }
+
+                return ['done' => 'last run'];
+            });
+        }
+
         // An update that answers: the handler's return value *is* the caller's answer, and it
         // unblocks at the same time the condition the body is waiting on.
         $registry->registerFactory('Updatable', static fn(array $input) => static function (WorkflowEnvironment $env): array {

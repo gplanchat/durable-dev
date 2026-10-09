@@ -469,9 +469,15 @@ ends. That is acceptable for a console command and unsuitable for anything else.
 process. With a DSN, it starts the workflow on the cluster and waits for its result, which the
 workers below produce. The wait lasts about `budgetSeconds` and ends with `WorkflowStuckException`.
 
-A workflow that fails, times out or is terminated reaches the caller differently with a DSN: as a
-plain `\RuntimeException` whose message starts with `Workflow "<execution id>"`, with no previous
-exception. A workflow that waits on a signal waits the whole budget instead of failing at once.
+With a DSN, a workflow that fails reaches the caller with the class the in-memory backend raises.
+The workflow's own exception is rebuilt as `new $class($message, $code)`: it carries the recorded
+message and code, with no previous exception and no other property. That requires its class to load
+in the calling process and its constructor to accept `(message, code)`; otherwise the caller gets
+`WorkflowFailedException`, whose message starts with `Workflow "<execution id>" failed:`. An
+activity failure comes back as `DurableWorkflowAlgorithmFailureException`, with the activity's
+exception as previous. Only a DSN adds two outcomes: `WorkflowTimedOutException` when a timeout set on the cluster elapses, and
+`WorkflowTerminatedException` when someone terminates the run. A workflow that waits on a signal
+waits the whole budget instead of failing at once.
 
 The result comes back decoded from JSON: an object the workflow returns arrives as an array.
 
@@ -494,6 +500,15 @@ Each process serves one role on one queue. The journal and activity roles use tw
 queues, and you tune their concurrency separately. Nothing goes through Magento's own `MessageQueue`: on Temporal,
 an activity is a Temporal command and a resume is a workflow task, so a Magento topic would only
 add a second queue for an operator to supervise.
+
+**With `resource/durable` in `env.php`**, the same command drains the database queues instead of
+polling Temporal. Without `--role`, one process serves the resume, timer and activity queues;
+`--role=journal` serves resumes and timers, `--role=activity` serves activities. There is no
+`--role=nexus` on this backend, and the command refuses it. A message is acknowledged once it is
+handled. When another worker holds the execution, when a resume arrives before its activity's
+result, or when MySQL answers with a lock wait timeout or a deadlock, the message stays in the
+queue and is delivered again a moment later. `SIGTERM` and `SIGINT` stop the worker between two
+messages.
 
 **A shop that serves [Nexus operations](../nexus/#serving-an-operation)** lists its handlers in
 one more array of the same factory, `nexusHandlers`: one object per handler, whose

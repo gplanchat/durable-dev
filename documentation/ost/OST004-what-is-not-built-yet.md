@@ -309,7 +309,7 @@ only one the buckets support.
 |---|---|---|
 | Bucket 1 — attributes and the failure map | Wiring | **Done** — `gplanchat/durable-rector` |
 | Bucket 2 — colour removal, receiver injection | A bootstrap | **Done** — return types removed, never synthesised |
-| Bucket 3 — the report | Wiring | **Done** — in the Rector set; the `getVersion()` line still says "you cannot" until **`workflow-versioning`** lands |
+| Bucket 3 — the report | Wiring | **Done** — in the Rector set; `yield Workflow::getVersion($changeId, $min, $max)` becomes `version($changeId, $min, $max)` with no `await()`, and a call with another number of arguments, or one that is not yielded, is left as written and marked |
 
 ---
 

@@ -278,7 +278,8 @@ jobs:
         # gplanchat/durable-filament (#712, #899), outside the root graph: Filament pulls
         # laravel/framework, which requires Symfony ^7 and would break the 6.4 legs of
         # symfony-matrix. A throwaway project installs it through path repositories, on each
-        # Filament line, with the Temporal bridge so a test that needs it (#871) cannot skip.
+        # Filament line, with the Temporal and Illuminate bridges so a test that needs one (#871)
+        # cannot skip: durable-laravel only suggests the Illuminate bridge (#847).
         name: Filament · package (${{ matrix.label }} / PHP ${{ matrix.php-version }})
         runs-on: ubuntu-latest
         timeout-minutes: 15
@@ -326,12 +327,14 @@ jobs:
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableLaravel" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Illuminate" },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableFilament" }
                     ],
                     "require": {
                         "filament/filament": "${{ matrix.filament }}",
                         "gplanchat/durable-filament": "@dev",
+                        "gplanchat/durable-bridge-illuminate": "@dev",
                         "gplanchat/durable-bridge-temporal": "@dev",
                         "phpunit/phpunit": "^11.5"
                     },
@@ -354,16 +357,26 @@ jobs:
                 composer update --no-interaction --prefer-dist --no-progress \
                   ${{ matrix.deps == 'lowest' && '--prefer-lowest --with-dependencies' || '' }} 'filament/*'
 
-            - name: Filament line actually installed, and the bridge
+            - name: Filament line actually installed, and the bridges
               working-directory: /tmp/filament-app
               run: |
-                for package in filament/filament livewire/livewire laravel/framework gplanchat/durable-bridge-temporal; do
+                for package in filament/filament livewire/livewire laravel/framework gplanchat/durable-bridge-temporal gplanchat/durable-bridge-illuminate; do
                   composer show "$package" --no-ansi | grep -E '^(name|versions) '
                 done
                 test -e vendor/gplanchat/durable-bridge-temporal
+                test -e vendor/gplanchat/durable-bridge-illuminate
+
+            - name: Start a Temporal dev server
+              run: |
+                  docker run -d --name temporal-dev -p 7233:7233 temporalio/temporal:1.9.1 \
+                    server start-dev --ip 0.0.0.0 --port 7233 --namespace durable-test --headless \
+                    --search-attribute DurableWorkflowName=Keyword --search-attribute DurableExecutionId=Keyword
+                  timeout 60 bash -c 'until nc -z 127.0.0.1 7233; do sleep 1; done'
 
             - name: PHPUnit (src/DurableFilament/tests)
               working-directory: /tmp/filament-app
+              env:
+                  DURABLE_DSN: 'temporal://127.0.0.1:7233?namespace=durable-test&tls=0'
               run: vendor/bin/phpunit -c "$GITHUB_WORKSPACE/src/DurableFilament/phpunit.xml" --bootstrap vendor/autoload.php --display-skipped --fail-on-skipped
 
     sylius-shop:
@@ -525,6 +538,7 @@ jobs:
                         { "type": "composer", "url": "https://repo.mage-os.org/" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableModule", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal", "options": { "symlink": false } }
                     ],
                     "require": {

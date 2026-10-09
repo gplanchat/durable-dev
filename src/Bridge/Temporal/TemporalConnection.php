@@ -6,6 +6,7 @@ namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\WorkflowNamespace;
+use Gplanchat\GrpcClient\GrpcEndpoint;
 
 /**
  * Single Temporal connection (target, namespace, TLS, identity) + settings for the various
@@ -130,6 +131,12 @@ final readonly class TemporalConnection
         $key = $this->apiKey->getValue();
 
         return ['authorization' => ['Bearer ' . $key], 'temporal-namespace' => [$this->namespace->name()]];
+    }
+
+    /** The address, TLS files and credentials a gRPC transport needs, nothing Temporal-specific. */
+    public function endpoint(): GrpcEndpoint
+    {
+        return new GrpcEndpoint($this->target, $this->tls, $this->tlsCa, $this->tlsCert, $this->tlsKey, $this->metadata(), 'durable-bridge-temporal/php');
     }
 
     /**

@@ -26,6 +26,7 @@ final class DbalBackendHealthTest extends TestCase
         $health = $this->catalog($connection)->checkHealth();
 
         self::assertTrue($health->reachable);
+        self::assertSame('backend.sql.answers', $health->localized?->key);
         self::assertNotSame('', $health->backend);
         self::assertInstanceOf(\DateTimeImmutable::class, $health->checkedAt);
     }
@@ -44,6 +45,8 @@ final class DbalBackendHealthTest extends TestCase
 
         self::assertFalse($health->reachable);
         self::assertNotSame('', $health->message);
+        self::assertSame('backend.sql.unreachable', $health->localized?->key);
+        self::assertStringContainsString((string) $health->localized->params['error'], $health->message);
         self::assertInstanceOf(\DateTimeImmutable::class, $health->checkedAt);
     }
 

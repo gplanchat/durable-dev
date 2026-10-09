@@ -38,7 +38,7 @@ final class AChildReportsToItsParentInTheProtocolsOrderTest extends TestCase
 
         self::assertSame([
             'awaiting child child-1 on parent-1 with 0 events, linked',
-            'resume parent-1 with 1 events, linked',
+            'resume parent-1 with 2 events, linked',
         ], $resumes->sent);
         self::assertNull($links->getParentExecutionId(ExecutionId::fromString('child-1')), 'unlinked once the parent is resumed');
     }
@@ -56,7 +56,7 @@ final class AChildReportsToItsParentInTheProtocolsOrderTest extends TestCase
 
         $outcomes = array_filter(iterator_to_array($journal->readStream(ExecutionId::fromString('parent-1')), false), static fn(object $e): bool => $e instanceof ChildWorkflowCompleted);
         self::assertCount(1, $outcomes, 'the parent holds the outcome once');
-        self::assertSame(['resume parent-1 with 1 events, linked'], $resumes->sent);
+        self::assertSame(['resume parent-1 with 2 events, linked'], $resumes->sent);
     }
 
     /**

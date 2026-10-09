@@ -8,8 +8,10 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalNexusWorker;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
 use Gplanchat\Durable\Nexus\NexusOperationName;
 use Gplanchat\Durable\Nexus\NexusService;
+use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Illuminate\Container\Container;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use unit\DurableLaravel\Fixtures\BillingHandler;
 use unit\DurableLaravel\Fixtures\BillingService;
@@ -43,6 +45,40 @@ final class NexusOnLaravelTest extends TestCase
         $this->expectException(\Throwable::class);
 
         $app->make(NexusOperationRegistry::class);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function backendsThatCannotRoute(): iterable
+    {
+        yield 'illuminate' => ['illuminate'];
+        yield 'memory' => ['memory'];
+    }
+
+    #[DataProvider('backendsThatCannotRoute')]
+    public function testADeclaredHandlerFailsAtBootOffTemporal(string $backend): void
+    {
+        // Nothing resolves the registry off Temporal, so the registry's own refusal never fires.
+        $app = $this->container($backend, [BillingHandler::class => BillingService::class]);
+        $provider = new DurableServiceProvider($app);
+        $provider->register();
+
+        $this->expectException(NexusUnsupportedByBackendException::class);
+        $this->expectExceptionMessage($backend);
+
+        $provider->boot();
+    }
+
+    #[DataProvider('backendsThatCannotRoute')]
+    public function testWithNoHandlerDeclaredBootIsUnchanged(string $backend): void
+    {
+        $app = $this->container($backend, []);
+        $provider = new DurableServiceProvider($app);
+        $provider->register();
+        $provider->boot();
+
+        $this->addToAssertionCount(1);
     }
 
     public function testAnApplicationThatServesNothingGetsARegistryAnyway(): void
