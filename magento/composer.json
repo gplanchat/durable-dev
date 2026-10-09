@@ -7,6 +7,7 @@
         "php": "^8.2",
         "mage-os/product-community-edition": "2.2.0",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/grpc-client": "@dev",
         "gplanchat/durable-magento": "@dev"
     },
     "repositories": [
@@ -19,6 +20,14 @@
             "name": "gplanchat-durable-module",
             "type": "path",
             "url": "../src/DurableModule",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "name": "gplanchat-grpc-client",
+            "type": "path",
+            "url": "../src/GrpcClient",
             "options": {
                 "symlink": false
             }

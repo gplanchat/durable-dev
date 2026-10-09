@@ -77,6 +77,8 @@ final readonly class TemporalActivityWorker
                 'exception' => $unreadable,
                 'event_id' => null,
                 'rpc' => 'RespondActivityTaskFailed',
+                'workflow_id' => $resp->getWorkflowExecution()?->getWorkflowId(),
+                'run_id' => $resp->getWorkflowExecution()?->getRunId(),
                 'activity_id' => $resp->getActivityId(),
             ]);
             $this->respondFailed($resp, $unreadable::class, $unreadable->getMessage(), '', true, ActivityTaskFailedCause::ACTIVITY_TASK_FAILED_CAUSE_ACTIVITY_WORKER_UNHANDLED_FAILURE);

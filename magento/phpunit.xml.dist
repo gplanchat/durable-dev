@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Magento bench's harness (#747, DUR056): the shared SQL conformance cases of
+  src/Durable/Testing, run against Magento-adapter stores inside a Magento bootstrap.
+
+  Run it from this directory, with the repository's PHPUnit (the bench installs none). failOnSkipped
+  is set below, so a skipped test fails the run:
+
+      php ../vendor/bin/phpunit -c phpunit.xml.dist
+
+  See "The conformance harness" in README.md.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="../vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnRisky="true"
+         failOnWarning="true"
+         failOnSkipped="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+>
+    <php>
+        <ini name="memory_limit" value="2G"/>
+    </php>
+    <testsuites>
+        <testsuite name="conformance">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
