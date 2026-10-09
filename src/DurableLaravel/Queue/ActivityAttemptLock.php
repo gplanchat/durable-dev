@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Illuminate\Queue;
+namespace Gplanchat\Durable\Laravel\Queue;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\ActivityAttemptClaimInterface;

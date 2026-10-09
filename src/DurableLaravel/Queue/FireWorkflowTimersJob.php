@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Queue;
 
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;

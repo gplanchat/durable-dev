@@ -18,7 +18,7 @@ change only where the execution is recorded, never the workflow code.
 | `gplanchat/durable-bridge-temporal` | the Temporal driver, over gRPC | the library, `ext-grpc`, a Temporal cluster |
 | `gplanchat/durable-bridge-dbal` | durable execution on one SQL database | the library, Doctrine DBAL 3 or 4, `symfony/lock` |
 | `gplanchat/durable-bridge-illuminate` | the same, through Laravel's database layer | the library, `illuminate/database` 11, 12 or 13 |
-| `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, the Illuminate bridge, `illuminate/support` |
+| `gplanchat/durable-laravel` | the Laravel wiring: ports bound from config, work on the application's queue | the library, `illuminate/support`; the Illuminate or Temporal bridge for the backend you select |
 | `gplanchat/durable-magento` | a Magento 2.4 / Mage-OS module: declaration, workers, admin screen | the library; Temporal for anything that must outlive a process |
 | `gplanchat/durable-plugin` | a Sylius admin dashboard for workflow runs | the bundle, `knplabs/knp-menu`; Sylius 2.x to appear in its menu |
 | `gplanchat/durable-filament` | a Filament panel dashboard for workflow runs | the Laravel integration, Filament 3 or 4 |
@@ -198,7 +198,7 @@ If you rename a file, Laravel runs both the package's file and your copy. Only
 have no guard and stop on a table that already exists. The four other migrations check `hasColumn`,
 `hasIndex` or `hasTable` first and change nothing the second time.
 
-`Queue\ResumeLock` covers what no choice of storage supplies. When two workers resume the **same**
+`ResumeLock` covers what no choice of storage supplies. It lives in [`gplanchat/durable-laravel`](#gplanchatdurable-laravel--the-laravel-integration), which uses it on every backend. When two workers resume the **same**
 execution, both replay it, both treat the commands it produces as new, and those commands go out
 twice. The journal does not prevent this, because it records whatever it receives, duplicates
 included. `ResumeLock` takes a closure, so a queued job, an artisan command or a hand-written worker
@@ -218,10 +218,15 @@ can all use it.
 ```bash
 composer config minimum-stability beta
 composer config prefer-stable true
-composer require gplanchat/durable-laravel
+composer require gplanchat/durable-laravel gplanchat/durable-bridge-illuminate
 php artisan migrate
 php artisan vendor:publish --tag=durable-config
 ```
+
+The package suggests the two bridges and requires neither, so you install the one of the backend you
+select: `gplanchat/durable-bridge-illuminate` for one SQL database, as above, or
+`gplanchat/durable-bridge-temporal` for a Temporal cluster. In memory needs neither. With `backend`
+set to `illuminate`, the default, and the bridge missing, registration fails with the command to run.
 
 Package auto-discovery registers the provider. From one published `config/durable.php`, the
 provider binds the four storage ports, the activity and resume jobs, and the per-execution lock.
@@ -329,7 +334,7 @@ naming the package to install. Splitting the bridge, whose Symfony-coupled part 
 of 774, would remove that weight; it is a separate change.
 
 **No dashboard.** [`gplanchat/durable-filament`](#gplanchatdurable-filament--the-filament-dashboard)
-requires this package, and this package never requires, suggests or detects Filament.
+requires this package. This package suggests it in `composer.json` and never requires or detects it.
 
 ---
 
@@ -602,17 +607,18 @@ composer config prefer-stable true
 | Sylius, tests only | `composer require gplanchat/durable-plugin` |
 | Sylius, one SQL database | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-dbal` |
 | Sylius, Temporal cluster | `composer require gplanchat/durable-plugin gplanchat/durable-bridge-temporal` |
-| Laravel, one SQL database | `composer require gplanchat/durable gplanchat/durable-bridge-illuminate` |
+| Laravel, one SQL database | `composer require gplanchat/durable-laravel gplanchat/durable-bridge-illuminate` |
+| Laravel, Temporal cluster | `composer require gplanchat/durable-laravel gplanchat/durable-bridge-temporal` |
 | Magento, Temporal cluster | `composer require gplanchat/durable-magento gplanchat/durable-bridge-temporal` |
 
 Each line names only the integration: the bundle pulls in the library, and the plugin pulls in the
 bundle. Without a framework, you name the library yourself, and you also wire the workers yourself.
 
-The Laravel line names the library instead of an integration, and that is now a *choice*.
-`gplanchat/durable-laravel` exists: a service provider that binds the four storage ports,
-workflows declared in `config/durable.php`, and work on the queue the application already drains.
-To have it wire the ports for you, require `gplanchat/durable-laravel` instead: it pulls in the
-library and the Illuminate bridge, and the section above lists what it does for you.
+The Laravel lines name the integration and the bridge of the backend, because `gplanchat/durable-laravel`
+requires neither bridge. It is a service provider that binds the four storage ports, with workflows
+declared in `config/durable.php` and work on the queue the application already drains; the section
+above lists what it does for you. To wire the stores yourself, require the library and the bridge
+without the integration.
 
 ---
 

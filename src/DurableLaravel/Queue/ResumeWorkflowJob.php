@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Laravel\Queue;
 
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Durable\Exception\ResumeArrivedBeforeItsOutcome;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
