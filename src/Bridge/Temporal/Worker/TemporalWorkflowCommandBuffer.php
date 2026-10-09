@@ -7,6 +7,7 @@ namespace Gplanchat\Bridge\Temporal\Worker;
 use Google\Protobuf\Duration;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
+use Gplanchat\Bridge\Temporal\Codec\WorkflowFailureCodec;
 use Gplanchat\Bridge\Temporal\DurableSearchAttributes;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -321,7 +322,10 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
 
         $info = new ApplicationFailureInfo();
         $info->setType($classified->failureClass());
-        $info->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($classified->payload())));
+        // `cause` carries what the client needs to rebuild the activity's or the Nexus operation's
+        // exception (#872); the journal payload stays as it is.
+        $details = $classified->payload() + array_filter(['cause' => WorkflowFailureCodec::cause($reason)]);
+        $info->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($details)));
 
         $failure = new Failure();
         $failure->setMessage($classified->failureMessage());
