@@ -40,6 +40,16 @@ final class TheRunPageTest extends PanelTestCase
             ->assertSee('&quot;amount&quot;: 42', false);
     }
 
+    public function testTheWaitIsTranslatedFromItsKey(): void
+    {
+        $this->app->setLocale('fr');
+
+        $this->get('/admin/durable/run?executionId=order-1')
+            ->assertOk()
+            ->assertSee('En attente de payment-received')
+            ->assertDontSee('waiting on payment-received');
+    }
+
     public function testAnUnknownRunIsSaidAsSuch(): void
     {
         $this->get('/admin/durable/run?executionId=nope')

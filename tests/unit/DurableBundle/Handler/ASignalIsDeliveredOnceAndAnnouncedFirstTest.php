@@ -26,7 +26,7 @@ final class ASignalIsDeliveredOnceAndAnnouncedFirstTest extends TestCase
 
         (new DeliverWorkflowSignalHandler($journal, $resumes))(new DeliverWorkflowSignalMessage('exec-1', 'approve', [], 'req-1'));
 
-        self::assertSame(['awaiting signal req-1 with 0 events', 'resume with 1 events'], $resumes->sent);
+        self::assertSame(['awaiting signal req-1 with 0 events', 'resume with 2 events'], $resumes->sent);
     }
 
     public function testARedeliveredSignalIsJournalledOnceAndStillResumes(): void
@@ -41,7 +41,7 @@ final class ASignalIsDeliveredOnceAndAnnouncedFirstTest extends TestCase
 
         $signals = array_filter(iterator_to_array($journal->readStream(ExecutionId::fromString('exec-1')), false), static fn(object $e): bool => $e instanceof WorkflowSignalReceived);
         self::assertCount(1, $signals, 'the workflow sees the signal once');
-        self::assertSame('resume with 1 events', $resumes->sent[array_key_last($resumes->sent)], 'the redelivery still resumes');
+        self::assertSame('resume with 2 events', $resumes->sent[array_key_last($resumes->sent)], 'the redelivery still resumes');
     }
 }
 

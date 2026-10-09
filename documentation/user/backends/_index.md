@@ -455,7 +455,7 @@ or an update sent from the application is journaled, and the workflow's next pas
 sender gets no answer. A query has no application-side entry point there at all.
 
 No backend but Temporal has a scheduler or a cross-namespace boundary, so cron and Nexus have no
-equivalent on the other three. Nexus fails explicitly, with one gap on Laravel, described below.
+equivalent on the other three. Nexus fails explicitly.
 A child workflow's `namespace`, `taskQueue` and `cronSchedule` fail explicitly too: a journal
 backend fails with `UnsupportedByBackendException` naming the option. Search attributes are the
 exception: a child workflow's are written into the journal and nothing reads them outside Temporal,
@@ -464,10 +464,8 @@ the call. A Nexus *handler* with no route never sees a failing call: it is a ser
 receives anything. On Symfony, the container build fails when
 `durable.temporal.dsn` is not set. On Magento, `bin/magento durable:worker --role=nexus` fails with
 `A Nexus worker needs a cluster` when `app/etc/env.php` has no DSN.
-On Laravel, nothing fails at boot. Outside `temporal`, nothing resolves the Nexus registry: a
-handler listed in `durable.nexus.handlers` raises nothing and receives nothing, and
-`php artisan durable:nexus-worker` ends with `Command "durable:nexus-worker" is not defined.`, which
-does not name the backend (see [#931](https://github.com/gplanchat/durable-dev/issues/931)).
+On Laravel, the provider fails at boot with `NexusUnsupportedByBackendException` when a handler is listed in
+`durable.nexus.handlers` and the backend is not `temporal`. The message names the backend.
 
 ### Starting a run from a Magento observer {#magento-start-blocks}
 

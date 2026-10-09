@@ -13,6 +13,7 @@
         <directory name="src/Durable" />
         <directory name="src/DurableBundle" />
         <directory name="src/DurablePlugin" />
+        <directory name="src/GrpcClient" />
         <directory name="src/Bridge/Temporal" />
         <directory name="src/Bridge/Dbal" />
         <directory name="src/Bridge/Illuminate" />
@@ -33,6 +34,9 @@
             <directory name="tests/integration/DurableModule/ResumeLock/Fixture" />
             <directory name="tests/integration/DurableModule/RunProjection/Fixture" />
             <directory name="tests/integration/DurableModule/TableQueue/Fixture" />
+            <directory name="tests/integration/DurableModule/TableQueue/Fixture" />
+            <directory name="tests/integration/DurableModule/RunProjection/Fixture" />
+            <directory name="tests/integration/DurableModule/ResumeLock/Fixture" />
             <!-- They include the module's templates, which need magento/framework, absent from the root
                  graph. PHPStan analyses these tests; Psalm does not, nor does psalm-magento.xml. -->
             <directory name="tests/unit/DurableModule" />
