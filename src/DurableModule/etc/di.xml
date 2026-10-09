@@ -49,6 +49,12 @@
             <!-- The same shared instance the activities inject: on Temporal the factory points it at
                  the worker's sender (#510). Optional arguments are not autowired, hence here. -->
             <argument name="heartbeat" xsi:type="object">Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface</argument>
+            <!--
+                Optional, so not autowired. It reads `resource/durable` from env.php: declared, the
+                factory serves the database backend on that connection (DUR056); the resolver
+                refuses the shop's connection by fallback, and a DSN declared with it.
+            -->
+            <argument name="journalConnection" xsi:type="object">Gplanchat\DurableModule\Runtime\JournalConnectionResolver</argument>
             <!-- Optional too: without it the Temporal client built by the factory logs nothing. -->
             <argument name="logger" xsi:type="object">Psr\Log\LoggerInterface</argument>
             <!--
