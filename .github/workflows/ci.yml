@@ -800,6 +800,18 @@ jobs:
             - name: Psalm (src/DurableModule, against the real Magento classes)
               run: composer psalm-magento
 
+            # #738: the adapter's integration tests (`phpunit.magento.xml`) skip themselves unless
+            # `magento/vendor` exists and `DURABLE_TEST_MYSQL` names a server, so until now no job ran
+            # them. They create and drop their own tables and use GET_LOCK and SKIP LOCKED (MySQL 8.4
+            # here), hence a database of their own on this job's server rather than the shop's.
+            # `--fail-on-skipped`: a skip means the job stopped exercising them.
+            - name: Magento adapter integration tests (private database)
+              env:
+                  DURABLE_TEST_MYSQL: magento:magento@127.0.0.1:3306/durable_test
+              run: |
+                mysql -h 127.0.0.1 -uroot -pmagento -e "CREATE DATABASE durable_test; GRANT ALL ON durable_test.* TO 'magento'@'%';"
+                vendor/bin/phpunit -c phpunit.magento.xml --display-skipped --fail-on-skipped
+
             # ⚠ The skeleton is not in the repository — `magento/.gitignore` keeps only the overlay
             # there, and the development workstation had obtained it once through `create-project`.
             # After a bare `composer install`, `bin/magento` therefore does not exist.
