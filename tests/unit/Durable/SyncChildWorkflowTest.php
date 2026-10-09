@@ -55,7 +55,7 @@ final class SyncChildWorkflowTest extends TestCase
     {
         $this->registry->registerClass(EchoingChild::class);
 
-        $result = $this->engine->start('parent-1', static fn(WorkflowEnvironment $env): string
+        $result = $this->engine->start(ExecutionId::fromString('parent-1'), static fn(WorkflowEnvironment $env): string
             => 'parent-saw:' . $env->await($env->childWorkflowStub(EchoingChild::class)->run()));
 
         self::assertSame('parent-saw:child-result', $result);
@@ -80,7 +80,7 @@ final class SyncChildWorkflowTest extends TestCase
         // C-15 (#329): without it, the run list and the history had no name for an inline child.
         $this->registry->registerClass(EchoingChild::class);
 
-        $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): string
+        $this->engine->start(ExecutionId::fromString('parent-3'), static fn(WorkflowEnvironment $env): string
             => $env->await($env->childWorkflowStub(EchoingChild::class)->run()));
 
         foreach ($this->eventStore->readStream(ExecutionId::fromString('parent-3')) as $event) {
@@ -109,11 +109,11 @@ final class SyncChildWorkflowTest extends TestCase
         $handler = static fn(WorkflowEnvironment $env): string
             => 'parent-saw:' . $env->await($env->childWorkflowStub(EchoingChild::class)->run());
 
-        $this->engine->start('parent-2', $handler);
+        $this->engine->start(ExecutionId::fromString('parent-2'), $handler);
         self::assertSame(1, $childRuns);
 
         // The replay must read ChildWorkflowCompleted back, not restart the child.
-        $this->engine->resume('parent-2', $handler);
+        $this->engine->resume(ExecutionId::fromString('parent-2'), $handler);
         self::assertSame(1, $childRuns, 'the child must not be re-executed when the parent replays');
     }
 
@@ -122,7 +122,7 @@ final class SyncChildWorkflowTest extends TestCase
         $this->registry->registerClass(ExplodingChild::class);
 
         try {
-            $this->engine->start('parent-3', static fn(WorkflowEnvironment $env): mixed
+            $this->engine->start(ExecutionId::fromString('parent-3'), static fn(WorkflowEnvironment $env): mixed
                 => $env->await($env->childWorkflowStub(ExplodingChild::class)->run()));
         } catch (\Throwable) {
             // The parent does not handle the child's failure: that is expected here.
@@ -156,12 +156,12 @@ final class SyncChildWorkflowTest extends TestCase
         };
 
         try {
-            $this->engine->start('parent-5', $handler);
+            $this->engine->start(ExecutionId::fromString('parent-5'), $handler);
         } catch (WorkflowSuspendedException) {
         }
 
         try {
-            $this->engine->resume('parent-5', $handler);
+            $this->engine->resume(ExecutionId::fromString('parent-5'), $handler);
         } catch (WorkflowSuspendedException) {
         }
 
@@ -175,7 +175,7 @@ final class SyncChildWorkflowTest extends TestCase
         $this->registry->registerClass(EchoingChild::class);
 
         $seenActive = null;
-        $this->engine->start('parent-4', function (WorkflowEnvironment $env) use (&$seenActive): string {
+        $this->engine->start(ExecutionId::fromString('parent-4'), function (WorkflowEnvironment $env) use (&$seenActive): string {
             $child = $env->await($env->childWorkflowStub(EchoingChild::class)->run());
             $seenActive = ParentChildWorkflowCoordinator::isChildRunActive($this->eventStore, 'parent-4');
 

@@ -564,10 +564,11 @@ Durable place PHP des deux côtés de cette frontière.
 Une limite est délibérée :
 
 - **Backend Temporal seulement.** Nexus achemine vers un point d'entrée servi ailleurs. Un backend
-  qui garde son journal dans une seule base n'a ni cette route ni de repli qui garde le sens de l'appel. Le backend DBAL
-  **lève donc immédiatement** `NexusUnsupportedByBackendException`, qui nomme le backend et
-  indique quoi faire à la place ; le workflow n'attend pas un résultat que personne ne produira.
-  Côté gestionnaire, la même vérification échoue **au montage du conteneur**, et non à la requête,
+  qui garde son journal lui-même, en mémoire ou dans une seule base, n'a ni cette route ni de repli qui garde le sens de l'appel. Les backends en mémoire, DBAL et Illuminate
+  **lèvent donc immédiatement** `NexusUnsupportedByBackendException`, dont le message indique
+  d'utiliser le backend Temporal ; le workflow n'attend pas un résultat que personne ne produira.
+  Côté gestionnaire, sur Symfony, la vérification échoue **au montage du conteneur** quand
+  `durable.temporal.dsn` n'est pas renseigné, et non à la requête,
   parce qu'un gestionnaire sans route ne reçoit jamais aucune requête.
 
 [DUR036](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR036-nexus-caller-only-and-the-backend-asymmetry.md)
@@ -594,8 +595,8 @@ migration, et reste une rupture.
 
 **Prenez le SDK PHP de Temporal** quand vous opérez déjà un cluster Temporal, que vous voulez le
 client officiellement maintenu et sa parité entre langages, que vous avez besoin du versionnage des
-**workers** (identifiants de build, épinglage d'une exécution à une version de worker) ou d'un
-**gestionnaire** Nexus, et que RoadRunner est acceptable dans votre déploiement.
+**workers** (identifiants de build, épinglage d'une exécution à une version de worker), et que
+RoadRunner est acceptable dans votre déploiement.
 
 **Vous venez du SDK ?** `gplanchat/durable-rector` fait la partie mécanique de la migration. Il
 convertit les attributs et les classes d'échec, et conserve les **noms de type** de workflow et
@@ -609,8 +610,8 @@ sachiez avant de commencer si la migration vous est seulement ouverte.
 **Prenez Durable** quand vous voulez l'exécution durable sans ajouter un second moteur à votre
 application, quand une seule base SQL est la bonne empreinte opérationnelle, quand vous voulez une
 logique de workflow couverte par des tests unitaires sans infrastructure, ou quand vous avez besoin
-d'**appeler** des opérations Nexus depuis PHP tout court. Dans chaque cas, vous devez pouvoir accepter une préversion, avec des
-ruptures possibles entre versions.
+d'**appeler ou de servir** des opérations Nexus depuis PHP tout court. Dans chaque cas, vous devez
+pouvoir accepter une préversion, avec des ruptures possibles entre versions.
 
 ---
 

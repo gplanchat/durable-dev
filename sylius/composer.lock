@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ca0598d82f1ac9c5912f40adaa411056",
+    "content-hash": "fb57d4f1ecefe27e249da11130be88bd",
     "packages": [
         {
             "name": "adyen/php-api-library",
@@ -3889,11 +3889,12 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Durable",
-                "reference": "68b84b432beae47c836b579e9c813457d563a47c"
+                "reference": "8dc4267bb27a2cf3fb0253d3827c83513edded00"
             },
             "require": {
                 "php": ">=8.2",
-                "psr/cache": "^3.0"
+                "psr/cache": "^3.0",
+                "psr/clock": "^1.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.5"
@@ -3996,13 +3997,14 @@
             "dist": {
                 "type": "path",
                 "url": "../src/Bridge/Temporal",
-                "reference": "1559f34e88bb4fa0bf0b5550e6172ad37732bc6c"
+                "reference": "0514c5a5b151151c37180a63c43fc4358a78a8ad"
             },
             "require": {
                 "ext-filter": "*",
                 "google/common-protos": "^4.9",
                 "google/protobuf": "^4.31",
                 "gplanchat/durable": "self.version",
+                "gplanchat/grpc-client": "self.version",
                 "grpc/grpc": "^1.57",
                 "php": ">=8.2",
                 "psr/log": "^1.1 || ^2.0 || ^3.0",
@@ -4060,7 +4062,7 @@
             "dist": {
                 "type": "path",
                 "url": "../src/DurableBundle",
-                "reference": "2355437dbf30673598a721825989132d1bb4b516"
+                "reference": "d38d5e3f2ce9751214c46fc01c330e6a97f39818"
             },
             "require": {
                 "gplanchat/durable": "self.version",
@@ -4077,11 +4079,15 @@
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/service-contracts": "^3.0"
             },
+            "require-dev": {
+                "symfony/serializer": "^6.4 || ^7.0 || ^8.0"
+            },
             "suggest": {
                 "doctrine/orm": "Declares the DBAL journal tables to doctrine:schema:update and doctrine:migrations:diff, which would otherwise generate DROP TABLE for them (SchemaListener\\DurableSchemaListener)",
                 "gplanchat/durable-bridge-dbal": "SQL backend: DurableExtension wires its journal, stores and resume lock when event_store.type is dbal",
                 "gplanchat/durable-bridge-temporal": "Temporal backend: DurableExtension wires its client, stores and worker transports when durable.temporal.dsn is set",
                 "phpunit/phpunit": "Required by the shipped test helper (Testing\\DurableBundleTestTrait)",
+                "symfony/serializer": "Normalizers for Duration, RetryLimit and TaskQueue, registered when installed: a Messenger transport set to messenger.transport.symfony_serializer needs them to carry activity messages",
                 "symfony/twig-bundle": "Renders the Durable profiler panel (Resources/views), with symfony/web-profiler-bundle",
                 "symfony/web-profiler-bundle": "Web Debug Toolbar and profiler: Durable panel (workflows / activities)"
             },
@@ -4218,6 +4224,54 @@
                 "sylius-plugin",
                 "symfony",
                 "workflow"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "gplanchat/grpc-client",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../src/GrpcClient",
+                "reference": "c257b2ee4d44eb7510c9959575e91ba4eaf2cb06"
+            },
+            "require": {
+                "google/protobuf": "^4.31",
+                "php": ">=8.2"
+            },
+            "suggest": {
+                "ext-curl": "For CurlGrpcTransport: one HTTP/2 POST per unary call",
+                "guzzlehttp/guzzle": "For GuzzleGrpcTransport (7.14 or newer, cURL handler): gRPC over the application's Guzzle client"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gplanchat\\GrpcClient\\": "./"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Grégory Planchat",
+                    "email": "gregory@gyroscops.com"
+                }
+            ],
+            "description": "gRPC unary client over HTTP/2 without ext-grpc: curl or Guzzle, the status read from the trailers",
+            "keywords": [
+                "grpc",
+                "http2",
+                "protobuf",
+                "trailers"
             ],
             "transport-options": {
                 "symlink": true,
@@ -19384,7 +19438,8 @@
         "gplanchat/durable-bridge-temporal": 20,
         "gplanchat/durable-bundle": 20,
         "gplanchat/durable-demo-contracts": 20,
-        "gplanchat/durable-plugin": 20
+        "gplanchat/durable-plugin": 20,
+        "gplanchat/grpc-client": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

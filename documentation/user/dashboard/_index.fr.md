@@ -75,6 +75,14 @@ tâches en attente. La grille Magento non plus, puisque ses backends sont celui 
 l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
 pour ajouter la colonne à une table créée avant elle.
 
+Après la première prise en charge, les backends à journal enregistrent chaque attente d'un worker
+sous forme d'événements, comme Temporal : `WorkflowTaskScheduled` quand une reprise est envoyée,
+`WorkflowTaskStarted` quand un worker la prend, `WorkflowTaskCompleted` quand la passe se termine.
+Sur la ligne de l'exécution, l'intervalle entre l'envoi et la prise en charge est l'attente hachurée
+décrite à la section 4. La première tâche d'une exécution n'a pas de `WorkflowTaskScheduled` :
+l'application l'envoie par `dispatchNewWorkflowRun()`, qui n'écrit rien dans le journal, et la ligne
+`waiting for a worker` ci-dessus couvre cette première attente.
+
 Une exécution en cours dit aussi **ce qu'elle attend**, à sa dernière suspension :
 `waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
 `waiting on activity charge attempt 2 in flight`, ou `waiting on condition at src/…/OrderWorkflow.php:42`.
@@ -84,8 +92,7 @@ le workflow lui a donné un libellé (`await(…, label: 'signal approve')` affi
 Temporal le dit aussi, grille Magento comprise, par un mémo `durableWaitingOn` que le worker met à
 jour à chaque suspension. Le mémo omet la tentative, puisqu'aucune tâche de workflow ne s'exécute quand une
 tentative d'activité démarre, et le résumé d'un minuteur, qui n'est jamais envoyé au serveur.
-Sylius affiche la ligne dans la liste, Filament dans la liste et sur la page de l'exécution. Magento
-et le profileur écrivent la raison sans le préfixe `waiting on`.
+Sylius et Filament affichent la ligne dans la liste et sur la page de l'exécution. Magento et le profileur écrivent la raison sans le préfixe `waiting on`.
 
 ### 3. Les compteurs, sur ce que vous regardez
 
@@ -99,8 +106,7 @@ l'application. Chaque surface dit lequel, parce que cela dépend de la façon do
   est pleine.
 
 Un intitulé « Total » sous lequel on lit vingt vous apprendrait qu'une application ayant enregistré
-cinq cents exécutions en a vingt. Les compteurs Magento portent une colonne `Total` : elle compte la
-fenêtre, pas l'historique. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
+cinq cents exécutions en a vingt. Les compteurs Magento intitulent leur première colonne `In the window`, et l'intitulé au-dessus d'eux dit que les filtres de la grille ne les changent pas. Le profileur n'a pas de compteurs, puisqu'il ne liste que les exécutions
 d'une requête.
 
 ### 4. L'historique d'une exécution, une ligne par **action** {#4-lhistorique-dune-exécution--une-ligne-par-action}
@@ -159,9 +165,7 @@ Deux absences se ressemblent et n'en sont pas une seule :
   n'a pas de file, alors que c'est le backend qui n'a pas de files.
 - **Cette exécution n'a pas ce fait.** Une exécution en cours n'a pas de date de fin. La colonne
   existe pour ses voisines, elle se lit donc, dans un tableau, comme un tiret cadratin explicite. Une
-  case vide se lit comme un rendu qui a échoué. Magento et le profileur appliquent cette règle. La
-  grille Sylius laisse encore vide la date de début d'une telle exécution, et la colonne Notes de
-  Filament laisse vide une note vide.
+  case vide se lit comme un rendu qui a échoué. Chaque surface applique cette règle.
 
 ## Ce qui diffère d'une surface à l'autre {#ce-qui-diffère-dun-hôte-à-lautre}
 

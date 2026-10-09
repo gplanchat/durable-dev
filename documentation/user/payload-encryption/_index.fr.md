@@ -180,18 +180,34 @@ workers, ce qui démarre ou signale des workflows, et le tableau de bord.
 
 Un payload indéchiffrable, sous une clé inconnue par exemple, lève une exception dans l'appel qui
 l'a lu. Un tableau de bord affiche une erreur de lecture. Un worker, lui, signale l'échec de la
-tâche qu'il a reçue, avec l'erreur de décodage pour cause, puis reprend son poll. Une tâche de
-workflow retourne au serveur, qui la redistribue : dès que la clé est disponible, elle passe. Une
-tâche d'activité compte comme une tentative échouée au regard de sa politique de relance. L'échec
-transmet la classe et le message de l'erreur, jamais sa trace d'appels, qui pourrait citer la clé
-ou le texte en clair.
+tâche qu'il a reçue, avec l'erreur de décodage pour cause, puis reprend son poll. C'est vrai sur
+chaque page d'un long historique, que le worker lit en plusieurs appels pendant le rejeu. Une tâche
+de workflow retourne au serveur, qui la redistribue : dès que la clé est disponible, elle passe. Une
+tâche d'activité compte comme une tentative échouée au regard de sa politique de relance. Une tâche
+Nexus reçoit une erreur `INTERNAL` relançable, et le serveur la redistribue. L'échec transmet la
+classe et le message de l'erreur, jamais sa trace d'appels, qui pourrait citer la clé ou le texte en
+clair.
 
-Deux cas arrêtent encore le worker. Un long historique arrive en plusieurs pages, et le worker lit
-celles qui suivent la première pendant le rejeu : un payload indéchiffrable dans l'une de ces pages
-l'arrête. Un worker Nexus, lui, s'arrête sur tout payload indéchiffrable. Le ticket
-[#824](https://github.com/gplanchat/durable-dev/issues/824) suit ces deux cas. Faites tourner vos
-workers sous un superviseur qui les relance (systemd, Supervisor, Kubernetes), et alertez sur les
-arrêts répétés. Ni un worker ni un tableau de bord ne présente du chiffré comme s'il s'agissait de
+Avant de répondre, le worker journalise l'erreur au niveau `error` via le logger PSR-3 de votre
+framework : l'exception elle-même, trace d'appels comprise, sous `exception`, et l'id de l'événement
+d'historique qui ne se décode pas sous `event_id`, quand le payload appartient à un événement. La
+tâche y est nommée aussi : `workflow_id` et `run_id` pour une tâche de workflow, `workflow_id`,
+`run_id` et `activity_id` pour une tâche d'activité (un `activity_id` n'est unique qu'au sein de son
+workflow), `service`, `operation` et, pour une requête de démarrage, `request_id` pour une tâche
+Nexus. Gardez ce journal là où seuls vos opérateurs le lisent, puisque la trace peut citer ce que le
+serveur ne doit pas voir.
+
+Pour un worker qui utilise un codec, passez
+[`zend.exception_ignore_args`](https://www.php.net/manual/fr/ini.core.php#ini.zend.exception-ignore-args)
+à `On` dans son `php.ini`. Ce réglage vaut `Off` par défaut et dans `php.ini-development`. Avec
+`Off`, chaque ligne de la trace d'appels sous forme de texte liste les arguments de l'appel, et
+chaque chaîne y montre ses
+[`zend.exception_string_param_max_len`](https://www.php.net/manual/fr/ini.core.php#ini.zend.exception-string-param-max-len)
+premiers caractères, 15 par défaut. Ces caractères peuvent venir d'une clé ou d'un chiffré. Un
+gestionnaire qui lit les appels par `getTrace()` reçoit chaque argument en entier. Avec `On`, comme
+dans `php.ini-production`, la trace omet les arguments.
+
+Ni un worker ni un tableau de bord ne présente du chiffré comme s'il s'agissait de
 données.
 
 ---

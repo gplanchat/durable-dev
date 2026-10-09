@@ -89,7 +89,7 @@ final class TimerSlotHasNoIdentityTest extends TestCase
     {
         return new ExecutionContext(
             ExecutionId::fromString(self::EXECUTION),
-            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
             new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
     }

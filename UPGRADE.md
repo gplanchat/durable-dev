@@ -251,9 +251,9 @@ migrated by hand, calls to the other ports included.
 **What to do**, in this order:
 
 1. Run the `durable-upgrade` set, then PHPStan or Psalm, and pass `ExecutionId::fromString($id)` at
-   each call left. An empty string is refused, including by `WorkflowFiberDriver::run()` and
-   `PassEventStore::open()` (over any store), which keep a `string` parameter for now and convert
-   on entry.
+   each call left. An empty string is refused. `WorkflowFiberDriver::run()` and
+   `PassEventStore::open()` have since moved to `ExecutionId` as well (see "The engine, the pass
+   and the in-memory runner take an `ExecutionId`" below).
 2. **In a class that implements one of these interfaces**, change each listed parameter to
    `ExecutionId` (`?ExecutionId` for the parent of `runChild()`). Call `->toString()` where the
    body stores, binds, formats, serialises or compares the id. `json_encode()` turns the object
@@ -506,15 +506,16 @@ buffer's tests pin the memo.
 | `TemporalExecutionHistory::waitJournal()`                               | takes `ExecutionId`                  |
 | `AwaitedFact::isJournalledIn()`                                         | the journal's id is an `ExecutionId`; the fact itself keeps its string ids, since it travels in the resume message |
 
-These keep a string for now, and a later part of #682 moves most of them:
+These keep a string for now, and a later part of #682 moves most of them. The engine, the pass,
+the in-memory runner, `ContinueAsNewRequested`, `PendingTimers`, `TimerWakeDelayCalculator` and
+`WaitReason` have since moved (see "The engine, the pass and the in-memory runner take an
+`ExecutionId`" below):
 
-- `WorkflowFiberDriver::run()`, `PassEventStore::open()`, the `EventStoreHistorySource`
-  constructor, `ExecutionEngine::start()` and `resume()`, `InMemoryWorkflowRunner::run()`;
-- the public and testing helpers, among them `PendingTimers`, `WaitReason`,
-  `ActivityEventJournal`, `WorkflowQueryEvaluator`, `JournalRunHistoryReader`, `RunDashboard`,
-  `JournalAssertions`, `DurableTestCase` and `DurableBundleTestTrait`;
-- `WorkflowRunDescription::$executionId`, `ContinueAsNewRequested::nextExecutionId`,
-  `WorkflowCancelledFailure`, `ChildWorkflowOutcome` and `DurableChildWorkflowFailedException`;
+- the public and testing helpers, among them `ActivityEventJournal`, `WorkflowQueryEvaluator`,
+  `JournalRunHistoryReader`, `RunDashboard`, `JournalAssertions`, `DurableTestCase` and
+  `DurableBundleTestTrait`;
+- `WorkflowRunDescription::$executionId`, `WorkflowCancelledFailure`, `ChildWorkflowOutcome` and
+  `DurableChildWorkflowFailedException`;
 - the wire messages, and the ids an `AwaitedFact` carries.
 
 `WorkflowRunDescription::$runId` stays a string for good (decision on #682).
@@ -717,8 +718,9 @@ used to leave the code unchanged without a word:
 - above every statement that references `ApplicationFailure`, `ServerFailure`, `TerminatedFailure`
   or `TimeoutFailure`: a `catch` (marked above its `try`), a `new`, a `throw`, an `instanceof`, a
   static call, a `::class`, a parameter or return type (marked above its method or function,
-  #909). Durable has no counterpart for these four failures, and once `temporal/sdk` is removed the
-  reference no longer resolves. The `use` import is not marked;
+  #909), the `extends` of a named class (marked above the class, #916). Durable has no
+  counterpart for these four failures, and once `temporal/sdk` is removed the reference no longer
+  resolves. The `use` import is not marked;
 - above every `Temporal\Promise` call the rules do not rewrite: a method other than `all`, `any`
   and `some`, one of those three with no argument, and `some()` without a count;
 - above an activity interface whose prefix the rule cannot turn into a Durable activity name (a
@@ -730,8 +732,10 @@ used to leave the code unchanged without a word:
 
 **What to do:** nothing before the run. After it, search for `durable-rector:` and handle each
 marker by hand; the README of `gplanchat/durable-rector` lists what the set still changes or skips
-without a marker. A second run adds no second marker. A failure marker written by an earlier run
-keeps its old text ("a catch on it never matches after migration"), and a re-run adds no second one.
+without a marker. A second run adds no second marker for a construct already marked, and adds a
+different marker next to an existing one: a method can carry an activity marker and a failure
+marker (#917). A failure marker written by an earlier run keeps its old text ("a catch on it never
+matches after migration"), and a re-run adds no second one.
 
 ### `DurableTestCase` passes `budgetSeconds` and `maxContinuations` to the runner (#897)
 
@@ -787,6 +791,473 @@ workers). There, `Artisan::call('durable:drain')` does the same; in an HTTP requ
 does not exist. The journal of the `memory` backend lives in the process, so a separate
 `php artisan durable:drain` starts with an empty queue and drives nothing. Nothing changes on
 `illuminate` and `temporal`.
+
+### Profiler: `getTimeFrame()` no longer returns `store_timelines` (#876)
+
+Since #867 the profiler panel draws the shared run timeline and no longer draws one segment per
+journal event. `DurableDataCollector` stops computing those segments:
+
+- `DurableDataCollector::getTimeFrame()` returns `process` only; the `store_timelines` key is gone;
+- each entry of `getExecutionsDetail()` loses its `storeTimeline` key.
+
+`storeEventCount` and `storeTruncated` keep their values; the collector reads them from the
+journal it already loads.
+
+**Who is affected:** code that reads `getTimeFrame()['store_timelines']` or
+`getExecutionsDetail()[n]['storeTimeline']` from a collected profile, such as a custom profiler
+template.
+
+**What to do:** read the journal events of an execution from `getStoreEventRows()` (one row per
+event, with its `recordedAt`), or its timeline from `getExecutionsDetail()[n]['runTimeline']`, the
+one the panel draws. Profiles stored before the upgrade still carry the removed keys; the panel
+does not read them.
+
+`DurableProfilerTimeframe::monotonicUnixSecondsFromRecordedEntries()`, which only computed those
+segments, is removed, and `DurableProfilerTimeframe::MIN_SEGMENT_SEC` is now private.
+
+### Temporal: `pollForCompletion()` reports an unhandled activity failure as the journal does (#872)
+
+A workflow that lets an activity failure escape (plain, catastrophic, superseded or declared) now
+makes `WorkflowClient::pollForCompletion()` throw
+`Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException`, with the message the
+journal backends use (`Workflow did not handle activity failure: …`). Its previous exception is
+the activity's own exception, rebuilt as on the journal backends (see the entry on the exceptions
+of `pollForCompletion()` (#872) below). It used to throw a plain
+`\RuntimeException` whose message started with `Workflow "<execution id>" failed:`, with no
+previous exception. Every other failure is described in that entry. For an activity
+failure, this replaces the third bullet of the Magento `run()` entry (#765) above.
+
+**Who is affected:** code that waits through the Temporal client and reads the failure's message or
+checks its exact class: the Symfony bench runner, Laravel's `WorkflowClientInterface` binding, the
+Sylius and Symfony Nexus demo commands, and Magento's `run()` with a DSN set.
+
+**What to do:** nothing if you catch `\RuntimeException`: the new exception extends it. Code that
+matched on `Workflow "…" failed:` for an activity failure catches
+`DurableWorkflowAlgorithmFailureException` instead, as it already does on the journal backends, and
+reads the original class from `$e->getPrevious()->originalExceptionClass()`. No Rector rule: the
+change is in what a `catch` block receives, not in a call.
+
+### The engine, the pass and the in-memory runner take an `ExecutionId` (#682)
+
+**Who is affected**: code that drives the engine or the fiber driver itself, such as a custom
+backend or a test harness; code that builds an `EventStoreHistorySource` or opens a
+`PassEventStore`; code that calls `InMemoryWorkflowRunner::run()` directly; code that reads
+`ContinueAsNewRequested::$nextExecutionId`; and code that calls the timer and wait helpers.
+`WorkflowTestEnvironment`, `DurableTestCase` and `MagentoRuntime` keep their string parameter and
+convert it once. **Nothing stored or sent changes**: the wire messages keep their string ids, and
+`continuedFromExecutionId` in `ExecutionStarted` is still written as a string.
+
+| Where                                                                   | Changes                              |
+|-------------------------------------------------------------------------|--------------------------------------|
+| `ExecutionEngine::start()`, `resume()`: first argument                  | `ExecutionId`                        |
+| `InMemoryWorkflowRunner::run()`: first argument                         | `ExecutionId`                        |
+| `EventStoreHistorySource` constructor: second argument                  | `ExecutionId`                        |
+| `PassEventStore::open()`: second argument                               | `ExecutionId`                        |
+| `WorkflowFiberDriver::run()`                                            | the execution id argument is removed: the driver reads it from the `ExecutionContext` |
+| `ContinueAsNewRequested::$nextExecutionId`, `withNextExecutionId()`     | `?ExecutionId`, `ExecutionId`        |
+| `PendingTimers::of()`, `dueAt()`, `TimerWakeDelayCalculator::millisecondsUntilNextTimerDue()`, `WaitReason::describe()` | take `ExecutionId` |
+
+`WorkflowFiberDriver::run($executionId, $context, $environment, $handler)` used to take the id
+twice: as its first argument and inside the context, and nothing checked that the two agreed. It
+is now `run($context, $environment, $handler)`.
+
+An empty id cannot reach these methods any more, since `ExecutionId::fromString('')` throws
+`InvalidArgumentException`. The resume and timer message handlers convert the message's string
+before they touch any store, and refuse an empty one there.
+
+**What to do**, in this order:
+
+1. Run the `durable-upgrade` set. `ExecutionIdArgumentRector` wraps a string passed to
+   `ExecutionEngine::start()`/`resume()`, `InMemoryWorkflowRunner::run()` and
+   `withNextExecutionId()`. `ExecutionIdEventArgumentRector` wraps the one passed to the
+   `EventStoreHistorySource` and `ContinueAsNewRequested` constructors and to the static helpers.
+   The new `WorkflowFiberDriverRunRector` drops the first argument of a four-argument
+   `WorkflowFiberDriver::run()` call. It leaves alone a call that already has three, and a call
+   with named arguments: remove `executionId:` from it by hand.
+2. Run PHPStan or Psalm, and pass `ExecutionId::fromString($id)` at each call left: a named or
+   nullable argument, or a call made with `$engine->{$method}()`.
+3. Code that reads `ContinueAsNewRequested::$nextExecutionId` gets an `ExecutionId`. Call
+   `->toString()` where it stores, formats, serialises or compares the id with a string.
+   `json_encode()` turns the object into `{}`, and `===` against a string is always false.
+   Compare two ids with `->equals()`. Under `declare(strict_types=1)`, passing the object to a
+   `string` parameter is a `TypeError`, even though `ExecutionId` is `Stringable`: the typical
+   line to fix is `ExecutionId::fromString($e->nextExecutionId)`, which now becomes
+   `$e->nextExecutionId`.
+
+These still take or carry a string, for a later part of #682: `ActivityEventJournal`,
+`WorkflowQueryEvaluator`, `JournalRunHistoryReader`, `RunDashboard`, `DurableDataCollector`,
+`JournalAssertions`, `DurableTestCase`, `DurableBundleTestTrait`, `WorkflowTestEnvironment`,
+`MagentoRuntime::run()`, Magento's `ProcessDetail::getRun()`,
+`WorkflowRunDescription::$executionId`, `WorkflowCancelledFailure`, `ChildWorkflowOutcome`,
+`DurableChildWorkflowFailedException`, `WorkflowStuckException` and
+`ContinuationCapReachedException`. The wire messages and the ids an `AwaitedFact` carries keep
+their strings.
+
+### Temporal: a started memo whose execution id is not a non-empty string fails the task (#890)
+
+When the `durableExecutionId` field of the `WorkflowExecutionStarted` memo holds a number, an empty
+string, `null`, an object or an array, the workflow worker used to read it as no id and fall back
+to the workflow id. A run whose workflow id differs from its execution id then journaled under the
+wrong id. The worker no longer falls back: it answers the workflow task with
+`RespondWorkflowTaskFailed` and polls again. The failure message carries the error, and the cause
+is `WORKFLOW_WORKER_UNHANDLED_FAILURE`, as for a payload that fails to decode (#824). A field that
+is not JSON used to stop the worker process, and the next worker stopped on the same task; it now
+fails the task the same way, as does any other payload that is not JSON among those the worker
+reads to build the history, on whichever history page it arrives. The server hands the task back, so the run makes no progress until it is
+terminated. A memo with no such field still falls back to the workflow id.
+
+`WorkflowTaskRunner::run()` reports a history that does not read, the started memo included, as
+`Gplanchat\Bridge\Temporal\Codec\PayloadDecodeFailure`, with the `\JsonException` as the
+previous exception. Reading such a field directly throws `\JsonException`.
+
+`JournalExecutionIdResolver::durableExecutionIdFromStartedAttributes()` throws `\JsonException` in
+that case, where it threw `\RuntimeException`. `\JsonException` does not extend
+`\RuntimeException`. It still throws `\RuntimeException` when the field is absent.
+`JournalExecutionIdResolver::fromMemo()` still returns `null` for such a field.
+
+**Who is affected:** a run started by another client that writes `durableExecutionId` in its memo
+with something other than a non-empty string, and code that calls
+`durableExecutionIdFromStartedAttributes()` and catches only `\RuntimeException`.
+
+**What to do:** no Rector rule applies, since the signatures do not change. Catch `\JsonException`
+next to `\RuntimeException` around `durableExecutionIdFromStartedAttributes()`. A client other than
+Durable must not write the `durableExecutionId` memo key. A run that already carries such a memo
+has each workflow task answered as failed. While nothing else reaches the run, its history shows
+one `WorkflowTaskFailed` event, the first failure: the server does not write the retries to the
+history, it counts them in the pending workflow task's attempt (`temporal workflow describe`). Terminate the run and start it
+again through `WorkflowClient`.
+
+### Temporal: the worker logs a payload it cannot read before it fails the task (#936)
+
+Before it answers a task as failed for a payload it cannot read, the Temporal worker now logs an
+`error` record. The record's `exception` is the original error: the codec's exception or the
+`\JsonException`, with its stack trace. Its `event_id` is the id of the history event that did not
+read, or `null` when none is known, as for an activity or Nexus task. The record names the task
+from its poll response: `workflow_id` and `run_id` for a workflow task, `activity_id` for an
+activity task (#939). The server still gets the message only.
+
+`PayloadDecodeFailure` gains a fourth constructor argument and a property, `?int $eventId`.
+`PayloadCodecWorkflowServiceClient` gains an optional third argument, `?LoggerInterface $logger`;
+`WorkflowServiceClientFactory::create()` passes it the logger it receives, so the Symfony bundle,
+the Laravel provider and the Magento module need no change.
+
+**Who is affected:** nobody needs to change code. Both arguments are optional.
+
+**What to do:** nothing, unless you build `PayloadCodecWorkflowServiceClient` yourself: pass it a
+PSR-3 logger to get the record. No Rector rule applies.
+
+### Temporal: an unreadable activity input fails the task, and a Nexus handler failure is logged (#938)
+
+An activity task whose input is not JSON used to throw `\JsonException` out of
+`TemporalActivityWorker::pollOnce()`, and one whose input is JSON of the wrong shape (no input, not
+an object, no `executionId`, `activityId` or `activityName`) threw `\InvalidArgumentException`. The
+worker process stopped, and the next worker stopped on the same task. The worker now answers the
+task with `RespondActivityTaskFailed`, with the exception's class and message, no stack trace and
+the cause `ACTIVITY_WORKER_UNHANDLED_FAILURE`, then polls again. The failure is non-retryable,
+since the same input fails the same way on every attempt: the activity fails at once, whatever its
+retry policy. An undecodable payload (#775) stays retryable, since its key can come back.
+
+When a Nexus operation handler throws, a non-JSON input included, the Nexus worker still answers a
+retryable `INTERNAL` error with the message only. It now also logs it.
+
+Both log an `error` record whose `exception` is the original error, with its stack trace, whose
+`event_id` is `null` and whose `rpc` is the answer sent (`RespondActivityTaskFailed` or
+`RespondNexusTaskFailed`). The activity record also carries `workflow_id`, `run_id` and
+`activity_id`, since an `activity_id` is unique only within its workflow. The Nexus record carries
+`service`, `operation` and `request_id`. The undecodable-payload records (#936, #939) name their
+task the same way: a Nexus task gets `service` and `operation`, and `request_id` for a start
+request, and an activity task gets `workflow_id` and `run_id` besides `activity_id` (#949).
+
+`TemporalActivityWorker` gains an optional sixth constructor argument, and `TemporalNexusWorker` an
+optional fourth one, `?LoggerInterface $logger`. The Symfony bundle, the Laravel provider and the
+Magento module pass theirs.
+
+**Who is affected:** a deployment that relied on an unreadable activity input stopping the worker.
+Nobody needs to change code: the arguments are optional.
+
+**What to do:** nothing, unless you build either worker yourself: pass it a PSR-3 logger to get the
+record. No Rector rule applies.
+
+### `dispatchNewWorkflowRun()` no longer rewrites an existing metadata row (#918)
+
+The Messenger, Laravel queue and Laravel in-process dispatchers now write a run's metadata row only
+when the run has none. They used to rewrite it, which set `completed` back to false. A late resume
+of a run that continued as new sends its next run again, and that rewrite could reopen the next run
+if it finished in between. The resume is still sent. The Temporal dispatcher does not change: the
+server owns its runs. `WorkflowMetadataStore::save()` does not change either.
+
+**Who is affected:** code that calls `dispatchNewWorkflowRun()` with an execution id that already
+has a row, to start that run again or with another type or payload. The row now keeps its type, its
+payload and its `completed` flag, and a completed run stays completed. Custom
+`WorkflowResumeDispatcher` implementations should follow the same rule, or a re-dispatch can reopen
+a finished run. An async child that reuses the id of a finished child, when the reuse policy allows it (a failed
+child under `AllowDuplicateFailedOnly`, the default; any finished child under `AllowDuplicate`), is not affected: `ChildWorkflowRunner` clears the completed
+row before it starts the child. A `ChildWorkflowRunner` you build yourself in async mode needs its
+new `metadataStore` argument for that, and its constructor refuses to build without it; the
+Symfony bundle passes it.
+
+A child id whose run has not finished is now refused under every policy, whichever parent started
+it: `ExecutionContext` throws `ChildWorkflowIdInUseException`. A policy only decides about a
+finished run. Custom `ChildWorkflowRunnerInterface` implementations add `isChildRunning()`; return
+`false` when the backend refuses the start itself, as the Temporal server does.
+
+**What to do:** start a new run under a new execution id. In a custom dispatcher, call `save()`
+only when `get()` returns `null`. No Rector rule: the change is in what the call does, not in its
+signature.
+
+### `WorkflowClientInterface::startAsync()` and `startSync()` take the start options
+
+`Gplanchat\Bridge\Temporal\WorkflowClientInterface` now declares the fourth argument that
+`WorkflowClient` already took: `?WorkflowStartOptions $options = null`, on both `startAsync()` and
+`startSync()`. Code that calls the interface is not affected, and can now pass options without a
+type error. A class that implements the interface, or an anonymous test double, must add the
+parameter to both methods or PHP raises a fatal error at load time.
+
+**What to do:** change the two signatures in your implementor.
+
+```diff
+-public function startAsync(string $workflowType, array $payload, ExecutionId $executionId): ExecutionId
++public function startAsync(string $workflowType, array $payload, ExecutionId $executionId, ?WorkflowStartOptions $options = null): ExecutionId
+-public function startSync(string $workflowType, array $payload, ExecutionId $executionId): mixed
++public function startSync(string $workflowType, array $payload, ExecutionId $executionId, ?WorkflowStartOptions $options = null): mixed
+```
+
+`WorkflowStartOptions` is `Gplanchat\Durable\WorkflowStartOptions`. The existing Rector set already
+adds a parameter that a parent method has and the implementor lacks
+(`AddParamBasedOnParentClassMethodRector`, registered in `durable-upgrade.php` for the request id of
+`signal()`), so it adds this one too, with no new rule. Run the `durable-upgrade` set on the class.
+
+### Schedule-to-close stops the retries that cannot fit
+
+On the journal backends (in-memory, DBAL, Illuminate), a failed attempt whose retry delay would end
+past `scheduleToClose` is no longer queued. The activity fails at once with that attempt's own
+exception and the `Timeout` retry state, as on Temporal. Before, the retry was queued and the
+activity failed with "Activity schedule-to-close timeout exceeded." when a worker took it.
+
+**What to do:** if a `catch` or a test matches that message after a failed attempt, match the
+attempt's own failure instead. No Rector rule: the change is in what the call does, not in its
+signature.
+
+### On Temporal, a child that fails to start, times out, is cancelled or is terminated releases its parent (#980)
+
+The Temporal history reader settled a child workflow only when the server recorded `COMPLETED` or
+`FAILED`. A refused start (`START_CHILD_WORKFLOW_EXECUTION_FAILED`), a timeout, a cancellation or a
+termination left the parent waiting. Each of the four now settles the parent's await with a
+`DurableChildWorkflowFailedException`, the exception the journal backends raise. A child that
+failed used to reach the parent as a bare `RuntimeException('Child workflow failed')`; it now
+reaches it as that exception, which extends `RuntimeException` and carries the child's execution id.
+The history reader leaves `workflowFailureKind`, `workflowFailureClass` and `workflowFailureContext`
+empty on that exception, so on Temporal they differ from what the journal backends record.
+
+**Who is affected:** a workflow that awaits a child on Temporal and relies on the exception message
+or class. A `catch (\RuntimeException)` keeps working. A parent that used to wait for good on one of
+the four new endings now continues, with the failure.
+
+**What to do:** catch `DurableChildWorkflowFailedException` where you handle a child's failure, as on
+the other backends. No Rector rule applies: the change is in what the history says, not in a
+signature.
+
+### An activity heartbeat timeout is refused on the journal backends (#977)
+
+`EventStoreCommandBuffer::scheduleActivity()` now throws `UnsupportedByBackendException` when the
+activity's `ActivityTimeouts::$heartbeat` is set. The InMemory, DBAL, Illuminate and Magento
+Database backends journaled that option and never read it: `NullActivityHeartbeatSender` returns
+false and no code compares the delay to a clock. Temporal sends it to the server and keeps
+accepting it. Runs already journaled with a heartbeat replay unchanged: only a new
+`scheduleActivity()` call is refused, because replay does not call it for an activity the journal
+already holds.
+
+**Who is affected:** code that passes a heartbeat timeout (`heartbeat:` in `#[Activities]`, or
+`new ActivityTimeouts(heartbeat: ...)`) on a deployment whose backend is not Temporal. The call
+fails when the workflow schedules the activity, and nothing is journaled for it.
+
+**What to do:** remove the option, or move the deployment to Temporal. No Rector rule applies: a
+rule cannot know whether the option is relied on, and removing it changes the behaviour on
+Temporal.
+
+### A child workflow's namespace, task queue and cron are refused on the journal backends (#977)
+
+`ChildWorkflowOptions::$namespace`, `$taskQueue` and `$cronSchedule` were written into the journal
+by the four journal backends (InMemory, DBAL, Illuminate, Magento Database) and applied by none of
+them: the child ran in the parent's queue, once, with no schedule.
+`EventStoreCommandBuffer::scheduleChildWorkflow()` now throws `UnsupportedByBackendException` naming
+the option, and nothing is journaled. Temporal still applies all three. Search attributes and
+timeouts are not part of this change.
+
+**Who is affected:** code that passes one of the three options to `executeChildWorkflow()` while it
+runs on one of those four backends, including tests on the in-memory backend of a workflow that
+targets Temporal in production.
+
+**What to do:** remove the option, or run that workflow on the Temporal backend. No Rector rule:
+whether your code depends on an option that no journal backend applied is not visible in the call.
+Search your code for `new ChildWorkflowOptions(` and check each call for `namespace:`, `taskQueue:`
+and `cronSchedule:`.
+
+Journals already written with these options replay unchanged: `ExecutionContext` skips
+`scheduleChildWorkflow()` when the journal already holds the scheduled child.
+
+### Continue-as-new: task queue and run and task timeouts are refused outside Temporal
+
+`ExecutionContext::continueAsNew()` with a `ContinueAsNewOptions` that sets `taskQueue`, or a
+`timeouts` with a run or task bound, now throws `UnsupportedByBackendException` on InMemory, Doctrine
+DBAL, Illuminate and Magento Database. The message names the option. These backends used to journal
+the option and never apply it: the next run stayed on the same queue and ran without the bound.
+The run ends failed, with a `WorkflowExecutionFailed` event in its journal, and the exception reaches
+the caller. Temporal applies all three and does not change. The execution identifier of the next run and the
+way the chain is followed do not change either.
+
+**Who is affected:** code that passes `taskQueue` or `timeouts` (run, task) in `ContinueAsNewOptions`
+and runs on a journal backend. A workflow already journaled with such options replays as before;
+only a new continue-as-new is refused.
+
+**What to do:** remove the option, or run the workflow on Temporal. No Rector rule: whether a
+workflow relies on the option cannot be read from the code.
+
+### Magento starts a run with `dispatchNewWorkflowRun()`, and without a cluster it blocks the request (#976)
+
+`RuntimeFactory::resumeDispatcher()` returns a `WorkflowResumeDispatcher`. With a DSN it is the
+Temporal one: the run starts on the cluster and the call returns at once. Without a DSN, the run
+executes in the calling process, within `budgetSeconds` (10 by default), and the request waits for
+it. This is a named difference with Temporal, listed in the backends page. A workflow that fails
+does not throw from `dispatchNewWorkflowRun()`, as on Temporal: the failure goes to the factory's
+logger. The in-memory journal ends with the request, so the log line is the only trace of that
+failure, and only when a logger is configured; on Temporal it also stays in the cluster history. An undeclared workflow still throws `UndeclaredWorkflowException`. Nothing to migrate.
+
+**What to do:** in an observer, catch the exception the start can still throw, and configure
+`durable/temporal/dsn` where a request must not wait.
+
+### An activity's task queue is refused on InMemory, DBAL, Illuminate and Magento Database (#977)
+
+Only Temporal routes an activity by task queue. On InMemory, DBAL, Illuminate and Magento Database
+the name was written to the journal and read by nothing: the activity ran on the one worker that
+drains the application's queue, wherever you had asked it to go. `ActivityOptions::$taskQueue` now
+makes scheduling throw `UnsupportedByBackendException`, which names the option and the queue. The
+same holds for the `taskQueue` argument of `#[Activities(...)]`, which builds the same options. The
+check applies when the workflow body schedules the activity: the run fails there and the journal
+records `WorkflowExecutionFailed`. An activity already scheduled in a journal is not touched.
+
+**Who is affected:** an application that sets a task queue on an activity (in `ActivityOptions`, in
+`#[Activities(taskQueue: ...)]` or in a call to `activityStub()`) and runs it on one of the four
+journal backends. Temporal keeps sending the queue. Nothing is affected when you never set one.
+
+**What to do:** remove the option on those backends, or keep it in a configuration that only the
+Temporal environment loads. If you relied on it to split work between two groups of workers on a
+journal backend, that split never happened. No Rector rule applies: nothing in the code tells
+whether the queue was relied on.
+
+### Changed: the gRPC unary client moves to `gplanchat/grpc-client`
+
+`GrpcTransport`, `GrpcWire`, `CurlGrpcTransport` and `GuzzleGrpcTransport` leave the Temporal bridge
+for a package of their own, `gplanchat/grpc-client`, which the bridge now requires. The package
+has no Temporal or Messenger dependency: it sends one unary call over HTTP/2 and reads the status
+from the trailers.
+
+**Who is affected:** code that names these four classes, or that catches the exception of a
+transport obtained from `WorkflowServiceClientFactory::createTransport()`. Applications that only
+configure `durable.temporal.dsn` are not affected.
+
+**What to do:**
+
+- Run the Rector set `durable-upgrade.php`: it renames the four classes
+  (`Gplanchat\Bridge\Temporal\Grpc\GrpcTransport` and `Gplanchat\Bridge\Temporal\Http\{GrpcWire,CurlGrpcTransport,GuzzleGrpcTransport}`
+  become `Gplanchat\GrpcClient\...`).
+- Rector does not change constructor arguments. `CurlGrpcTransport` and `GuzzleGrpcTransport` now
+  take a `Gplanchat\GrpcClient\GrpcEndpoint`. Pass `$connection->endpoint()` where you passed the
+  `TemporalConnection`; the same goes for `CurlGrpcTransport::tlsOptions()`.
+- A transport now throws `Gplanchat\GrpcClient\GrpcException` (a `\RuntimeException`, the gRPC status
+  code as its code, the server message in `statusMessage`). `GrpcWorkflowServiceClient` and
+  `JsonGatewayWorkflowServiceClient` still throw Messenger's `TransportException`, so a caller of
+  the Temporal client changes nothing.
+
+### `durable-rector`: `Workflow::getVersion()` becomes `version()` (#894)
+
+The `temporal-sdk` set rewrites `yield Workflow::getVersion($changeId, $min, $max)` to
+`$this->environment->version($changeId, $min, $max)`, with positional or named arguments, and no
+`await()` around it. Until now, `UnmigratableTemporalCallRector` marked every `getVersion()` call
+as having no equivalent, and the facade rule wrapped a yielded call in `await()`. In a workflow
+class, `Workflow::DEFAULT_VERSION` becomes `ChangePoint::DEFAULT_VERSION`, with a
+`use Gplanchat\Durable\Versioning\ChangePoint;` import. Both constants are `-1`.
+
+`gplanchat/durable-rector` now requires `rector/rector` `^2.4.7`, the first version with the
+import API the rule uses.
+
+Three shapes stay as written and get a `durable-rector:` marker:
+
+- a `getVersion()` call with a number of arguments other than three;
+- a `getVersion()` call that is not yielded where it is made: the SDK returns a promise there, and
+  `version()` returns the int;
+- a reference to `Workflow::DEFAULT_VERSION` outside a workflow class.
+
+**Who is affected:** a project that migrates off the Temporal PHP SDK with the `temporal-sdk` set,
+and whose workflows call `Workflow::getVersion()`.
+
+**What to do:** update `rector/rector` to 2.4.7 or later, then run the set again. At each marker,
+write the call by hand. One runtime case differs: a run that went past the point before the call
+existed and has no recorded work after it, for example one waiting only on a condition or a
+signal, gets `$maxSupported` from `version()`, where the SDK returns `DEFAULT_VERSION`. The
+docblock of `ExecutionContext::version()` describes this limit.
+
+A `Workflow::getVersion() — no equivalent yet` marker written by an earlier run of the set is
+removed where the set rewrites the call to `version()`, and replaced by the new marker where the
+call stays unmapped. Other comments on the statement stay.
+
+### `WorkflowMetadataStore` gains `insertIfAbsent()` (#946)
+
+**Who is affected**: only whoever **implements** `WorkflowMetadataStore` (a custom store, or a test
+double). The bundled stores (in-memory, DBAL, Illuminate, `ProjectingWorkflowMetadataStore`) have
+it, and so does anything that extends or decorates one of them. The Magento adapter store follows
+with #750.
+
+**Why.** Two passes of the same run can both read the next run of a continue-as-new as having no
+row. Writing it with `save()` then resets a next run that completed in between, because `save()`
+sets `completed` back to false. The continue-as-new path and the three insert-only dispatchers
+(Messenger, Laravel queue, Laravel in-process) now call `insertIfAbsent()`, which writes the row
+only when there is none and leaves an existing row, a completed one included, as it is. `save()`
+is unchanged and still reactivates a row.
+
+**What to write.** Add the method. It must be atomic: a check followed by `save()` brings the race
+back. Return `true` when the row was written, `false` when one existed.
+
+```php
+public function insertIfAbsent(ExecutionId $executionId, string $workflowType, array $payload): bool
+{
+    // SQL: INSERT and catch the unique violation, or INSERT ... ON CONFLICT DO NOTHING.
+    // In memory: if (isset($this->rows[$id])) { return false; } then store the row.
+}
+```
+
+A decorator forwards the call to the store it wraps. No Rector rule covers this: the body depends on
+the storage. Run `WorkflowMetadataStoreConformanceTestCase` against your store; the two new
+`testInsertingIfAbsent*` cases check the method.
+
+### The journal records workflow tasks (#850)
+
+**Who is affected**: an application that reads the journal and lists its event types or counts its
+events, a test that asserts the exact sequence of a run's events after a resume, and a deployment
+where an older Durable version reads a journal that a newer one writes.
+
+The resume handler now appends `WorkflowTaskStarted` when a worker takes a resume and
+`WorkflowTaskCompleted` when the pass ends. Each place that dispatches a plain resume (activity
+outcome, timer, signal, update, child, parent close, and the pass's own follow-up) first appends
+`WorkflowTaskScheduled`, unless the last task event of the run is already a `WorkflowTaskScheduled`.
+`dispatchResumeAwaiting()` writes nothing, and neither does a `dispatchNewWorkflowRun()` that your
+own code calls to start a run, so the first task of a run has no `WorkflowTaskScheduled`. The in-memory test harness drives passes
+without a queue and writes none of the three. A run costs three more events per pass.
+
+`EventDataMapper::toDomainEvent()` throws `Unknown event type` for these classes on an older
+version. **Upgrade every reader (dashboards, `durable:execution:diagnose`, the profiler, any worker
+that replays) before the writers**, then upgrade the workers that run `ResumeWorkflowHandler`.
+`DeliverWorkflowUpdateHandler` takes the journal as a required second argument,
+`__construct(WorkflowResumeDispatcher $resumeDispatcher, EventStoreInterface $eventStore)`. The
+bundle passes it. No Rector rule: the argument is a service of your application, which a rewrite
+cannot name. If you build the handler yourself (a custom container definition or a test), add the
+event store you already pass to `DeliverWorkflowSignalHandler` as the second argument. The Laravel
+and Magento hosts do not build this handler. A custom `EventStoreInterface`
+needs no change: it stores the event class and payload like any other event.
+
+**What to do:** in a test, filter the three classes out of the sequence you compare, or add them
+where the run passes through a worker. Journals written before this change replay as they did.
+No Rector rule: no signature changes.
 
 ### Temporal: `pollForCompletion()` throws the exception the journal backends raise (#872)
 

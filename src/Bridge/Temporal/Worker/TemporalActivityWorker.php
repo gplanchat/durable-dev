@@ -17,6 +17,8 @@ use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Store\ActivityEventJournal;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Worker\ActivityMessageProcessor;
+use Psr\Log\LoggerInterface;
+use Temporal\Api\Enums\V1\ActivityTaskFailedCause;
 use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
@@ -44,6 +46,7 @@ final readonly class TemporalActivityWorker
         private readonly ActivityMessageProcessor $processor,
         private readonly EventStoreInterface $eventStore,
         private readonly ActivityHeartbeatSenderInterface $heartbeatSender,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -62,7 +65,26 @@ final readonly class TemporalActivityWorker
             return;
         }
 
-        $message = TemporalActivityScheduleInput::toActivityMessage($resp);
+        try {
+            $message = TemporalActivityScheduleInput::toActivityMessage($resp);
+        } catch (\JsonException|\InvalidArgumentException $unreadable) {
+            // An input that is not JSON, or not the expected object, will not become readable on
+            // the next attempt: left to throw, it stopped this worker, then the next one (#938, the
+            // #775 failure mode). The answer is non-retryable, unlike an undecodable payload whose
+            // key can come back. The server gets the class and message; the log gets the error
+            // itself, trace included (#936).
+            $this->logger?->error('An activity task input cannot be read; the worker answers the task as failed.', [
+                'exception' => $unreadable,
+                'event_id' => null,
+                'rpc' => 'RespondActivityTaskFailed',
+                'workflow_id' => $resp->getWorkflowExecution()?->getWorkflowId(),
+                'run_id' => $resp->getWorkflowExecution()?->getRunId(),
+                'activity_id' => $resp->getActivityId(),
+            ]);
+            $this->respondFailed($resp, $unreadable::class, $unreadable->getMessage(), '', true, ActivityTaskFailedCause::ACTIVITY_TASK_FAILED_CAUSE_ACTIVITY_WORKER_UNHANDLED_FAILURE);
+
+            return;
+        }
         $options = $message->options;
 
         // ⚠ **Redelivery** of an already settled task: answer from the journal without running
@@ -195,6 +217,7 @@ final readonly class TemporalActivityWorker
         string $failureMessage,
         string $failureTrace,
         bool $nonRetryable,
+        int $cause = ActivityTaskFailedCause::ACTIVITY_TASK_FAILED_CAUSE_UNSPECIFIED,
     ): void {
         $failure = new Failure();
         $failure->setMessage($failureMessage);
@@ -212,6 +235,7 @@ final readonly class TemporalActivityWorker
         $req->setNamespace($this->connection->namespace->name());
         $req->setIdentity($this->connection->identity . '-activity');
         $req->setFailure($failure);
+        $req->setCause($cause);
 
         $this->ignoringStaleTask(fn() => $this->activityRpc->respondActivityTaskFailed($req));
     }

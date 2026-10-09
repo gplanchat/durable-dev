@@ -26,8 +26,8 @@ final class APassWritesThroughItsFenceTest extends TestCase
     public function testAPassIsRefusedOnceANewerOneOpensOnTheSameExecution(): void
     {
         $store = new InMemoryEventStore();
-        $older = PassEventStore::open($store, 'exec-1');
-        PassEventStore::open($store, 'exec-1');
+        $older = PassEventStore::open($store, ExecutionId::fromString('exec-1'));
+        PassEventStore::open($store, ExecutionId::fromString('exec-1'));
 
         $this->expectException(SupersededPassException::class);
 
@@ -38,7 +38,7 @@ final class APassWritesThroughItsFenceTest extends TestCase
     {
         $store = $this->createStub(EventStoreInterface::class);
 
-        self::assertSame($store, PassEventStore::open($store, 'exec-1'));
+        self::assertSame($store, PassEventStore::open($store, ExecutionId::fromString('exec-1')));
     }
 
     public function testTheProjectingDecoratorForwardsTheFenceAndProjectsNothingOnARefusal(): void

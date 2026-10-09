@@ -45,7 +45,7 @@ final class AbandonedPassTest extends TestCase
 
         $this->expectException(WorkflowSuspendedException::class);
 
-        $this->engine->start('exec-1', $handler);
+        $this->engine->start(ExecutionId::fromString('exec-1'), $handler);
     }
 
     public function testWhatAFinallySchedulesWhileAbandonedStaysOutOfTheJournal(): void
@@ -62,7 +62,7 @@ final class AbandonedPassTest extends TestCase
 
         foreach (['start', 'resume'] as $pass) {
             try {
-                $this->engine->{$pass}('exec-2', $handler);
+                $this->engine->{$pass}(ExecutionId::fromString('exec-2'), $handler);
                 self::fail('the workflow waits on its activity');
             } catch (WorkflowSuspendedException) {
             }

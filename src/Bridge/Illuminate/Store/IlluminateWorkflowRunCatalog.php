@@ -8,6 +8,7 @@ use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\RunPageCursor;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
@@ -111,7 +112,7 @@ final readonly class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogI
 
         $this->connection->table($this->table)
             ->where('execution_id', $executionId->toString())
-            ->update(['status' => $status->value, 'ended_at' => self::now()]);
+            ->update(['status' => $status->value, 'ended_at' => self::now()] + ($this->schema->runsTableTracksWait() ? ['waiting_on' => null] : []));
     }
 
     /**
@@ -218,10 +219,11 @@ final readonly class IlluminateWorkflowRunCatalog implements WorkflowRunCatalogI
                 false,
                 \sprintf('The database is unreachable: %s', $failure->getMessage()),
                 $checkedAt,
+                localized: new Message('backend.database.unreachable', ['error' => $failure->getMessage()]),
             );
         }
 
-        return new BackendHealth(self::BACKEND, true, 'The database answers.', $checkedAt);
+        return new BackendHealth(self::BACKEND, true, 'The database answers.', $checkedAt, localized: new Message('backend.database.answers'));
     }
 
     // -------------------------------------------------------------------------------------------

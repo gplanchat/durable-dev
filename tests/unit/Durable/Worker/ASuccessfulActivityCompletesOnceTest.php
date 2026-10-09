@@ -65,7 +65,7 @@ final class ASuccessfulActivityCompletesOnceTest extends TestCase
     {
         $context = new ExecutionContext(
             ExecutionId::fromString('exec-1'),
-            new EventStoreHistorySource($this->journalWrittenBefore(), 'exec-1'),
+            new EventStoreHistorySource($this->journalWrittenBefore(), ExecutionId::fromString('exec-1')),
             new EventStoreCommandBuffer($this->journalWrittenBefore(), new NoopActivityTransport(), ExecutionId::fromString('exec-1')),
         );
 

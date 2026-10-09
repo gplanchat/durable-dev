@@ -30,7 +30,7 @@ final class AnAwaitOutsideAFiberIsAMistakeTest extends TestCase
         $this->expectException(\LogicException::class);
         $runtime->await((new Deferred())->awaitable(), new ExecutionContext(
             ExecutionId::fromString('exec-1'),
-            new EventStoreHistorySource($store, 'exec-1'),
+            new EventStoreHistorySource($store, ExecutionId::fromString('exec-1')),
             new EventStoreCommandBuffer($store, $transport, ExecutionId::fromString('exec-1')),
         ));
     }

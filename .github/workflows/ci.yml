@@ -326,6 +326,7 @@ jobs:
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableLaravel" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Illuminate" },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableFilament" }
                     ],
@@ -525,6 +526,7 @@ jobs:
                         { "type": "composer", "url": "https://repo.mage-os.org/" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableModule", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal", "options": { "symlink": false } }
                     ],
                     "require": {
@@ -1176,7 +1178,7 @@ jobs:
               run: |
                   docker run -d --name temporal-dev -p 7333:7233 -p 7343:7243 temporalio/temporal:1.9.1 \
                     server start-dev --ip 0.0.0.0 --port 7233 --http-port 7243 --namespace durable-test \
-                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int \
+                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int --search-attribute DurablePrice=Double \
                     --search-attribute DurableWorkflowName=Keyword --search-attribute DurableExecutionId=Keyword
                   timeout 60 bash -c 'until nc -z 127.0.0.1 7333; do sleep 1; done'
 
@@ -1382,7 +1384,7 @@ jobs:
                   # Register until describe answers: a server that just turned SERVING may refuse the first try.
                   timeout 60 bash -c "until $TCTL namespace describe >/dev/null 2>&1; do $TCTL namespace register >/dev/null 2>&1 || true; sleep 1; done"
                   timeout 90 bash -c "until $TCTL admin cluster get-search-attributes 2>/dev/null | grep -q DurableAmount; do
-                    docker exec oldest-temporal sh -c 'yes | tctl --address oldest-temporal:7233 --namespace durable-test admin cluster add-search-attributes --name DurableOrderId --type Keyword --name DurableAmount --type Int --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword' >/dev/null 2>&1 || true
+                    docker exec oldest-temporal sh -c 'yes | tctl --address oldest-temporal:7233 --namespace durable-test admin cluster add-search-attributes --name DurableOrderId --type Keyword --name DurableAmount --type Int --name DurablePrice --type Double --name DurableWorkflowName --type Keyword --name DurableExecutionId --type Keyword' >/dev/null 2>&1 || true
                     sleep 2
                   done"
 
@@ -1464,7 +1466,7 @@ jobs:
               run: |
                   docker run -d --name temporal-dev -p 7233:7233 -p 7243:7243 temporalio/temporal:1.9.1 \
                     server start-dev --ip 0.0.0.0 --port 7233 --http-port 7243 --namespace durable-test --headless \
-                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int \
+                    --search-attribute DurableOrderId=Keyword --search-attribute DurableAmount=Int --search-attribute DurablePrice=Double \
                     --search-attribute DurableWorkflowName=Keyword --search-attribute DurableExecutionId=Keyword
                   timeout 60 bash -c 'until nc -z 127.0.0.1 7233 && nc -z 127.0.0.1 7243; do sleep 1; done'
                   timeout 30 bash -c "until docker exec temporal-dev temporal workflow list --namespace durable-test --limit 1 --query \"DurableExecutionId = 'probe'\" >/dev/null 2>&1; do sleep 1; done"

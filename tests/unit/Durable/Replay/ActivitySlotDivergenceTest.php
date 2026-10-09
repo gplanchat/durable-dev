@@ -67,7 +67,7 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         $context = new ExecutionContext(
             ExecutionId::fromString(self::EXECUTION),
-            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
             new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
         $context->activity('chargeCard', ['sku' => 'ABC']);
@@ -119,7 +119,7 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         $context = new ExecutionContext(
             ExecutionId::fromString(self::EXECUTION),
-            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
             new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
 
@@ -136,7 +136,7 @@ final class ActivitySlotDivergenceTest extends TestCase
 
         return new ExecutionContext(
             ExecutionId::fromString(self::EXECUTION),
-            new EventStoreHistorySource($store, self::EXECUTION),
+            new EventStoreHistorySource($store, ExecutionId::fromString(self::EXECUTION)),
             new EventStoreCommandBuffer($store, new NoopActivityTransport(), ExecutionId::fromString(self::EXECUTION)),
         );
     }

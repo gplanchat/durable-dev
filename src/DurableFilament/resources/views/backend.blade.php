@@ -2,7 +2,7 @@
      that does not outlive the request, whose empty list is the right answer. --}}
 <x-filament::section>
     <x-filament::badge :color="! $backend['available'] ? 'danger' : (($backend['ephemeral'] ?? false) ? 'info' : 'success')">
-        {{ $backend['message'] }}
+        {{ \Gplanchat\Durable\Filament\CoreMessage::say($backend['localizedMessage'] ?? null, $backend['message']) }}
     </x-filament::badge>
     {{-- Named only when there is a backend: naming a server that was never configured sends the
          operator down a false trail. --}}

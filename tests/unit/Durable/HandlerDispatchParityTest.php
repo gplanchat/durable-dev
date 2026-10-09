@@ -90,7 +90,7 @@ final class HandlerDispatchParityTest extends TestCase
         $store->append(new \Gplanchat\Durable\Event\TimerCompleted(ExecutionId::fromString('parity-1'), 'timer-a'));
         $store->append(new WorkflowSignalReceived(ExecutionId::fromString('parity-1'), 'tick', ['n' => 2]));
 
-        return new EventStoreHistorySource($store, 'parity-1');
+        return new EventStoreHistorySource($store, ExecutionId::fromString('parity-1'));
     }
 
     private function temporalHistory(): TemporalExecutionHistory

@@ -143,19 +143,19 @@ final class SagaTest extends TestCase
     private function driveToTheEnd(string $executionId, callable $handler): mixed
     {
         try {
-            return $this->engine->start($executionId, $handler);
+            return $this->engine->start(ExecutionId::fromString($executionId), $handler);
         } catch (WorkflowSuspendedException) {
         }
 
         for ($pass = 0; $pass < 10; ++$pass) {
             $this->runtime->runUntilIdle(new ExecutionContext(
                 ExecutionId::fromString($executionId),
-                new EventStoreHistorySource($this->eventStore, $executionId),
+                new EventStoreHistorySource($this->eventStore, ExecutionId::fromString($executionId)),
                 new EventStoreCommandBuffer($this->eventStore, $this->transport, ExecutionId::fromString($executionId)),
             ));
 
             try {
-                return $this->engine->resume($executionId, $handler);
+                return $this->engine->resume(ExecutionId::fromString($executionId), $handler);
             } catch (WorkflowSuspendedException) {
             }
         }

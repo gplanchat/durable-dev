@@ -48,7 +48,7 @@ final class OrderWorkflow
 }
 ```
 
-`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, **`async`**, les minuteurs, les workflows enfants, les signaux, et le reste. L'API complète figure dans la classe elle-même, dans le dépôt.
+`WorkflowEnvironment` fournit **`await`**, les assembleurs **`all`** / **`any`** / **`some`**, les minuteurs, les workflows enfants, les signaux, et le reste. L'API complète figure dans la classe elle-même, dans le dépôt.
 
 ### Attendre ou assembler {#waiting-versus-assembling}
 
@@ -287,7 +287,9 @@ public function run(
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
   `cancellationType`, `summary`. Chaque option omise garde sa valeur par défaut
   d'`ActivityOptions` ; sans aucune, le stub est celui qu'`activityStub()` construit sans options. Sous Temporal, un stub
-  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative.
+  sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative. `heartbeat`
+  exige Temporal : un backend à journal lève `UnsupportedByBackendException` quand le stub planifie
+  une activité avec cette option (voir [Options et objets valeur](../options/)).
 - Les erreurs surviennent dès l'**enregistrement** du workflow (compilation du conteneur, avec le
   bundle) : un `ActivityStub` sans `#[Activities]`, un `#[Activities]` sur un autre type, un
   contrat introuvable, un contrat qui ne déclare aucun `#[AsActivityMethod]`, ou une option
@@ -427,10 +429,13 @@ opérations que le moteur garde pour lui n'y figurent pas.
 | `sleep($duration, $summary = '')` | Attend la durée, comme `await(timer($duration, $summary))`. |
 | `activityStub($contract, $options = null)` | Un proxy typé sur un contrat d'activité. Construisez-le dans le constructeur, ou déclarez-le en [argument `#[Activities]`](#arguments-durable-supplies), options comprises ; tous ses appels portent `$options`. |
 | `childWorkflowStub($class, $options = null)` | Le même, pour un workflow enfant : résolu depuis la classe de l'enfant, et ses appels se composent comme les autres. |
+| `nexusStub($contract, $endpoint, $timeouts = null)` | Un proxy typé sur un contrat Nexus servi à `$endpoint`. Ses appels renvoient des awaitables. Voir [Opérations Nexus](../nexus/#appeler-une-opération). |
+| `nexusOperation($endpoint, $service, $operation, $payload = [], $timeouts = null)` | Appelle une opération Nexus par les noms de son endpoint, de son service et de l'opération, et renvoie un awaitable. Lève `NexusUnsupportedByBackendException` sur un backend qui ne peut pas acheminer l'appel. |
 | `onSignal($name, $handler)` | Enregistre un gestionnaire de signal. Le gestionnaire mute l'état du workflow et `await()` l'observe ; il n'y a pas d'attente séparée. Le nom prend une énumération adossée, donc une faute de frappe donne une erreur de type au lieu d'une attente qui ne se résout jamais. |
 | `onUpdate($name, $handler)` | Le même pour une mise à jour, dont la valeur de retour du gestionnaire est la réponse rendue à l'appelant. |
 | `hasSignalHandler($name)`, `hasUpdateHandler($name)` | Indique si un gestionnaire est enregistré sous ce nom, pour le code qui n'en enregistre un qu'une fois. |
 | `sideEffect($closure)` | Exécute une fois un travail local non déterministe et en journalise le résultat, pour que le rejeu le reproduise. |
+| `version($changeId, $minSupported, $maxSupported)` | Déclare un point de changement et renvoie la version que suit cette exécution, entre `$minSupported` et `$maxSupported`. La réponse est fixée à la première rencontre, puis relue dans le journal. Voir [Modifier un workflow déjà en cours d'exécution](../deploying/#ou-déclarer-un-point-de-changement). |
 | `continueAsNew($type, $payload = [], $options = null)` | Termine cette exécution et démarre la suivante avec un historique neuf. |
 | `executionId()` | L'identifiant de cette exécution, un `ExecutionId`. Appelez `toString()` pour le mettre dans une charge utile ou un contexte de log : en JSON, l'objet devient `{}`. |
 

@@ -179,13 +179,12 @@ final class WireFormatPinTest extends TestCase
         $transport = new InMemoryActivityTransport();
         $context = new ExecutionContext(
             ExecutionId::fromString('exec-1'),
-            new EventStoreHistorySource($store, 'exec-1'),
+            new EventStoreHistorySource($store, ExecutionId::fromString('exec-1')),
             new EventStoreCommandBuffer($store, $transport, ExecutionId::fromString('exec-1'), new FrozenClock(1_700_000_000.0)),
         );
 
         $context->activity('charge', ['o' => 1], new ActivityOptions(
             RetryLimit::once(),
-            taskQueue: TaskQueue::named('q'),
             timeouts: ActivityTimeouts::attempt(Duration::seconds(30)),
         ));
 
@@ -204,7 +203,6 @@ final class WireFormatPinTest extends TestCase
                 'backoff_coefficient' => 2.0,
                 'non_retryable_exceptions' => [],
                 'cancellation_type' => 0,
-                'task_queue' => 'q',
                 'start_to_close_timeout_seconds' => 30.0,
             ],
             'queued_at' => 1_700_000_000.0,

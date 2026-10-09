@@ -82,7 +82,7 @@ final class DriverParityRegressionTest extends TestCase
         );
 
         try {
-            $engine->start('race-1', static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
+            $engine->start(ExecutionId::fromString('race-1'), static fn(WorkflowEnvironment $env): mixed => $env->await($env->any(
                 $env->activityStub(SuiteActivities::class)->slow(),
                 $env->timer(3600.0),
             )));

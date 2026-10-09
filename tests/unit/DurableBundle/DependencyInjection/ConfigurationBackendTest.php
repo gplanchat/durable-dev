@@ -48,6 +48,8 @@ final class ConfigurationBackendTest extends TestCase
         } catch (InvalidConfigurationException $refusal) {
             self::assertStringContainsString('path "durable"', $refusal->getMessage());
             self::assertStringContainsString($message, $refusal->getMessage());
+            // The docs quote these messages, and the docs carry no em dash (#842).
+            self::assertStringNotContainsString('—', $refusal->getMessage());
         }
     }
 

@@ -61,7 +61,7 @@ durable:
         # Write the DurableWorkflowName and DurableExecutionId search attributes on every start, so the run list can filter by workflow name and execution id. Register both on the namespace before turning this on: a server refuses a start that names an unregistered attribute.
         search_attributes:    false
 
-        # A service id: the application's GuzzleHttp\ClientInterface, which transport=guzzle then uses — its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.
+        # A service id: the application's GuzzleHttp\ClientInterface, which transport=guzzle then uses: its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.
         guzzle_client:        null
 
         # A service id: the application's PSR-18 client, which transport=http (the JSON gateway) then uses instead of curl. Unused by any other transport.
@@ -73,7 +73,7 @@ durable:
         # A service id: the application's PayloadCodecInterface, which encodes every payload sent to Temporal and decodes every payload read (DUR055). The codec holds its own key, from the application's secrets or environment; Durable reads none. null sends payloads as they are.
         payload_codec:        null
 
-        # false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.
+        # false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both, and there are not two sources of truth, since event_store says which one it is.
         journal:              null # Deprecated (Since gplanchat/durable-bundle 0.1.0-beta1: The "durable.temporal.journal" option is deprecated: set durable.backend instead.)
     activity_transport:
 

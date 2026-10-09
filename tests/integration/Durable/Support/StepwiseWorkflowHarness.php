@@ -69,7 +69,7 @@ final class StepwiseWorkflowHarness
     public function start(string $executionId, callable $handler): bool
     {
         try {
-            $this->lastCompletedResult = $this->engine->start($executionId, $handler);
+            $this->lastCompletedResult = $this->engine->start(ExecutionId::fromString($executionId), $handler);
 
             return false;
         } catch (WorkflowSuspendedException) {
@@ -83,7 +83,7 @@ final class StepwiseWorkflowHarness
     public function resume(string $executionId, callable $handler): bool
     {
         try {
-            $this->lastCompletedResult = $this->engine->resume($executionId, $handler);
+            $this->lastCompletedResult = $this->engine->resume(ExecutionId::fromString($executionId), $handler);
 
             return false;
         } catch (WorkflowSuspendedException) {
@@ -100,7 +100,7 @@ final class StepwiseWorkflowHarness
             return false;
         }
         // Wired the way ExecutionEngine wires it: the context takes the ports, not the store.
-        $history = new EventStoreHistorySource($this->eventStore, $executionId);
+        $history = new EventStoreHistorySource($this->eventStore, ExecutionId::fromString($executionId));
         $context = new ExecutionContext(
             ExecutionId::fromString($executionId),
             $history,

@@ -11,6 +11,7 @@ use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Event\ExecutionStarted;
+use Gplanchat\Durable\Event\WorkflowTaskStarted;
 use Gplanchat\Durable\Exception\SupersededPassException;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
@@ -79,7 +80,7 @@ final class ASupersededPassCannotWriteTest extends TestCase
         $activities = new InMemoryActivityTransport();
         $engine = new ExecutionEngine($store, new ExecutionRuntime($store, $activities, new RegistryActivityExecutor(), 0, null, true));
         $handler = static function (WorkflowEnvironment $env) use ($store): string {
-            PassEventStore::open($store, 'exec-1'); // a second resume takes the execution over
+            PassEventStore::open($store, ExecutionId::fromString('exec-1')); // a second resume takes the execution over
 
             try {
                 $env->activityStub(SuiteActivities::class)->echoValue('late');
@@ -90,7 +91,7 @@ final class ASupersededPassCannotWriteTest extends TestCase
         };
 
         try {
-            $engine->start('exec-1', $handler);
+            $engine->start(ExecutionId::fromString('exec-1'), $handler);
             self::fail('the superseded pass must not complete the run');
         } catch (SupersededPassException) {
         }
@@ -120,7 +121,8 @@ final class ASupersededPassCannotWriteTest extends TestCase
         ))(new ResumeWorkflowMessage('exec-2'));
 
         self::assertTrue($metadata->hasActiveWorkflowMetadata(ExecutionId::fromString('exec-2')), 'the newer pass owns the run; it is not ended');
-        self::assertSame(0, $this->store->countEventsInStream(ExecutionId::fromString('exec-2')));
+        // Only the pickup is journalled: the pass was taken, then stopped before it wrote anything.
+        self::assertSame([WorkflowTaskStarted::class], array_map(static fn(object $e): string => $e::class, iterator_to_array($this->store->readStream(ExecutionId::fromString('exec-2')), false)));
     }
 }
 
@@ -132,7 +134,7 @@ final class OvertakenWorkflow
     #[AsWorkflowMethod]
     public function run(): string
     {
-        PassEventStore::open(self::$store, 'exec-2'); // a second resume takes the execution over
+        PassEventStore::open(self::$store, ExecutionId::fromString('exec-2')); // a second resume takes the execution over
 
         return 'done';
     }

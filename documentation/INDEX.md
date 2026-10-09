@@ -73,6 +73,7 @@ This repository documents the **Durable** component (durable execution orchestra
 | DUR054 | The journal does not share the application's connection | [adr/DUR054-the-journal-does-not-share-the-applications-connection.md](adr/DUR054-the-journal-does-not-share-the-applications-connection.md) |
 | DUR055 | A payload codec at the client boundary | [adr/DUR055-a-payload-codec-at-the-client-boundary.md](adr/DUR055-a-payload-codec-at-the-client-boundary.md) |
 | DUR056 | Magento journals through its own DB layer on a dedicated connection, with no Nexus (proposed) | [adr/DUR056-magento-journals-through-its-own-db-layer.md](adr/DUR056-magento-journals-through-its-own-db-layer.md) |
+| DUR058 | A workflow failure restores itself by opt-in (proposed) | [adr/DUR058-a-workflow-failure-restores-itself-by-opt-in.md](adr/DUR058-a-workflow-failure-restores-itself-by-opt-in.md) |
 
 ## Working agreements (WA)
 

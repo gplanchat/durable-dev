@@ -40,7 +40,7 @@ final class TimerFromAnInstantTest extends TestCase
         };
 
         try {
-            $engine->start('instant-1', $handler);
+            $engine->start(ExecutionId::fromString('instant-1'), $handler);
             self::fail('the workflow was to suspend on its timer');
         } catch (WorkflowSuspendedException) {
         }
@@ -49,7 +49,7 @@ final class TimerFromAnInstantTest extends TestCase
         usleep(60_000);
         $store->append(new TimerCompleted(ExecutionId::fromString('instant-1'), $this->firstTimerId($store, 'instant-1')));
 
-        self::assertSame('woke up', $engine->resume('instant-1', $handler));
+        self::assertSame('woke up', $engine->resume(ExecutionId::fromString('instant-1'), $handler));
     }
 
     public function testADeadlineGivenAsAnInstantIsReplayedAfterItFired(): void
@@ -68,7 +68,7 @@ final class TimerFromAnInstantTest extends TestCase
         };
 
         try {
-            $engine->start('instant-2', $handler);
+            $engine->start(ExecutionId::fromString('instant-2'), $handler);
             self::fail('the workflow was to suspend on its deadline');
         } catch (WorkflowSuspendedException) {
         }
@@ -76,7 +76,7 @@ final class TimerFromAnInstantTest extends TestCase
         usleep(60_000);
         $store->append(new TimerCompleted(ExecutionId::fromString('instant-2'), $this->firstTimerId($store, 'instant-2')));
 
-        self::assertSame('expired', $engine->resume('instant-2', $handler));
+        self::assertSame('expired', $engine->resume(ExecutionId::fromString('instant-2'), $handler));
     }
 
     public function testAnInstantAlreadyBehindUsIsAWaitThatIsOver(): void
@@ -93,7 +93,7 @@ final class TimerFromAnInstantTest extends TestCase
         };
 
         try {
-            $engine->start('instant-3', $handler);
+            $engine->start(ExecutionId::fromString('instant-3'), $handler);
             self::fail('the workflow was to suspend on its timer');
         } catch (WorkflowSuspendedException) {
         }

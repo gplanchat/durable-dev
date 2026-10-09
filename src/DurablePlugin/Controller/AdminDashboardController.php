@@ -25,7 +25,7 @@ final readonly class AdminDashboardController
         private readonly Environment $twig,
         /** The run list as a Sylius grid (#383); absent without sylius/grid-bundle. */
         private readonly ?RunGridViews $grid = null,
-        /** Who polls each `durable:worker` role; absent where no worker polls a Temporal cluster. */
+        /** Who polls each `durable:worker` role; absent where no worker polls a Temporal cluster, which the page says. */
         private readonly ?WorkerPresence $workers = null,
     ) {}
 
@@ -102,19 +102,31 @@ final readonly class AdminDashboardController
      * page is about one run. Uncached, like Magento's banner: a cluster that answers the health
      * check and then hangs costs one 5 s probe per role on this render.
      *
+     * Without a workflow role, the journal is not on Temporal, and Messenger keeps no list of the
+     * processes that consume its transports: one `unlisted` row says so, as the Filament page does
+     * on Illuminate, after a Nexus role the cluster can describe. The in-memory backend runs every
+     * task in the process that starts it, and gets no row.
+     *
      * @param array<string, mixed> $backend
      *
-     * @return list<array{role: string, pollers: int, polling: bool, error: ?string, seconds: int}>
+     * @return list<array{role: string, pollers: int, polling: bool, error: ?string, seconds: int, unlisted?: true}>
      */
     private function workerRows(array $backend): array
     {
-        if (null === $this->workers || true !== ($backend['available'] ?? false) || true === ($backend['ephemeral'] ?? false)) {
+        if (true !== ($backend['available'] ?? false) || true === ($backend['ephemeral'] ?? false)) {
             return [];
         }
-        $since = $this->workers->since();
         $rows = [];
-        foreach ($this->workers->describe() as $role => $queue) {
-            $rows[] = ['role' => $role, 'pollers' => $queue->pollers, 'polling' => $queue->polledSince($since), 'error' => $queue->error, 'seconds' => WorkerPresence::SILENCE_SECONDS];
+        $described = [];
+        if (null !== $this->workers) {
+            $since = $this->workers->since();
+            $described = $this->workers->describe();
+            foreach ($described as $role => $queue) {
+                $rows[] = ['role' => $role, 'pollers' => $queue->pollers, 'polling' => $queue->polledSince($since), 'error' => $queue->error, 'seconds' => WorkerPresence::SILENCE_SECONDS];
+            }
+        }
+        if (!isset($described['workflow'])) {
+            $rows[] = ['role' => 'queue', 'pollers' => 0, 'polling' => false, 'error' => null, 'seconds' => WorkerPresence::SILENCE_SECONDS, 'unlisted' => true];
         }
 
         return $rows;

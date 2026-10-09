@@ -54,6 +54,7 @@ final class TheWorkerPresenceTest extends PanelTestCase
 
         $this->get('/admin/durable/runs')
             ->assertSee('Le worker workflow est à l’écoute.', false)
+            ->assertSee('Personne à l’écoute', false)
             ->assertSee('Aucun worker activity n’a interrogé le backend depuis 120 secondes', false)
             ->assertSee('Impossible de demander au backend si un worker queue est à l’écoute : deadline exceeded', false);
     }

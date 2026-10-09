@@ -70,7 +70,7 @@ final readonly class Configuration implements ConfigurationInterface
             ->end()
             ->scalarNode('guzzle_client')
             ->defaultNull()
-            ->info('A service id: the application\'s GuzzleHttp\\ClientInterface, which transport=guzzle then uses — its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.')
+            ->info('A service id: the application\'s GuzzleHttp\\ClientInterface, which transport=guzzle then uses: its proxy, TLS options and middleware apply to gRPC. Unused by any other transport; null builds a default client.')
             ->end()
             ->scalarNode('psr18_client')
             ->defaultNull()
@@ -87,7 +87,7 @@ final readonly class Configuration implements ConfigurationInterface
             ->booleanNode('journal')
             ->defaultNull()
             ->setDeprecated('gplanchat/durable-bundle', '0.1.0-beta1', 'The "%path%.%node%" option is deprecated: set durable.backend instead.')
-            ->info('false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both — and there are not two sources of truth, since event_store says which one it is.')
+            ->info('false: the cluster is reachable, but the journal stays the one in event_store. An application serving a Nexus operation from a DBAL journal needs both, and there are not two sources of truth, since event_store says which one it is.')
             ->end()
             ->end()
             ->end()
@@ -175,7 +175,7 @@ final readonly class Configuration implements ConfigurationInterface
 
         if (null === $backend) {
             if (null !== $dsn && false !== $journal && 'dbal' === $eventStore) {
-                throw new \InvalidArgumentException('event_store.type "dbal" and temporal.dsn are mutually exclusive — the journal cannot have two sources of truth. Set backend: dbal to keep the journal in SQL and use the cluster to serve Nexus (with the deprecated keys: temporal.journal: false).');
+                throw new \InvalidArgumentException('event_store.type "dbal" and temporal.dsn are mutually exclusive: the journal cannot have two sources of truth. Set backend: dbal to keep the journal in SQL and use the cluster to serve Nexus (with the deprecated keys: temporal.journal: false).');
             }
             $backend = match (true) {
                 null !== $dsn && false !== $journal => 'temporal',

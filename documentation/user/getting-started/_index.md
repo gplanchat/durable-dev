@@ -397,7 +397,7 @@ transports **and** a durable store. Configure both: with a real transport alone,
 a queue entry for a workflow whose journal it cannot read.
 
 This profile needs packages the quick start above does not install: the DBAL journal, DoctrineBundle
-for the `doctrine.dbal.default_connection` service the journal uses, and the Doctrine Messenger
+for the Doctrine connection the journal uses, and the Doctrine Messenger
 transport for the `doctrine://` queues below. DoctrineBundle's recipe also configures the ORM, which
 is why `doctrine/orm` is in the list. If you do not use the ORM, remove the `orm:` section of
 `config/packages/doctrine.yaml` instead.
@@ -407,11 +407,38 @@ composer config prefer-stable true
 composer require gplanchat/durable-bridge-dbal doctrine/doctrine-bundle doctrine/orm symfony/doctrine-messenger
 ```
 
+Give the journal a Doctrine connection of its own, `durable`, next to the application's `default`
+one. On a shared connection, the journal's writes nest inside business transactions: when
+one rolls back, what the journal wrote rolls back with it, and a failed run disappears. The [DBAL backend](../backends/#dbal-backend)
+page explains this choice (DUR054). In `config/packages/doctrine.yaml`, replace the `dbal:` section
+the recipe wrote with this one:
+
+```yaml
+# config/packages/doctrine.yaml: the journal on a connection of its own
+doctrine:
+    dbal:
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+            durable:
+                url: '%env(resolve:DURABLE_DATABASE_URL)%'
+```
+
+The line below points `durable` at the same database as `DATABASE_URL`. Two connections are two
+sessions, so the journal's transactions stay apart from the application's. A database and a user of
+Durable's own also keep business code away from the journal's tables.
+
+```yaml
+# .env.local
+DURABLE_DATABASE_URL=${DATABASE_URL}
+```
+
 ```yaml
 durable:
     backend: dbal
     dbal:
-        connection: doctrine.dbal.default_connection
+        connection: doctrine.dbal.durable_connection
 ```
 
 

@@ -8,6 +8,7 @@ use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\ContinuationCapReachedException;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Testing\DurableTestCase;
 use Gplanchat\Durable\Testing\WorkflowTestEnvironment;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -37,7 +38,7 @@ final class DurableTestCaseForwardsTheRunnerSettingsTest extends DurableTestCase
         $this->expectException(WorkflowStuckException::class);
         $this->expectExceptionMessage('did not finish within 0.5s');
 
-        $runner->run('runaway-1', self::alwaysFailingWorkflow());
+        $runner->run(ExecutionId::fromString('runaway-1'), self::alwaysFailingWorkflow());
     }
 
     public function testTheEnvironmentUsesTheContinuationCapItIsGiven(): void
@@ -60,7 +61,7 @@ final class DurableTestCaseForwardsTheRunnerSettingsTest extends DurableTestCase
         $env = $this->requireCurrentEnvironment();
         $env->registerWorkflowClass(CounterWorkflow::class);
 
-        $runner->run('counter-0', $env->getWorkflowRegistry()->getHandler(CounterWorkflow::class, ['n' => 0]));
+        $runner->run(ExecutionId::fromString('counter-0'), $env->getWorkflowRegistry()->getHandler(CounterWorkflow::class, ['n' => 0]));
     }
 
     /**

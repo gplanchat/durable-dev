@@ -35,6 +35,7 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
 use Gplanchat\Durable\Exception\WorkflowSuspendedException;
 use Gplanchat\Durable\ExecutionEngine;
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -106,8 +107,8 @@ $engine = new ExecutionEngine($eventStore, $runtime);
 
 try {
     $result = 'start' === $phase
-        ? $engine->start($executionId, $handler, 'CrashBench')
-        : $engine->resume($executionId, $handler, 'CrashBench');
+        ? $engine->start(ExecutionId::fromString($executionId), $handler, 'CrashBench')
+        : $engine->resume(ExecutionId::fromString($executionId), $handler, 'CrashBench');
 } catch (WorkflowSuspendedException) {
     exit(3);
 }

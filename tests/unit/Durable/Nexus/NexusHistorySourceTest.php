@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Nexus;
 
+use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +44,6 @@ final class NexusHistorySourceTest extends TestCase
 
     private function source(): EventStoreHistorySource
     {
-        return new EventStoreHistorySource(new InMemoryEventStore(), 'exec-1');
+        return new EventStoreHistorySource(new InMemoryEventStore(), ExecutionId::fromString('exec-1'));
     }
 }

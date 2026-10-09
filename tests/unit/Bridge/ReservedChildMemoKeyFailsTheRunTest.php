@@ -68,7 +68,7 @@ final class ReservedChildMemoKeyFailsTheRunTest extends TestCase
         $engine = new ExecutionEngine($eventStore, $runtime, new ChildWorkflowRunner($eventStore, $runtime, $registry, $executor, 0, false));
 
         try {
-            $engine->start('parent-889', static fn(WorkflowEnvironment $env): string
+            $engine->start(ExecutionId::fromString('parent-889'), static fn(WorkflowEnvironment $env): string
                 => $env->await($env->childWorkflowStub(ReservedMemoChild::class, new ChildWorkflowOptions(memo: [$key => 'x']))->run()));
             self::fail(\sprintf('the memo key "%s" must fail the run', $key));
         } catch (UnsupportedByBackendException $refusal) {
