@@ -498,7 +498,7 @@ class RuntimeFactory
 
     /**
      * `resource/durable` in `env.php` selects the database backend (DUR056 decision 2), the way a
-     * DSN selects Temporal. Both together fail in {@see JournalConnectionResolver} (decision 4).
+     * DSN selects Temporal. Both together fail in {@see backend()} (decision 4).
      */
     private function databaseDeclared(): bool
     {
@@ -508,7 +508,7 @@ class RuntimeFactory
     /** Whether `resource/durable` selects the database backend: `durable:worker` then drains the table queues. */
     public function usesDatabase(): bool
     {
-        return $this->databaseDeclared();
+        return self::BACKEND_DATABASE === $this->backend();
     }
 
     /** The worker of the database backend (#736): one turn of `durable:worker`. */
