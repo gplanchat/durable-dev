@@ -290,7 +290,7 @@ The steps, their names and their order are the same. The code around them differ
 | Function colouring | ordinary methods, declared return types | any awaiting method becomes a generator, and so does its caller; see [below](#5-fibers-or-generators-the-colouring-problem) |
 | Declaration | `#[AsWorkflow]` on the class | `#[WorkflowInterface]` on an interface, implemented by a class |
 | Method attributes | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | the same four, workflow updates included |
-| Compensations | `new Saga()`; each compensation calls `await()` itself, `compensate()` runs them in reverse order | `new Workflow\Saga()`; `yield $saga->compensate()` |
+| Compensations | `new Compensation()`; each compensation calls `await()` itself, `compensate()` runs them in reverse order | `new Workflow\Saga()`; `yield $saga->compensate()` |
 
 The return type shows the difference. In Durable, `run()` declares `string`. In the SDK, the only
 type it could declare is `\Generator`, which says nothing about what the workflow returns. The
