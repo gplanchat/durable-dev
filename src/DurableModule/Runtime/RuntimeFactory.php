@@ -85,6 +85,9 @@ class RuntimeFactory
      *                                              because the previous point makes "it never
      *                                              finishes" reachable without an error.
      */
+    private const BACKEND_DATABASE = 'database';
+    private const BACKEND_TEMPORAL = 'temporal';
+    private const BACKEND_MEMORY = 'memory';
     private const TEMPORAL_DSN_CONFIG_PATH = 'durable/temporal/dsn';
     private const JOURNAL_CONNECTION_CONFIG_PATH = 'resource/durable/connection';
     private const TEMPORAL_SEARCH_ATTRIBUTES_CONFIG_PATH = 'durable/temporal/search_attributes';
@@ -213,32 +216,18 @@ class RuntimeFactory
         return $this->clock ?? new SystemClock();
     }
 
+    /**
+     * Assembles exactly one backend (a backend is one thing): the database one when
+     * `resource/durable` is declared, the Temporal one when a DSN is, else the memory one. Both
+     * declared fail with {@see BackendSelectionException}.
+     */
     public function create(): MagentoRuntime
     {
-        $database = $this->databaseDeclared() ? $this->database() : null;
-        $eventStore = $database->eventStore ?? $this->eventStore();
-        $inMemory = null === $database && null === $this->temporalSettings();
-        $transport = new InMemoryActivityTransport($this->clock());
-        $activities = new RegistryActivityExecutor();
-        $workflows = new WorkflowRegistry();
-
-        $runtime = new MagentoRuntime(
-            $eventStore,
-            $activities,
-            $workflows,
-            new InMemoryWorkflowRunner(
-                $inMemory ? new ProjectingEventStore($eventStore, $this->memoryCatalog()) : $eventStore,
-                $transport,
-                $activities,
-                $this->maxActivityRetries,
-                $workflows,
-                $this->budgetSeconds,
-                $this->clock(),
-                maxContinuations: $this->maxContinuations,
-            ),
-            null !== $database ? $this->runOnDatabase(...) : (null === $this->temporalSettings() ? null : $this->runOnCluster(...)),
-            $inMemory ? $this->memoryCatalog() : null,
-        );
+        $runtime = match ($this->backend()) {
+            self::BACKEND_DATABASE => $this->createOnDatabase(),
+            self::BACKEND_TEMPORAL => $this->createOnTemporal(),
+            default => $this->createInMemory(),
+        };
 
         foreach ($this->workflowClasses as $workflowClass) {
             $runtime->registerWorkflow($workflowClass);
@@ -251,6 +240,87 @@ class RuntimeFactory
         }
 
         return $runtime;
+    }
+
+    /**
+     * Journal, catalogue, queue and run all come from the database stores; nothing in-process.
+     * `run()` starts on the queue and polls the journal, a `durable:worker` carries the run.
+     */
+    private function createOnDatabase(): MagentoRuntime
+    {
+        return new MagentoRuntime(
+            $this->database()->eventStore,
+            new RegistryActivityExecutor(),
+            new WorkflowRegistry(),
+            null,
+            $this->runOnDatabase(...),
+        );
+    }
+
+    private function createOnTemporal(): MagentoRuntime
+    {
+        $eventStore = $this->eventStore();
+        $activities = new RegistryActivityExecutor();
+        $workflows = new WorkflowRegistry();
+
+        return new MagentoRuntime(
+            $eventStore,
+            $activities,
+            $workflows,
+            new InMemoryWorkflowRunner(
+                $eventStore,
+                new InMemoryActivityTransport($this->clock()),
+                $activities,
+                $this->maxActivityRetries,
+                $workflows,
+                $this->budgetSeconds,
+                $this->clock(),
+                maxContinuations: $this->maxContinuations,
+            ),
+            $this->runOnCluster(...),
+        );
+    }
+
+    private function createInMemory(): MagentoRuntime
+    {
+        $eventStore = $this->eventStore();
+        $activities = new RegistryActivityExecutor();
+        $workflows = new WorkflowRegistry();
+
+        return new MagentoRuntime(
+            $eventStore,
+            $activities,
+            $workflows,
+            new InMemoryWorkflowRunner(
+                new ProjectingEventStore($eventStore, $this->memoryCatalog()),
+                new InMemoryActivityTransport($this->clock()),
+                $activities,
+                $this->maxActivityRetries,
+                $workflows,
+                $this->budgetSeconds,
+                $this->clock(),
+                maxContinuations: $this->maxContinuations,
+            ),
+            null,
+            $this->memoryCatalog(),
+        );
+    }
+
+    /**
+     * The one backend this factory assembles. Declaring two is an error, not a mix.
+     *
+     * @return self::BACKEND_*
+     */
+    private function backend(): string
+    {
+        $database = $this->databaseDeclared();
+        $temporal = $this->temporalDeclared();
+
+        if ($database && $temporal) {
+            throw BackendSelectionException::bothDeclared(self::BACKEND_DATABASE, self::BACKEND_TEMPORAL);
+        }
+
+        return $database ? self::BACKEND_DATABASE : ($temporal ? self::BACKEND_TEMPORAL : self::BACKEND_MEMORY);
     }
 
     /**
@@ -295,15 +365,17 @@ class RuntimeFactory
      */
     public function catalog(): WorkflowRunCatalogInterface
     {
-        if ($this->databaseDeclared()) {
+        $backend = $this->backend();
+
+        if (self::BACKEND_DATABASE === $backend) {
             return $this->database()->catalog;
         }
 
-        $settings = $this->temporalSettings();
-
-        if ($settings === null) {
+        if (self::BACKEND_MEMORY === $backend) {
             return $this->memoryCatalog();
         }
+
+        $settings = $this->requireCluster('The Temporal catalogue');
 
         // The history cursor is not decorative: `listRuns()` returns only the Temporal workflow's
         // status — the journal's, which is **long by construction** and therefore eternally
@@ -395,7 +467,13 @@ class RuntimeFactory
      */
     public function resumeDispatcher(): WorkflowResumeDispatcher
     {
-        if (null === $this->temporalSettings()) {
+        $backend = $this->backend();
+
+        if (self::BACKEND_DATABASE === $backend) {
+            return $this->database()->resumes;
+        }
+
+        if (self::BACKEND_MEMORY === $backend) {
             return new InProcessWorkflowResumeDispatcher($this->create(), $this->logger);
         }
 
@@ -518,9 +596,9 @@ class RuntimeFactory
      */
     public function nexusRegistry(): NexusOperationRegistry
     {
-        $registry = match (true) {
-            $this->databaseDeclared() => NexusOperationRegistry::unavailableOn('database'),
-            null === $this->temporalSettings() => NexusOperationRegistry::unavailableOn('memory'),
+        $registry = match ($this->backend()) {
+            self::BACKEND_DATABASE => NexusOperationRegistry::unavailableOn('database'),
+            self::BACKEND_MEMORY => NexusOperationRegistry::unavailableOn('memory'),
             default => NexusOperationRegistry::routedBy('temporal'),
         };
         $handlers = [];
@@ -595,6 +673,13 @@ class RuntimeFactory
             $dsn,
             $this->temporalSearchAttributes ?? true === $this->deploymentConfig?->get(self::TEMPORAL_SEARCH_ATTRIBUTES_CONFIG_PATH),
         );
+    }
+
+    private function temporalDeclared(): bool
+    {
+        $dsn = $this->temporalDsn ?? $this->configuredDsn();
+
+        return null !== $dsn && '' !== $dsn;
     }
 
     private function configuredDsn(): ?string
