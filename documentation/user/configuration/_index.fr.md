@@ -336,8 +336,9 @@ ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une bo
 `RetryLimit` propre à chaque activité.
 
 Sous Laravel, la même clé dans `config/durable.php` ; sous Magento, l'argument `maxActivityRetries`
-de `RuntimeFactory` dans `di.xml`, que seul `MagentoRuntime::run()` lit, et seulement sans DSN (voir
-[le tableau des hôtes](#host-table)).
+de `RuntimeFactory` dans `di.xml`, que `MagentoRuntime::run()` lit sans DSN et que les workers du
+backend Magento Database lisent (voir [le tableau des hôtes](#host-table)). Les workers Magento
+sous Temporal laissent les tentatives au cluster.
 
 ---
 
@@ -429,7 +430,7 @@ SQL ne s'y appliquent pas.
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | aucun (les activités tournent dans le processus, ou sur la file de tâches de Temporal) | propre à l'hôte : la file de chaque hôte |
 | `messenger.buses` | aucun | aucun | propre à l'hôte : Messenger seulement |
 | `profiler.enabled` | aucun | aucun | propre à l'hôte : le profileur web de Symfony |
-| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN seulement ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers laissent les tentatives au cluster. Sous Temporal, aucun hôte ne le lit |
+| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN et par les workers du backend Magento Database ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers Temporal laissent les tentatives au cluster. Sous Temporal, aucun hôte ne le lit |
 | aucun | aucun | argument `budgetSeconds` | propre à l'hôte : borne `MagentoRuntime::run()`, l'exécution dans le processus sans DSN et l'attente du résultat du cluster avec un DSN |
 | aucun | aucun | argument `maxContinuations` (10 par défaut) | propre à l'hôte : plafonne la chaîne de continue-as-new que suit `MagentoRuntime::run()` sans DSN ; au-delà, l'appel lève `ContinuationCapReachedException` |
 | `activity_contracts.cache`, `activity_contracts.contracts` | aucun | aucun | à ajouter sous Laravel et Magento |

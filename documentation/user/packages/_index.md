@@ -456,10 +456,12 @@ Three more arguments of the same factory bound a run, and `di.xml` is the only p
 
 Workers and `workflowClient()` read none of them.
 
-**Magento supports two backends, and Composer enforces it.** Magento reaches in-memory and
-Temporal, and the module declares a `conflict` on both SQL bridges, because
-`Magento\Framework\App\ResourceConnection` is neither a Doctrine DBAL connection nor Illuminate's.
-A DSN in `app/etc/env.php` selects the backend; no other setting does:
+**Magento supports three backends, and Composer enforces it.** Magento reaches in-memory,
+Temporal and its own database backend, and the module declares a `conflict` on both SQL bridges,
+because `Magento\Framework\App\ResourceConnection` is neither a Doctrine DBAL connection nor
+Illuminate's. `app/etc/env.php` selects the backend: `resource/durable` for the database backend
+(see [Backends](../backends/#capability-matrix)), a DSN for Temporal, neither for memory; declaring
+both fails with `BackendSelectionException`. A DSN selects Temporal:
 
 ```php
 'durable' => [

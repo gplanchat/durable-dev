@@ -5,10 +5,10 @@ weight: 15
 
 # Backends
 
-Durable propose quatre backends d'exécution. Un backend est l'endroit où vit le journal et ce qui
+Durable propose cinq backends d'exécution. Un backend est l'endroit où vit le journal et ce qui
 planifie le travail ; le journal est la suite d'événements, en ajout seul, qui enregistre tout ce
 qu'une exécution a décidé et reçu (voir le [glossaire](../glossary/)). L'un est le backend en
-mémoire ; les trois autres sont les ponts entre lesquels vous choisissez.
+mémoire ; les quatre autres sont les ponts entre lesquels vous choisissez.
 
 | Backend | Usage |
 |---------|-------|
@@ -26,9 +26,10 @@ mémoire ; les trois autres sont les ponts entre lesquels vous choisissez.
 > est déclaré, sinon Temporal quand `durable/temporal/dsn` l'est, sinon la mémoire. Déclarer à la
 > fois `resource/durable` et un DSN échoue avec `BackendSelectionException`.
 
-Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
-Vous en choisissez trois par `durable.backend` (et `DURABLE_DSN` pour Temporal). **Illuminate
-n'en est pas une valeur** et ne le sera jamais ; [le backend Illuminate](#illuminate-backend)
+Les cinq font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
+Vous en choisissez trois par `durable.backend` (et `DURABLE_DSN` pour Temporal) ; Magento choisit
+son backend dans `app/etc/env.php`. **Illuminate
+n'est pas une valeur de `durable.backend`** et ne le sera jamais ; [le backend Illuminate](#illuminate-backend)
 décrit ce qui le lie à la place.
 
 ---
@@ -441,7 +442,7 @@ qui ressemblent à des bugs sans en être.
 | Tests d'intégration | En mémoire (`DurableBundleTestTrait` + `KernelTestCase`) |
 | Intégration continue avec Temporal | Temporal (groupe `temporal-integration`) |
 | Développement local | Au choix : en mémoire pour la vitesse, un backend à journal pour le réalisme |
-| Production, sans cluster | DBAL sous Symfony, Illuminate sous Laravel |
+| Production, sans cluster | DBAL sous Symfony, Illuminate sous Laravel, le backend Magento Database (`resource/durable`) sous Magento |
 | Production, à l'échelle | Temporal |
 
 ---
@@ -456,11 +457,18 @@ ligne, sauf pour le transport et ce que l'hôte livre (signaux, mises à jour et
 La colonne Magento Database est le backend de `gplanchat/durable-magento` que `resource/durable`
 dans `app/etc/env.php` sélectionne (épopée [#740](https://github.com/gplanchat/durable-dev/issues/740)).
 Il exécute les gestionnaires de journal, d'activités et de workflows du noyau sur des tables de la
-connexion que nomme `resource/durable`, avec une file en table que `bin/magento durable:worker`
-vide. Ses tests d'intégration ne tournent que sous `phpunit.magento.xml`, et aucun job de CI
-n'exécute encore cette configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
-Une cellule indique « pas encore » quand la capacité est absente et que rien dans le module ne la
-fournit.
+connexion que nomme `resource/durable`, avec une file en table (une file de messages stockée dans une table de base de données ; voir le
+[glossaire](../glossary/)) que `bin/magento durable:worker` vide.
+
+> [!NOTE]
+> Les tests d'intégration du backend Magento Database ne tournent que sous `phpunit.magento.xml`, et
+> aucun job de CI n'exécute cette configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+
+Dans le tableau, ✅ signifie que la capacité existe et ❌ qu'elle est absente. « pas encore » marque
+la seule capacité absente mais prévue : l'envoi d'un signal ou d'une mise à jour depuis l'application
+sur le backend Magento Database. « sans objet » signifie que la ligne ne s'applique pas : la
+sérialisation en processus unique sur le backend en mémoire, et le service Nexus sur le backend
+Magento Database, qui n'a pas de rôle Nexus.
 
 | Capacité | En mémoire | DBAL | Illuminate | Temporal | Magento Database |
 |---|---|---|---|---|---|
@@ -489,7 +497,7 @@ workflow le traite ; l'émetteur ne reçoit aucune réponse. Une requête n'y a 
 côté application.
 
 Aucun backend hors Temporal n'a d'ordonnanceur ou de frontière entre espaces de noms : cron et Nexus
-n'ont donc pas d'équivalent sur les trois autres. Nexus échoue explicitement. Le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant
+n'ont donc pas d'équivalent sur les quatre autres. Nexus échoue explicitement. Le `namespace`, le `taskQueue` et le `cronSchedule` d'un workflow enfant
 échouent aussi explicitement : un backend à journal échoue avec `UnsupportedByBackendException` en
 nommant l'option. Les attributs de recherche font exception : ceux d'un workflow enfant sont écrits
 au journal et rien ne les lit hors de Temporal, et les options de démarrage d'un workflow racine
@@ -497,16 +505,19 @@ n'existent que sur le client Temporal. Un *appel* Nexus échoue à l'appel. Un *
 sans route ne voit jamais d'appel échouer : c'est un service qui ne reçoit jamais rien. Sur Symfony,
 le montage du conteneur échoue quand `durable.temporal.dsn` n'est pas renseigné. Sur Magento,
 `bin/magento durable:worker --role=nexus` échoue avec `A Nexus worker needs a cluster` quand
-`app/etc/env.php` n'a pas de DSN.
+`app/etc/env.php` n'a pas de DSN. Avec `resource/durable`, la même commande échoue avec
+`The database backend has no Nexus role` : le backend de base de données ne sert aucune opération
+Nexus, et `--role=journal`, `--role=activity` ou l'absence de `--role` démarrent un worker.
 Sur Laravel, le fournisseur de services échoue au démarrage avec `NexusUnsupportedByBackendException` quand
 un gestionnaire est listé dans `durable.nexus.handlers` et que le backend n'est pas `temporal`. Le message
 nomme le backend.
 
 ### Démarrer une exécution depuis un observateur Magento {#magento-start-blocks}
 
-`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` a la même signature et le même
-comportement en cas d'échec sur les backends mémoire et Temporal de Magento : un workflow qui échoue ne lève pas
-d'exception depuis l'appel, un workflow non déclaré en lève une. Une différence subsiste, nommée ici
+`RuntimeFactory::resumeDispatcher()->dispatchNewWorkflowRun()` a la même signature sur tous les
+backends de Magento. Sur les backends mémoire et Temporal, un workflow qui échoue ne lève pas
+d'exception depuis l'appel, un workflow non déclaré en lève une (`UndeclaredWorkflowException`).
+Une différence subsiste, nommée ici
 comme exception à la règle selon laquelle l'application se comporte de la même façon sur tous les
 backends. Sur Temporal, l'appel démarre l'exécution et rend la main. Sur le backend mémoire de
 Magento, l'exécution s'effectue dans le processus appelant : la requête l'attend, pendant
@@ -517,6 +528,10 @@ ne doit pas attendre.
 
 Sur le backend base de données de Magento, l'appel enregistre les métadonnées de l'exécution, met
 une reprise en file et rend la main. Un `bin/magento durable:worker` fait avancer l'exécution.
+L'appel ne consulte pas le registre des workflows : un workflow non déclaré ne lève pas
+`UndeclaredWorkflowException` depuis l'appel, que seuls `MagentoRuntime` et le dispatcher en
+processus lèvent. L'échec apparaît quand un worker prend la reprise, alors que la requête est déjà
+terminée.
 
 Une seconde différence concerne l'échec que l'appel absorbe. Le journal en mémoire s'arrête avec la
 requête : la ligne de log est donc la seule trace de l'échec, et seulement si un logger est
@@ -529,9 +544,10 @@ configuré. Sur Temporal, l'échec reste aussi dans l'historique du cluster.
 Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends, c'est le
 défaut de Temporal.
 
-`max_activity_retries` fait exception. Sur le backend en mémoire et sur les backends à journal
-(DBAL, Illuminate), le worker resserre la `RetryLimit` de l'activité à ce plafond, et la plus
-stricte des deux s'applique ; à `0`, il ne plafonne rien. Sous Temporal, le cluster relance d'après
+`max_activity_retries` fait exception. Sur le backend en mémoire, sur les backends à journal
+(DBAL, Illuminate) et sur le backend Magento Database, le worker resserre la `RetryLimit` de l'activité à ce plafond, et la plus
+stricte des deux s'applique ; à `0`, il ne plafonne rien. Sous Magento, le plafond est l'argument `maxActivityRetries` de
+`RuntimeFactory`. Sous Temporal, le cluster relance d'après
 la `RetryLimit` propre à l'activité et ne lit pas ce réglage : une activité que le plafond
 arrête sur les autres backends continue de réessayer sous Temporal.
 
