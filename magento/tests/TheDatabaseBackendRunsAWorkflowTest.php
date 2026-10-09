@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * #754: `resource/durable` assembles the Magento SQL backend, and a workflow runs end to end
  * through the assembled runtime. The journal lives on the `resource/durable` connection and the
- * shop's connection stays untouched. A second process drains the queues, as `durable:worker` will.
+ * shop's connection stays untouched. A second process runs the real `durable:worker` command (#736).
  */
 final class TheDatabaseBackendRunsAWorkflowTest extends TestCase
 {
@@ -89,13 +89,13 @@ final class TheDatabaseBackendRunsAWorkflowTest extends TestCase
     {
         $dir = sys_get_temp_dir() . '/durable-drain-' . bin2hex(random_bytes(4));
         mkdir($dir);
-        $worker = proc_open([\PHP_BINARY, __DIR__ . '/drain.php', $dir], [1 => ['file', '/dev/null', 'w'], 2 => ['file', $dir . '/stderr', 'w']], $pipes);
+        $worker = proc_open([\PHP_BINARY, __DIR__ . '/worker.php', '--time-limit=60'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', $dir . '/stderr', 'w']], $pipes);
         self::assertIsResource($worker);
 
         try {
             return $run();
         } finally {
-            touch($dir . '/stop');
+            posix_kill(proc_get_status($worker)['pid'], \SIGTERM);
             proc_close($worker);
             $stderr = (string) file_get_contents($dir . '/stderr');
             array_map('unlink', glob($dir . '/*') ?: []);
