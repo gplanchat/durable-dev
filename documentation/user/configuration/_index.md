@@ -402,7 +402,8 @@ when@test:
 
 One row per setting. The last column is a **proposal** under review (#357): *same* (the setting
 exists on each host that can use it), *host-specific* (with the reason), or *to add*. Magento
-reaches two journals only, in memory and Temporal, so the SQL rows do not apply there.
+reaches three journals: memory, Temporal and its own database backend. The DBAL and Illuminate
+rows do not apply there.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposal |
 |---|---|---|---|

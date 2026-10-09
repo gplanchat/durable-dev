@@ -27,8 +27,8 @@ between.
 > fails with `BackendSelectionException`.
 
 All five run the **same fiber driver** and the same workflow and activity code. You select three
-of them with `durable.backend` (and `DURABLE_DSN` for Temporal); Magento selects its backend in
-`app/etc/env.php`. **Illuminate is not one of the `durable.backend`
+of them with `durable.backend` (and `DURABLE_DSN` for Temporal). On Magento, `app/etc/env.php`
+selects the backend. **Illuminate is not one of the `durable.backend`
 values** and never will be; [the Illuminate backend](#illuminate-backend) describes what binds it
 instead.
 

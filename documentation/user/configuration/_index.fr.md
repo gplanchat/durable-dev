@@ -410,8 +410,8 @@ when@test:
 
 Une ligne par réglage. La dernière colonne est une **proposition** en cours de revue (#357) :
 *identique* (le réglage existe sur chaque hôte qui peut s'en servir), *propre à l'hôte* (avec la
-raison), ou *à ajouter*. Magento n'atteint que deux journaux, en mémoire et Temporal : les lignes
-SQL ne s'y appliquent pas.
+raison), ou *à ajouter*. Magento atteint trois journaux : la mémoire, Temporal et son propre backend de base
+de données. Les lignes DBAL et Illuminate ne s'y appliquent pas.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposition |
 |---|---|---|---|

@@ -27,8 +27,8 @@ mémoire ; les quatre autres sont les ponts entre lesquels vous choisissez.
 > fois `resource/durable` et un DSN échoue avec `BackendSelectionException`.
 
 Les cinq font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
-Vous en choisissez trois par `durable.backend` (et `DURABLE_DSN` pour Temporal) ; Magento choisit
-son backend dans `app/etc/env.php`. **Illuminate
+Vous en choisissez trois par `durable.backend` (et `DURABLE_DSN` pour Temporal) . Sous Magento, `app/etc/env.php`
+choisit le backend. **Illuminate
 n'est pas une valeur de `durable.backend`** et ne le sera jamais ; [le backend Illuminate](#illuminate-backend)
 décrit ce qui le lie à la place.
 
@@ -466,9 +466,9 @@ connexion que nomme `resource/durable`, avec une file en table (une file de mess
 
 Dans le tableau, ✅ signifie que la capacité existe et ❌ qu'elle est absente. « pas encore » marque
 la seule capacité absente mais prévue : l'envoi d'un signal ou d'une mise à jour depuis l'application
-sur le backend Magento Database. « sans objet » signifie que la ligne ne s'applique pas : la
-sérialisation en processus unique sur le backend en mémoire, et le service Nexus sur le backend
-Magento Database, qui n'a pas de rôle Nexus.
+sur le backend Magento Database. « sans objet » signifie que la ligne ne s'applique pas. Cela
+concerne la sérialisation en processus unique sur le backend en mémoire, et le service Nexus sur
+le backend Magento Database, qui n'a pas de rôle Nexus.
 
 | Capacité | En mémoire | DBAL | Illuminate | Temporal | Magento Database |
 |---|---|---|---|---|---|

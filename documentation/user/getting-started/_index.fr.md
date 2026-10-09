@@ -20,7 +20,7 @@ bord, comme une requête HTTP ou un e-mail. Le journal enregistre chaque étape 
 - Pour le développement local et la production **sans cluster** : une seule base SQL, par le backend **DBAL** sous Symfony ou le backend **Illuminate** sous Laravel. Aucune extension à compiler.
 - Avec un cluster, pour la production **à l'échelle** ou des tests d'intégration réalistes : un cluster **Temporal** (image Docker disponible) et l'extension PHP **`ext-grpc`**. Dans une image de conteneur, copiez l'extension depuis une [image préconstruite](../container-images/) au lieu de la compiler.
 
-Les quatre backends exécutent le même code de workflow. [Backends](../backends/) compare ce que
+Les cinq backends exécutent le même code de workflow. [Backends](../backends/) compare ce que
 chacun propose.
 
 ---
@@ -38,7 +38,7 @@ application avant de lancer quoi que ce soit :
 | **Magento 2.4 / Mage-OS** | `gplanchat/durable-magento` | [Paquets](../packages/#gplanchatdurable-magento--lintégration-magento) |
 | **Sans framework** | `gplanchat/durable` | [Paquets](../packages/#gplanchatdurable--la-bibliothèque) |
 
-Les concepts, l'API de workflow et l'API d'activité sont les mêmes pour les quatre. Seul le câblage
+Les concepts, l'API de workflow et l'API d'activité sont les mêmes pour les cinq. Seul le câblage
 ci-dessous est propre à Symfony.
 
 Chaque bloc ci-dessous commence par deux lignes `composer config`. Durable est en version bêta, et
@@ -289,7 +289,7 @@ comme Symfony fournit ses services à un contrôleur. Voyez
 ### 4. Le déclencher depuis un contrôleur ou un service {#4--le-déclencher-depuis-un-contrôleur-ou-un-service}
 
 Démarrez une exécution avec `WorkflowResumeDispatcher::dispatchNewWorkflowRun()`. C'est la seule
-façon de démarrer une exécution qui fonctionne sur tous les backends : en mémoire, DBAL et Temporal. Sur Temporal, elle appelle `startAsync()` du
+façon de démarrer une exécution qui fonctionne sur tous les backends : en mémoire, DBAL, Illuminate, Magento Database et Temporal. Sur Temporal, elle appelle `startAsync()` du
 client à votre place. N'appelez `startAsync()` vous-même que si vous avez besoin de ses options de
 démarrage (délais, attributs de recherche, cron). Cette méthode appartient au client Temporal et
 n'existe sur aucun autre backend.

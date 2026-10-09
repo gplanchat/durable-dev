@@ -109,7 +109,7 @@ chaque rejeu.
 - **De l'extérieur, sur les autres backends.** L'application n'a aucun point d'entrée pour demander
   une annulation en mémoire, sur DBAL, sur Illuminate ou sur Magento ; la
   [matrice de capacités](../backends/#capability-matrix) classe la ligne comme non prise en charge
-  dans les quatre colonnes.
+  dans les quatre colonnes hors Temporal.
 
 ---
 

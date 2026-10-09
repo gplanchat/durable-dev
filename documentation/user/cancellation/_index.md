@@ -107,7 +107,7 @@ awaitable at the same place. The workflow therefore takes the same branch on eve
   Magento) do not have them yet.
 - **From outside, on the other backends.** The application has no entry point to request a
   cancellation on In-Memory, DBAL, Illuminate or Magento; the
-  [capability matrix](../backends/#capability-matrix) lists the row as unsupported in all four
+  [capability matrix](../backends/#capability-matrix) lists the row as unsupported in the four non-Temporal
   columns.
 
 ---
