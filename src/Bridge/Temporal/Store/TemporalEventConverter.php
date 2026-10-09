@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal\Store;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Codec\WorkflowFailureCodec;
 use Gplanchat\Bridge\Temporal\Worker\TemporalExecutionHistory;
 use Gplanchat\Durable\ActivityCancellationReason;
 use Gplanchat\Durable\Event\ActivityCancelled;
@@ -356,7 +357,7 @@ final class TemporalEventConverter
 
                 // The worker serializes the WorkflowExecutionFailed payload into the details of
                 // the ApplicationFailureInfo: this is where the original `kind` is read back.
-                $stored = self::decodeApplicationFailureDetails($failure);
+                $stored = WorkflowFailureCodec::details($failure);
                 if (null !== $stored) {
                     return WorkflowExecutionFailed::fromStoredPayload($this->id, $stored);
                 }
@@ -572,17 +573,8 @@ final class TemporalEventConverter
         while (null !== $failure && null === $failure->getApplicationFailureInfo()) {
             $failure = $failure->getCause();
         }
-        $details = $failure?->getApplicationFailureInfo()?->getDetails();
-        if (null === $details) {
-            return null;
-        }
-        $payloads = $details->getPayloads();
-        if (0 === $payloads->count()) {
-            return null;
-        }
-        $decoded = JsonPlainPayload::decode($payloads[0]);
 
-        return \is_array($decoded) && isset($decoded['kind']) ? $decoded : null;
+        return WorkflowFailureCodec::details($failure);
     }
 
     private static function toActivityRetryState(int $retryState): ?ActivityRetryState

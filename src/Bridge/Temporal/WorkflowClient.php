@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Codec\WorkflowFailureCodec;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalGrpcTimeouts;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
-use Gplanchat\Bridge\Temporal\Store\TemporalEventConverter;
 use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
-use Gplanchat\Durable\Event\WorkflowExecutionFailed;
-use Gplanchat\Durable\Exception\ActivityFailureCauseException;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
-use Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException;
+use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
+use Gplanchat\Durable\Exception\WorkflowTerminatedException;
+use Gplanchat\Durable\Exception\WorkflowTimedOutException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowStartOptions;
@@ -118,9 +119,11 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * @param int $refreshIntervalMs Milliseconds between poll attempts (default: 500 ms).
      * @param int $maxRefreshes      Maximum number of attempts before throwing (default: 120 = 60 s total).
      *
-     * @throws \Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException when the workflow
-     *         let an activity failure escape, as on the journal backends; the original failure is its previous.
-     * @throws \RuntimeException when the workflow fails, is cancelled, or times out on the Temporal side.
+     * @throws \Throwable                   when the workflow fails: the exception the journal backends raise
+     *                                      for that failure, or {@see WorkflowFailedException} when it cannot be rebuilt.
+     * @throws WorkflowCancelledException  when the workflow was cancelled.
+     * @throws WorkflowTimedOutException   when its execution or run timeout elapsed.
+     * @throws WorkflowTerminatedException when it was terminated from outside.
      * @throws WorkflowStuckException when no completion event is found within {@code $maxRefreshes} attempts.
      */
     public function pollForCompletion(
@@ -143,9 +146,18 @@ final readonly class WorkflowClient implements WorkflowClientInterface
 
             return match ($closeEvent->getEventType()) {
                 EventType::EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED => $this->decodeCompletedResult($closeEvent),
-                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED     => throw self::failureOf($executionId, $closeEvent),
-                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT  => throw new \RuntimeException(
-                    \sprintf('Workflow "%s" timed out on the Temporal side.', $executionId),
+                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_FAILED     => throw WorkflowFailureCodec::toThrowable(
+                    $executionId,
+                    $closeEvent->getWorkflowExecutionFailedEventAttributes()?->getFailure(),
+                ),
+                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED   => throw new WorkflowCancelledException(
+                    $executionId,
+                    $this->cancellationReason($closeEvent),
+                ),
+                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT  => throw new WorkflowTimedOutException($executionId),
+                EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED => throw new WorkflowTerminatedException(
+                    $executionId,
+                    (string) $closeEvent->getWorkflowExecutionTerminatedEventAttributes()?->getReason(),
                 ),
                 default => throw new \RuntimeException(
                     \sprintf(
@@ -453,35 +465,13 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         return JsonPlainPayload::decode($payloads[0]);
     }
 
-    /**
-     * The failure the journal backends throw for this close event
-     * ({@see \Gplanchat\Durable\Store\EventStoreWorkflowLifecycle::onFailed()}): an unhandled
-     * activity failure becomes a {@see DurableWorkflowAlgorithmFailureException}, the original
-     * failure, kept as class and message, as its previous.
-     *
-     * ponytail: the workflow's own exception still comes back as a bare \RuntimeException; whether
-     * to rebuild its class from the failure is open on #872.
-     */
-    private static function failureOf(string $executionId, HistoryEvent $closeEvent): \RuntimeException
+    /** The reason {@see \Gplanchat\Bridge\Temporal\Worker\TemporalWorkflowCommandBuffer::cancelWorkflow()} wrote into the details. */
+    private function cancellationReason(HistoryEvent $event): string
     {
-        $failed = (new TemporalEventConverter(ExecutionId::fromString($executionId)))->convert($closeEvent);
-        \assert($failed instanceof WorkflowExecutionFailed);
-        $prefix = match ($failed->kind()) {
-            WorkflowExecutionFailed::KIND_UNHANDLED_CATASTROPHIC_ACTIVITY => 'Workflow did not handle catastrophic activity failure: ',
-            WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY => 'Workflow did not handle activity failure: ',
-            WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY_SUPERSEDED => 'Workflow did not handle superseded activity: ',
-            WorkflowExecutionFailed::KIND_UNHANDLED_DECLARED_ACTIVITY => 'Workflow did not handle declared activity failure: ',
-            default => null,
-        };
-        if (null === $prefix) {
-            return new \RuntimeException(\sprintf('Workflow "%s" failed: %s', $executionId, $failed->failureMessage()));
-        }
+        $payloads = $event->getWorkflowExecutionCanceledEventAttributes()?->getDetails()?->getPayloads();
+        $details = null === $payloads || 0 === $payloads->count() ? null : JsonPlainPayload::decode($payloads[0]);
 
-        return new DurableWorkflowAlgorithmFailureException(
-            $prefix . $failed->failureMessage(),
-            0,
-            new ActivityFailureCauseException($failed->failureClass(), $failed->failureMessage(), $failed->failureCode()),
-        );
+        return \is_array($details) && \is_string($details['reason'] ?? null) ? $details['reason'] : '';
     }
 
     /**
