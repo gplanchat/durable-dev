@@ -103,9 +103,12 @@
                                 <td><x-filament::link :href="$runUrl($run['executionId'])"><code>{{ $run['executionId'] }}</code></x-filament::link></td>
                                 <td>{{ $run['workflowName'] }}</td>
                                 <td style="white-space: nowrap"><x-filament::badge :color="\Gplanchat\Durable\Filament\StatusColor::of($run['status'])" style="min-width: max-content">{{ $t('status.' . $run['status']) }}</x-filament::badge></td>
-                                {{-- An absent fact in a table is an em dash (DUR049). --}}
+                                {{-- An absent fact in a table is an em dash (DUR049), and so is a note a run has none of (#822). --}}
                                 <td style="white-space: nowrap">{{ isset($run['startedAt']) ? $run['startedAt']->format('Y-m-d H:i:s') : '—' }}</td>
-                                <td>{{ implode(' · ', array_filter([$run['waitingForWorker'] ?? null, $run['waitingOn'] ?? null])) }}</td>
+                                <td>{{ implode(' · ', array_filter([
+                                    isset($run['waitingForWorker']) ? \Gplanchat\Durable\Filament\CoreMessage::say($run['localizedWaitingForWorker'] ?? null, $run['waitingForWorker']) : null,
+                                    isset($run['waitingOn']) ? \Gplanchat\Durable\Filament\CoreMessage::say($run['localizedWaitingOn'] ?? null, $run['waitingOn']) : null,
+                                ])) ?: '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

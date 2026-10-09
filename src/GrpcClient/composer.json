@@ -1,0 +1,39 @@
+{
+    "name": "gplanchat/grpc-client",
+    "description": "gRPC unary client over HTTP/2 without ext-grpc: curl or Guzzle, the status read from the trailers",
+    "keywords": [
+        "grpc",
+        "protobuf",
+        "http2",
+        "trailers"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "google/protobuf": "^4.31",
+        "php": ">=8.2"
+    },
+    "suggest": {
+        "ext-curl": "For CurlGrpcTransport: one HTTP/2 POST per unary call",
+        "guzzlehttp/guzzle": "For GuzzleGrpcTransport (7.14 or newer, cURL handler): gRPC over the application's Guzzle client"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gplanchat\\GrpcClient\\": "./"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "authors": [
+        {
+            "name": "Grégory Planchat",
+            "email": "gregory@gyroscops.com"
+        }
+    ]
+}

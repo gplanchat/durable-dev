@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Gplanchat\Bridge\Temporal\Http;
-
-use Symfony\Component\Messenger\Exception\TransportException;
+namespace Gplanchat\GrpcClient;
 
 /**
  * The bytes of a unary gRPC exchange: length-prefixed frames on the way in and out, and the
@@ -69,7 +67,7 @@ final class GrpcWire
     public static function status(array $headers, int $httpStatus): array
     {
         if (!isset($headers['grpc-status'])) {
-            return [self::UNKNOWN, \sprintf('HTTP %d without a grpc-status trailer: not a Temporal gRPC frontend?', $httpStatus)];
+            return [self::UNKNOWN, \sprintf('HTTP %d without a grpc-status trailer: not a gRPC server?', $httpStatus)];
         }
 
         return [(int) $headers['grpc-status'], rawurldecode($headers['grpc-message'] ?? '')];
@@ -108,12 +106,9 @@ final class GrpcWire
         return $headers;
     }
 
-    /**
-     * The exception every transport throws: the gRPC status code is its code, and it is
-     * Messenger's, so a worker loop sees a transport failure where it expects one.
-     */
-    public static function failure(int $code, string $message): TransportException
+    /** The exception every transport throws, the gRPC status code as its code. */
+    public static function failure(int $code, string $message): GrpcException
     {
-        return new TransportException(\sprintf('Temporal gRPC error [%d]: %s', $code, $message), $code);
+        return new GrpcException($code, $message);
     }
 }

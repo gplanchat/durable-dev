@@ -16,6 +16,7 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\Exception\RunFilterUnavailableException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -254,6 +255,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface, N
                 false,
                 \sprintf('Temporal namespace "%s" is unreachable: %s', $this->connection->namespace->name(), $failure->getMessage()),
                 $checkedAt,
+                localized: new Message('backend.temporal.unreachable', ['namespace' => $this->connection->namespace->name(), 'error' => $failure->getMessage()]),
             );
         }
 
@@ -262,6 +264,7 @@ final class TemporalWorkflowRunCatalog implements WorkflowRunCatalogInterface, N
             true,
             \sprintf('Connected to Temporal namespace "%s".', $this->connection->namespace->name()),
             $checkedAt,
+            localized: new Message('backend.temporal.connected', ['namespace' => $this->connection->namespace->name()]),
         );
     }
 
