@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace unit\DurablePhpstan\Fixtures;
 
 use Carbon\Carbon;
+use Gplanchat\Durable\Activity\ActivityStub;
+use Gplanchat\Durable\Attribute\Activities;
+use Gplanchat\Durable\Attribute\AsActivityMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\WorkflowEnvironment;
@@ -30,6 +33,61 @@ final class PlainService
     public function whatTimeIsIt(): int
     {
         return time();
+    }
+}
+
+/** An activity is the place where the clock may be read: its result is journalled. */
+interface ClockActivities
+{
+    #[AsActivityMethod('now')]
+    public function now(): int;
+}
+
+final class ClockActivitiesImplementation implements ClockActivities
+{
+    public function now(): int
+    {
+        return time(); // the stub is the only way in from a workflow
+    }
+}
+
+/** Two calls between the workflow and the read: the report lands on the workflow's call. */
+final class StampHelper
+{
+    public static function stamp(): int
+    {
+        return self::inner();
+    }
+
+    private static function inner(): int
+    {
+        return time();
+    }
+}
+
+final class Nested
+{
+    public function outer(): int
+    {
+        return $this->middle();
+    }
+
+    private function middle(): int
+    {
+        return (int) (new \DateTime())->format('U');
+    }
+
+    public function loops(): void
+    {
+        $this->loops();
+    }
+}
+
+final class JournalledHelper
+{
+    public static function stamp(WorkflowEnvironment $env): int
+    {
+        return $env->sideEffect(static fn(): int => time());
     }
 }
 
@@ -97,5 +155,27 @@ final class NondeterministicWorkflow
             return microtime(true);
         });
         time(); // reported
+    }
+
+    public function throughTheStack(): void
+    {
+        StampHelper::stamp(); // reported
+        (new Nested())->outer(); // reported
+    }
+
+    public function whatIsJournalledStaysJournalled(WorkflowEnvironment $env): void
+    {
+        JournalledHelper::stamp($env);
+        $env->sideEffect(static fn(): int => StampHelper::stamp());
+        (new Nested())->loops();
+        $this->whatIsJournalledStaysJournalled($env);
+    }
+
+    /**
+     * @param ActivityStub<ClockActivities> $activities
+     */
+    public function throughAnActivity(#[Activities(ClockActivities::class)] ActivityStub $activities): void
+    {
+        $activities->now();
     }
 }

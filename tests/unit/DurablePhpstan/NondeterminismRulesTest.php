@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
  * A workflow method is replayed from its journal, so whatever it reads from the clock or from a
  * random source must come out of the journal too (`$env->sideEffect()`, an activity). The rules
  * report the reads that do not: directly in the workflow class, through a date class or a clock
- * object.
+ * object, or in a helper the workflow calls.
  *
  * Checked as {@see ActivitiesParameterRuleTest} is: by running PHPStan over a fixture. The fixture
  * says what it expects on each line, with `// reported`.
@@ -26,6 +26,17 @@ final class NondeterminismRulesTest extends TestCase
         sort($reported);
 
         self::assertSame($this->linesEndingWith('// reported'), $reported);
+    }
+
+    public function testAReadFoundThroughHelpersNamesTheHops(): void
+    {
+        $messages = $this->analyse();
+        $line = $this->lineOf('StampHelper::stamp(); // reported');
+
+        self::assertArrayHasKey($line, $messages, 'the helper chain is not reported at the workflow call');
+        self::assertStringContainsString('StampHelper::stamp', $messages[$line]['message']);
+        self::assertStringContainsString('StampHelper::inner', $messages[$line]['message']);
+        self::assertStringContainsString('time()', $messages[$line]['message']);
     }
 
     public function testTheReportSaysWhyAndWhatToDo(): void
@@ -87,5 +98,16 @@ final class NondeterminismRulesTest extends TestCase
         }
 
         return $lines;
+    }
+
+    private function lineOf(string $text): int
+    {
+        foreach (file(self::FIXTURE, \FILE_IGNORE_NEW_LINES) as $index => $line) {
+            if (str_contains($line, $text)) {
+                return $index + 1;
+            }
+        }
+
+        self::fail(sprintf('"%s" is not in the fixture', $text));
     }
 }
