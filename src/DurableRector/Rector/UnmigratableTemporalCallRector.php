@@ -110,7 +110,7 @@ final class UnmigratableTemporalCallRector extends AbstractRector
     ];
 
     private const UNMIGRATABLE_CLASSES = [
-        'Temporal\Workflow\Saga' => 'Durable\Workflow\Saga is a different shape — each compensation calls $env->await() itself, and compensate() does not yield',
+        'Temporal\Workflow\Saga' => 'Durable\Workflow\Compensation is a different shape — each compensation calls $env->await() itself, and compensate() does not yield',
         'Temporal\Workflow\Mutex' => 'no mutex; a workflow is single-threaded here',
         // The options objects are the same idea on both sides and not the same shape: Durable builds
         // them with ActivityOptions::of() over ActivityTimeouts and RetryLimit, not with a fluent

@@ -479,10 +479,12 @@ les régler :
 
 Les workers et `workflowClient()` n'en lisent aucun.
 
-**Magento prend en charge deux backends, et Composer l'impose.** Magento atteint la mémoire et
-Temporal, et le module déclare un `conflict` sur les deux ponts SQL, car
-`Magento\Framework\App\ResourceConnection` n'est ni une connexion Doctrine DBAL ni celle
-d'Illuminate. Un DSN dans `app/etc/env.php` choisit le backend ; aucun autre réglage ne le fait :
+**Magento prend en charge trois backends, et Composer l'impose.** Magento atteint la mémoire,
+Temporal et son propre backend de base de données, et le module déclare un `conflict` sur les deux
+ponts SQL, car `Magento\Framework\App\ResourceConnection` n'est ni une connexion Doctrine DBAL ni
+celle d'Illuminate. `app/etc/env.php` choisit le backend : `resource/durable` pour le backend de base
+de données (voir [Backends](../backends/#capability-matrix)), un DSN pour Temporal, ni l'un ni l'autre
+pour la mémoire ; déclarer les deux échoue avec `BackendSelectionException`. Un DSN choisit Temporal :
 
 ```php
 'durable' => [

@@ -297,7 +297,7 @@ Les étapes, leurs noms et leur ordre sont les mêmes. Le code qui les entoure d
 | Coloration des fonctions | méthodes ordinaires, types de retour déclarés | toute méthode qui attend devient un générateur, et son appelant aussi ; voir [plus bas](#5-fibers-or-generators-the-colouring-problem) |
 | Déclaration | `#[AsWorkflow]` sur la classe | `#[WorkflowInterface]` sur une interface, implémentée par une classe |
 | Attributs de méthode | `#[AsWorkflowMethod]`, `#[AsSignalMethod]`, `#[AsQueryMethod]`, `#[AsUpdateMethod]` | les mêmes quatre, mises à jour comprises |
-| Compensations | `new Saga()` ; chaque compensation appelle `await()` elle-même, `compensate()` les exécute dans l'ordre inverse | `new Workflow\Saga()` ; `yield $saga->compensate()` |
+| Compensations | `new Compensation()` ; chaque compensation appelle `await()` elle-même, `compensate()` les exécute dans l'ordre inverse | `new Workflow\Saga()` ; `yield $saga->compensate()` |
 
 Le type de retour montre la différence. Dans Durable, `run()` déclare `string`. Dans le SDK, le
 seul type qu'elle pourrait déclarer est `\Generator`, qui ne dit rien de ce que le workflow
