@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
  * A workflow method is replayed from its journal, so whatever it reads from the clock or from a
  * random source must come out of the journal too (`$env->sideEffect()`, an activity). The rules
  * report the reads that do not: directly in the workflow class, through a date class or a clock
- * object.
+ * object, or in a helper the workflow calls.
  *
  * Checked as {@see ActivitiesParameterRuleTest} is: by running PHPStan over a fixture. The fixture
  * says what it expects on each line, with `// reported`.
@@ -26,6 +26,17 @@ final class NondeterminismRulesTest extends TestCase
         sort($reported);
 
         self::assertSame($this->linesEndingWith('// reported'), $reported);
+    }
+
+    public function testAReadFoundThroughHelpersNamesTheHops(): void
+    {
+        $messages = $this->analyse();
+        $line = $this->lineOf('StampHelper::stamp(); // reported');
+
+        self::assertArrayHasKey($line, $messages, 'the helper chain is not reported at the workflow call');
+        self::assertStringContainsString('StampHelper::stamp', $messages[$line]['message']);
+        self::assertStringContainsString('StampHelper::inner', $messages[$line]['message']);
+        self::assertStringContainsString('time()', $messages[$line]['message']);
     }
 
     public function testTheReportSaysWhyAndWhatToDo(): void
@@ -44,7 +55,9 @@ final class NondeterminismRulesTest extends TestCase
         $root = \dirname(__DIR__, 3);
         $config = tempnam(sys_get_temp_dir(), 'durable-phpstan-') . '.neon';
         file_put_contents($config, 'includes:' . "\n    - " . $root . "/src/DurablePhpstan/extension.neon\n"
-            . "parameters:\n    level: 5\n    paths:\n        - " . self::FIXTURE . "\n");
+            // The two framework files are analysed too: the call graph only knows the files it was handed,
+            // and the framework reads the clock legitimately behind await() and sleep().
+            . "parameters:\n    level: 5\n    paths:\n        - " . self::FIXTURE . "\n        - " . $root . "/src/Durable/WorkflowEnvironment.php\n        - " . $root . "/src/Durable/ExecutionRuntime.php\n");
 
         // No shell: the arguments go to PHPStan as they are. PHPStan exits 1 when it reports errors.
         $process = proc_open(
@@ -87,5 +100,16 @@ final class NondeterminismRulesTest extends TestCase
         }
 
         return $lines;
+    }
+
+    private function lineOf(string $text): int
+    {
+        foreach (file(self::FIXTURE, \FILE_IGNORE_NEW_LINES) as $index => $line) {
+            if (str_contains($line, $text)) {
+                return $index + 1;
+            }
+        }
+
+        self::fail(sprintf('"%s" is not in the fixture', $text));
     }
 }

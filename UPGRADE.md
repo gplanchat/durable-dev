@@ -1307,7 +1307,8 @@ try {
 
 `gplanchat/durable-phpstan` gains a rule. In a class carrying `#[AsWorkflow]`, it reports `time()`,
 `random_int()`, `new \DateTimeImmutable()`, `Carbon::now()`, `$clock->now()` on a PSR-20 clock and
-the other reads listed in the package README. A workflow method is replayed from its journal, and
+the other reads listed in the package README, including a read in a helper the workflow calls, at the
+workflow's call. A workflow method is replayed from its journal, and
 these values differ on every replay. Analysis that passed before can now fail on such a read.
 
 **What Rector does** - nothing. Whether a read belongs in an activity or in `$env->sideEffect()` is

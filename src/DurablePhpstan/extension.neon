@@ -11,6 +11,10 @@ services:
         tags:
             - phpstan.parser.richParserNodeVisitor
     -
+        class: Gplanchat\Durable\PHPStan\Rules\CallGraphCollector
+        tags:
+            - phpstan.collector
+    -
         class: Gplanchat\Durable\PHPStan\Reflection\StubMethodsExtension
         tags:
             - phpstan.broker.methodsClassReflectionExtension
@@ -18,4 +22,4 @@ services:
 rules:
     - Gplanchat\Durable\PHPStan\Rules\ActivitiesParameterRule
     - Gplanchat\Durable\PHPStan\Rules\ActivityStubCouldBeParameterRule
-    - Gplanchat\Durable\PHPStan\Rules\NondeterministicCallRule
+    - Gplanchat\Durable\PHPStan\Rules\NondeterministicReachabilityRule
