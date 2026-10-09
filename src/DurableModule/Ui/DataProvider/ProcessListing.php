@@ -6,6 +6,7 @@ namespace Gplanchat\DurableModule\Ui\DataProvider;
 
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Ui\WaitingForWorker;
 use Magento\Framework\Api\Filter;
 use Magento\Ui\DataProvider\AbstractDataProvider;
 
@@ -84,9 +85,12 @@ class ProcessListing extends AbstractDataProvider
                 'ended_at' => $run->endedAt?->format('Y-m-d H:i:s') ?? self::ABSENT,
                 // What a suspended run last waited on (#324), as the catalogue recorded it.
                 'waiting_on' => $run->waitingOn ?? self::ABSENT,
-                // Since when a running run waits for a worker to pick it up (#816, #818): no column
-                // yet, the field is on the row for the one that paints it.
+                // Since when a running run waits for a worker to pick it up (#816), and the line the
+                // grid paints from it (#818).
                 'waiting_for_worker_since' => $run->waitingForWorkerSince?->format('Y-m-d H:i:s') ?? self::ABSENT,
+                // Empty when nothing waits or the backend cannot tell, as Sylius and Filament print
+                // nothing: a dash on every row reads as "none waits".
+                'waiting_for_worker' => WaitingForWorker::of($run) ?? '',
             ], $window),
         ];
     }

@@ -11,6 +11,7 @@ use Gplanchat\Durable\Observation\RunTimeline;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Port\NexusOperationCatalogInterface;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
+use Gplanchat\DurableModule\Ui\WaitingForWorker;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
 
@@ -119,6 +120,17 @@ class ProcessDetail extends Template
         $span = $this->getTimeline()->span;
 
         return number_format($span > 0.0 ? $seconds / $span * 100.0 : 0.0, 3, '.', '');
+    }
+
+    /**
+     * The line of a run no worker has picked up (#818), or `null` when it was, or when the backend
+     * cannot tell.
+     */
+    public function getWaitingForWorker(): ?string
+    {
+        $run = $this->getRun();
+
+        return $run === null ? null : WaitingForWorker::of($run);
     }
 
     public function formatMoment(?\DateTimeImmutable $moment): string

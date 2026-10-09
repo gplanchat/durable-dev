@@ -48,6 +48,20 @@ final class TheListingSaysWhatARunWaitsOnTest extends TestCase
         self::assertSame('—', $rows[1]['waiting_for_worker_since']);
     }
 
+    /** #818: the grid says it in words, since when is the count of seconds an operator reads. */
+    public function testTheGridSaysHowLongARunHasWaitedForAWorker(): void
+    {
+        $since = (new \DateTimeImmutable())->modify('-3 days -1 minute');
+        $rows = $this->rows(
+            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, waitingForWorkerSince: $since),
+            new WorkflowRunDescription('run-2', 'App\\OrderWorkflow', WorkflowRunStatus::Running),
+        );
+
+        self::assertSame('waiting for a worker · 3 d', $rows[0]['waiting_for_worker']);
+        self::assertSame('', $rows[1]['waiting_for_worker']);
+        self::assertSame('Waiting for a worker', $this->columns()['waiting_for_worker'] ?? null);
+    }
+
     public function testTheGridDeclaresTheColumn(): void
     {
         // Review of #542: the row carried the field, and nothing noticed the grid dropping its column.

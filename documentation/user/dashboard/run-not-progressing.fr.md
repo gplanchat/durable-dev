@@ -51,8 +51,8 @@ par personne depuis deux minutes, et nomme le `durable:worker --role` à démarr
 
 Le backend n'a pas cette information. Les backends SQL l'ont, sur une table des exécutions qui a la
 colonne `picked_up_at` (voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
-pour une table créée avant elle). Temporal ne l'a pas depuis la liste des exécutions, et la grille
-Magento ne l'affiche pas : Temporal UI liste les tâches en attente.
+pour une table créée avant elle). Temporal ne l'a pas depuis la liste des exécutions, donc la grille
+Magento sur Temporal ne l'affiche pas : Temporal UI liste les tâches en attente.
 
 ## Les filtres par nom et par identifiant manquent
 
