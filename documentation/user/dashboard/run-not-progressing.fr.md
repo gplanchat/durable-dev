@@ -51,15 +51,15 @@ par personne depuis deux minutes, et nomme le `durable:worker --role` à démarr
 
 Rien n'échoue : l'exécution reste en file dans les tables du journal. La grille Magento affiche
 `waiting for a worker` pour une exécution en cours qu'aucun worker n'a prise, à partir de la colonne
-`picked_up_at` de la table des exécutions. Démarrez `bin/magento durable:worker --role=journal` et
-`--role=activity` (et `--role=nexus` seulement si le module sert Nexus). Sur ce backend, la grille fait
-office de contrôle : `durable:health` compte les pollers Temporal, et le catalogue de la base qu'il lit
-indique seulement si la base du journal répond.
+`picked_up_at` de la table des exécutions. Le backend base de données n'a que les rôles
+journal et activité : démarrez `bin/magento durable:worker --role=journal` et `--role=activity`, ou
+lancez-le sans `--role` pour vider les deux. `durable:health` vérifie seulement que la base du
+journal répond ; la grille montre une exécution qui attend un worker.
 
 ## `waiting for a worker` n'apparaît jamais
 
-Le backend n'a pas cette information. Les backends SQL et le backend base de données de Magento l'ont, sur une table des exécutions qui a la
-colonne `picked_up_at` (voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
+Le backend n'a pas cette information. Les backends SQL et le backend base de données de Magento l'ont, sur une table des exécutions
+qui a la colonne `picked_up_at` (voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
 pour une table créée avant elle). Temporal ne l'a pas depuis la liste des exécutions, aucune grille
 ne l'affiche donc : Temporal UI liste les tâches en attente.
 

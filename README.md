@@ -14,7 +14,8 @@ It runs on Symfony, Sylius, Laravel, Magento 2.4 and Mage-OS. On Symfony and Lar
 through Messenger or the application's queue; on Magento, through `bin/magento durable:worker`. The
 same workflow code runs on three backends (where the journal lives): in memory (tests), on one SQL
 database (Doctrine DBAL or Laravel's database layer), or on a Temporal cluster. To switch, you install
-that backend's bridge and change one configuration value. Magento has its own database backend instead of the two SQL bridges.
+that backend's bridge and change one configuration value. Magento has its own
+database backend instead of the two SQL bridges, see [Backends](documentation/user/backends/_index.md).
 
 ## Example: a workflow that waits three days
 

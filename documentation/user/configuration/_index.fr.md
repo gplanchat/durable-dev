@@ -336,8 +336,9 @@ ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une bo
 `RetryLimit` propre à chaque activité.
 
 Sous Laravel, la même clé dans `config/durable.php` ; sous Magento, l'argument `maxActivityRetries`
-de `RuntimeFactory` dans `di.xml`, que seul `MagentoRuntime::run()` lit, et seulement sans DSN (voir
-[le tableau des hôtes](#host-table)).
+de `RuntimeFactory` dans `di.xml`, que `MagentoRuntime::run()` lit sans DSN et que les workers du
+backend Magento Database lisent (voir [le tableau des hôtes](#host-table)). Les workers Magento
+sous Temporal laissent les tentatives au cluster.
 
 ---
 
@@ -409,13 +410,13 @@ when@test:
 
 Une ligne par réglage. La dernière colonne est une **proposition** en cours de revue (#357) :
 *identique* (le réglage existe sur chaque hôte qui peut s'en servir), *propre à l'hôte* (avec la
-raison), ou *à ajouter*. Magento a trois journaux : en mémoire, Temporal et son propre backend base de données, qui n'utilise ni le pont Doctrine DBAL
-ni le pont Illuminate. Les lignes `dbal.*` et `lock.*` ne s'y appliquent pas.
+raison), ou *à ajouter*. Magento atteint trois journaux : la mémoire, Temporal et son propre backend de base
+de données. Les lignes DBAL et Illuminate ne s'y appliquent pas.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposition |
 |---|---|---|---|
-| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | `resource/durable` dans `env.php` sélectionne la base de données, un DSN (l'argument `temporalDsn` dans `di.xml`, sinon `durable/temporal/dsn` dans `env.php`) sélectionne Temporal, aucun des deux laisse le journal dans le processus ; déclarer les deux lève `BackendSelectionException` | identique ; la valeur SQL porte le nom de la connexion de chaque hôte |
-| `dbal.connection` | `connection` | `resource/durable` dans `env.php` : `['connection' => 'durable']`, qui désigne une entrée de `db/connection` (une `db/connection/durable` dédiée est recommandée ; `bin/magento durable:setup` y crée les tables) | identique |
+| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | un DSN veut dire Temporal, aucun veut dire en mémoire : l'argument `temporalDsn` dans `di.xml`, sinon `durable/temporal/dsn` dans `env.php` | identique ; la valeur SQL porte le nom de la connexion de chaque hôte |
+| `dbal.connection` | `connection` | aucun | identique |
 | `dbal.auto_setup` | aucun (le pont livre des migrations) | aucun | propre à l'hôte : Laravel crée les tables par `php artisan migrate` |
 | `dbal.lock_factory`, `dbal.allow_local_lock` | `lock.store` | aucun | propre à l'hôte : Symfony Lock et les verrous de cache de Laravel sont deux services différents |
 | `dbal.lock_ttl` | `lock.ttl` | aucun | identique |
@@ -429,7 +430,7 @@ ni le pont Illuminate. Les lignes `dbal.*` et `lock.*` ne s'y appliquent pas.
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | aucun (les activités tournent dans le processus, ou sur la file de tâches de Temporal) | propre à l'hôte : la file de chaque hôte |
 | `messenger.buses` | aucun | aucun | propre à l'hôte : Messenger seulement |
 | `profiler.enabled` | aucun | aucun | propre à l'hôte : le profileur web de Symfony |
-| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN seulement ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers laissent les tentatives au cluster. Sous Temporal, aucun hôte ne le lit |
+| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN et par les workers du backend Magento Database ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers Temporal laissent les tentatives au cluster. Sous Temporal, aucun hôte ne le lit |
 | aucun | aucun | argument `budgetSeconds` | propre à l'hôte : borne `MagentoRuntime::run()`, l'exécution dans le processus sans DSN et l'attente du résultat du cluster avec un DSN |
 | aucun | aucun | argument `maxContinuations` (10 par défaut) | propre à l'hôte : plafonne la chaîne de continue-as-new que suit `MagentoRuntime::run()` sans DSN ; au-delà, l'appel lève `ContinuationCapReachedException` |
 | `activity_contracts.cache`, `activity_contracts.contracts` | aucun | aucun | à ajouter sous Laravel et Magento |
@@ -442,6 +443,6 @@ ni le pont Illuminate. Les lignes `dbal.*` et `lock.*` ne s'y appliquent pas.
 
 ## Voir aussi
 
-- [Backends](../backends/) compare la mémoire et Temporal : mise en place Docker, workers, paramètres du DSN.
+- [Backends](../backends/) compare les backends mémoire, SQL et Temporal : mise en place Docker, workers, paramètres du DSN.
 - [Premiers pas](../getting-started/) couvre la configuration du routage Messenger.
 - [Tester des workflows](../testing/) couvre `DurableBundleTestTrait` et la configuration de test en mémoire.

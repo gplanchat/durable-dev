@@ -60,6 +60,10 @@ jour* pousse un fait et attend la réponse du workflow. Voir [Écrire un workflo
 pont passe par gRPC et n'utilise pas le SDK PHP officiel). Le code du workflow ne change pas de l'un à
 l'autre. Voir [Backends](../backends/).
 
+**File en table** : une file de messages stockée dans une table de base de données. Le backend Magento
+Database en utilise une pour confier reprises, minuteurs et activités à `bin/magento durable:worker`.
+Voir [Backends](../backends/).
+
 **Worker** : le processus qui tire le travail. Il rejoue les workflows, exécute les activités et
 sert les opérations Nexus. Sur Symfony c'est `messenger:consume` sur les transports durables ; sur
 Laravel le worker de file de l'application, ou sur Temporal `durable:temporal-worker` et son

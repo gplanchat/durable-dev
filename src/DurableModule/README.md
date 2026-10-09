@@ -73,8 +73,9 @@ A DSN selects Temporal instead:
 ],
 ```
 
-Declaring both throws `BackendSelectionException` at boot. Without either the journal lives in the process that writes it, and dies with it — fine for a console
-command, ruinous for anything served by PHP-FPM.
+Declaring both throws `BackendSelectionException` the first time the module resolves its journal.
+Without either the journal lives in the process that writes it, and dies with it, which suits a
+console command, ruinous for anything served by PHP-FPM.
 
 With `transport=guzzle` in the DSN, gRPC travels through Guzzle 7.14 or newer, which Magento
 already ships. To hand it the application's client — its proxy, its TLS options — set the
@@ -291,10 +292,11 @@ cluster.
 
 **Nothing rides Magento's `MessageQueue`.** On Temporal an activity is a Temporal command and a
 resume is a workflow task; a topic here would be a second queue for an operator to supervise, for
-nothing. Magento has no native journal of its own and will not get one.
+nothing.
 
-**There is no SQL journal on `ResourceConnection`**, and none is planned — see the two backends
-above.
+**The database backend does not use the SQL bridges.** It keeps its journal through
+`ResourceConnection` on a dedicated `db/connection/durable`, selected by `resource/durable`; see
+[Three backends](#three-backends-and-composer-enforces-the-bridges-absence).
 
 ## License
 

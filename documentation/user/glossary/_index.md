@@ -58,6 +58,9 @@ or **Illuminate** (one SQL database, the application's own queue), or **Temporal
 bridge uses gRPC and does not use the official PHP SDK). Workflow code does not change between
 them. See [Backends](../backends/).
 
+**Table queue**: a message queue stored in a database table. The Magento Database backend uses one to
+hand resumes, timers and activities to `bin/magento durable:worker`. See [Backends](../backends/).
+
 **Worker**: the process that pulls work. It replays workflows, runs activities and serves Nexus
 operations. On Symfony it is `messenger:consume` on the durable transports; on Laravel the
 application's queue worker, or on Temporal `durable:temporal-worker` and its `--role=activity`; on Magento `bin/magento durable:worker`.

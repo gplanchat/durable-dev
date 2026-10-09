@@ -67,8 +67,9 @@ same page.
 The SQL backends can tell (DBAL on Symfony, Illuminate on Laravel), on a runs table that has the
 `picked_up_at` column, and so can the in-memory backend within its process. On Laravel, the
 [Filament panel](filament/) is the run list. Temporal cannot from the run list, so neither the
-line nor the count appears there; Temporal UI shows pending tasks. Neither does the
-Magento grid, whose backends are the in-memory one, empty from the admin, and Temporal. See
+line nor the count appears there; Temporal UI shows pending tasks. The Magento grid can on the
+database backend (`resource/durable`), whose run catalog records the pickup; it cannot on its two
+other backends, the in-memory one, empty from the admin, and Temporal. See
 [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) to add the column to a
 table created before it existed.
 

@@ -1346,16 +1346,46 @@ follow.
 3. On Temporal or in memory, you can remove the bridge if nothing else requires it:
    `composer remove gplanchat/durable-bridge-illuminate`.
 
+### `Workflow\Saga` is renamed `Compensation` (#993)
+
+The helper that records one compensation per completed step and runs them in reverse
+(`compensate()`) is renamed from `Gplanchat\Durable\Workflow\Saga` to
+`Gplanchat\Durable\Workflow\Compensation`. Its methods are unchanged. The word Saga is freed for a
+later rename of Workflow, so that one name never means two things in the same release.
+
+**Who is affected:**
+
+- Code that does `use Gplanchat\Durable\Workflow\Saga`, calls `new Saga()`, or type-hints the class.
+- Nobody else: the helper keeps its compensations in the workflow's memory and stores nothing, so no
+  journal, table, queue message or Temporal marker carries the old name.
+
+There is no alias: the old class is gone, and an application that still names it fails with a
+class-not-found error.
+
+**What to do:**
+
+1. Run the Rector set, which rewrites the class name in `use` statements, `new` expressions, type
+   declarations and docblocks (`vendor/bin/rector process src`).
+2. Delete the leftover `use Gplanchat\Durable\Workflow\Saga;` line by hand, aliased (`... as Alias`)
+   or not. Rector rewrites the uses of the class to the full `Compensation` name and keeps the old
+   import, which is unused and harmless.
+3. Rename any variable called `$saga` by hand if you want it to follow. Rector leaves variable
+   names alone.
+
+The Temporal SDK class `Temporal\Workflow\Saga` is unchanged, and the migration set from the SDK
+still reports it as unmigratable.
+
 ### Changed: Magento reaches a third backend, its own database (#739)
 
-`gplanchat/durable-magento` documented two backends, in memory and Temporal, and said Magento
-could reach nothing else. It now has a database backend (DUR056) that uses neither SQL bridge:
-the `conflict` on `gplanchat/durable-bridge-dbal` and `gplanchat/durable-bridge-illuminate` stays.
+`gplanchat/durable-magento` now has a database backend (DUR056) next to memory and Temporal. It
+uses neither SQL bridge: the `conflict` on `gplanchat/durable-bridge-dbal` and
+`gplanchat/durable-bridge-illuminate` stays.
 
 **Who is affected**: Magento stores that declare `resource/durable` in `app/etc/env.php`, or
 that add the key later. A store that sets neither it nor `durable/temporal/dsn` keeps its journal
 in the process, and one with only a DSN keeps Temporal. Declaring both keys throws
-`BackendSelectionException` at boot.
+`BackendSelectionException` the first time the module resolves its journal
+(`RuntimeFactory::backend()`, `JournalConnectionResolver::connect()`).
 
 **What to do**: nothing, unless you want the database backend. Then declare a dedicated
 `db/connection/durable`, set `resource/durable` to `['connection' => 'durable']`, and run
