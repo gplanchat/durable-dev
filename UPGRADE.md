@@ -632,9 +632,11 @@ With a DSN, four things differ from the in-process run:
   `budgetSeconds` is spent.
 - `maxActivityRetries` no longer applies: the cluster retries from each activity's own `RetryLimit`.
   `budgetSeconds` bounds the wait for the result, polled every 500 ms.
-- A workflow that fails, times out or is terminated comes back as a plain `\RuntimeException` whose
-  message starts with `Workflow "<execution id>"`, with no previous exception. A workflow that waits
-  on a signal waits the whole budget instead of failing at once.
+- A workflow that fails comes back with the exception the in-memory backend raises, as described in
+  "Temporal: `pollForCompletion()` throws the exception the journal backends raise (#872)" below. A
+  workflow that times out or is terminated throws `WorkflowTimedOutException` or
+  `WorkflowTerminatedException`. A workflow that waits on a signal waits the whole budget instead
+  of failing at once.
 - The result comes back decoded from JSON: an object the workflow returns arrives as an array.
 
 **What to do:** if your code relies on `run()` executing in the calling process while a DSN is set
@@ -818,10 +820,11 @@ segments, is removed, and `DurableProfilerTimeframe::MIN_SEGMENT_SEC` is now pri
 A workflow that lets an activity failure escape (plain, catastrophic, superseded or declared) now
 makes `WorkflowClient::pollForCompletion()` throw
 `Gplanchat\Durable\Exception\DurableWorkflowAlgorithmFailureException`, with the message the
-journal backends use (`Workflow did not handle activity failure: …`). Its previous exception is an
-`ActivityFailureCauseException` naming the original class. It used to throw a plain
+journal backends use (`Workflow did not handle activity failure: …`). Its previous exception is
+the activity's own exception, rebuilt as on the journal backends (see the entry on the exceptions
+of `pollForCompletion()` (#872) below). It used to throw a plain
 `\RuntimeException` whose message started with `Workflow "<execution id>" failed:`, with no
-previous exception. Every other failure keeps that plain `\RuntimeException`. For an activity
+previous exception. Every other failure is described in that entry. For an activity
 failure, this replaces the third bullet of the Magento `run()` entry (#765) above.
 
 **Who is affected:** code that waits through the Temporal client and reads the failure's message or
@@ -1255,6 +1258,50 @@ needs no change: it stores the event class and payload like any other event.
 **What to do:** in a test, filter the three classes out of the sequence you compare, or add them
 where the run passes through a worker. Journals written before this change replay as they did.
 No Rector rule: no signature changes.
+
+### Temporal: `pollForCompletion()` throws the exception the journal backends raise (#872)
+
+`WorkflowClient::pollForCompletion()` used to throw a plain `\RuntimeException` for every run that
+did not complete. For a failed workflow it now throws:
+
+- the workflow's own exception, built as `new $class($message, $code)`, when its class loads in the
+  calling process and that constructor gives back the recorded message;
+- `DurableWorkflowAlgorithmFailureException` for an activity failure the workflow did not catch,
+  with the activity's exception as previous, as the in-memory and SQL backends do;
+- `DurableNexusOperationFailedException` or `DeadlineExceededException` for an uncaught Nexus
+  failure or deadline;
+- the new `Gplanchat\Durable\Exception\WorkflowFailedException` in every other case: a class that
+  does not load, a constructor that takes other arguments, or a failure without Durable details (a
+  worker that is not Durable). Its message is the one the server recorded, prefixed with
+  `Workflow "<execution id>" failed:` as before.
+
+A cancelled run throws `WorkflowCancelledException` with its reason. A timed-out run throws the new
+`WorkflowTimedOutException`, and a terminated run the new `WorkflowTerminatedException` with the
+termination reason. To rebuild the activity's exception, the workflow worker adds a `cause` entry
+to the failure details it writes. A run that failed before the upgrade has no `cause`: its
+`DurableWorkflowAlgorithmFailureException` carries a `WorkflowFailedException` as previous.
+
+**Who is affected:** code around `pollForCompletion()` that catches `\RuntimeException`, directly or
+through a host that waits with it: the Symfony bench runner, Laravel's `WorkflowClientInterface`,
+the Nexus demo commands and `MagentoRuntime::run()` with a DSN. The new `WorkflowFailedException`,
+`WorkflowTimedOutException` and `WorkflowTerminatedException` extend `\RuntimeException`, as do
+`WorkflowCancelledException`, `DurableWorkflowAlgorithmFailureException` and
+`DeadlineExceededException`. A workflow exception that does not, such as
+a `\LogicException`, a plain `\Exception` or `DurableNexusOperationFailedException`, now reaches the
+caller as its own class, and `catch (\RuntimeException)` no longer catches it.
+
+**What to do:** catch the workflow's exception class, as on the journal backends, and widen the
+remaining catch to `\Throwable`:
+
+```php
+try {
+    $result = $client->pollForCompletion($executionId);
+} catch (OrderRejected $e) {
+    // the workflow's own exception
+} catch (\Throwable $e) {
+    // was: catch (\RuntimeException $e)
+}
+```
 
 ### Laravel: `durable-laravel` no longer requires the Illuminate bridge (#845)
 

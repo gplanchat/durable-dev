@@ -43,6 +43,8 @@
         <testsuite name="integration">
             <directory>tests/integration</directory>
             <exclude>tests/integration/Temporal</exclude>
+            <!-- Needs the Magento bench (magento/vendor); run by phpunit.magento.xml. -->
+            <exclude>tests/integration/DurableModule</exclude>
         </testsuite>
         <!-- Against a real Temporal server; see tests/integration/Temporal/TemporalServerTestCase.php.
              A suite of its own so QA can leave it to the Temporal jobs and fail on any other skip. -->
