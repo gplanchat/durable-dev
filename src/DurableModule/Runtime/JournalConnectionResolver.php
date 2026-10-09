@@ -44,7 +44,7 @@ final class JournalConnectionResolver
         $dsn = $this->deploymentConfig->get(self::TEMPORAL_DSN_CONFIG_PATH);
 
         if (null !== $name && null !== $dsn && '' !== $dsn) {
-            throw new \RuntimeException(\sprintf('app/etc/env.php sets both resource/durable and %s. The journal lives either in a database or on a Temporal cluster: remove one of the two keys.', self::TEMPORAL_DSN_CONFIG_PATH));
+            throw BackendSelectionException::bothDeclared('database', 'temporal');
         }
 
         if (!\is_string($name) || '' === $name) {
