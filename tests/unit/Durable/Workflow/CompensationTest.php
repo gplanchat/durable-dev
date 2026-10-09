@@ -14,16 +14,16 @@ use Gplanchat\Durable\Store\EventStoreCommandBuffer;
 use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
-use Gplanchat\Durable\Workflow\Saga;
+use Gplanchat\Durable\Workflow\Compensation;
 use Gplanchat\Durable\WorkflowEnvironment;
 use PHPUnit\Framework\TestCase;
 use unit\Durable\Fixtures\SuiteActivities;
 
 /**
- * Every activity suspends here, so the saga is rebuilt on each resume: a compensation that already
+ * Every activity suspends here, so the compensations are rebuilt on each resume: one that already
  * ran must replay from the journal, not run again.
  */
-final class SagaTest extends TestCase
+final class CompensationTest extends TestCase
 {
     private InMemoryEventStore $eventStore;
     private InMemoryActivityTransport $transport;
@@ -52,18 +52,18 @@ final class SagaTest extends TestCase
     {
         $handler = static function (WorkflowEnvironment $env): mixed {
             $steps = $env->activityStub(SuiteActivities::class);
-            $saga = new Saga();
+            $compensation = new Compensation();
 
             try {
                 $env->await($steps->append('reserve'));
-                $saga->addCompensation(static fn() => $env->await($steps->append('release')));
+                $compensation->addCompensation(static fn() => $env->await($steps->append('release')));
 
                 $env->await($steps->append('charge'));
-                $saga->addCompensation(static fn() => $env->await($steps->append('refund')));
+                $compensation->addCompensation(static fn() => $env->await($steps->append('refund')));
 
                 throw new \RuntimeException('shipping failed');
             } catch (\RuntimeException $e) {
-                $saga->compensate();
+                $compensation->compensate();
 
                 throw $e;
             }
@@ -72,7 +72,7 @@ final class SagaTest extends TestCase
         $this->expectExceptionMessage('shipping failed');
 
         try {
-            $this->driveToTheEnd('saga-1', $handler);
+            $this->driveToTheEnd('compensation-1', $handler);
         } finally {
             self::assertSame(['reserve', 'charge', 'refund', 'release'], $this->ran);
         }
@@ -82,13 +82,13 @@ final class SagaTest extends TestCase
     {
         $handler = static function (WorkflowEnvironment $env): mixed {
             $steps = $env->activityStub(SuiteActivities::class);
-            $saga = new Saga();
+            $compensation = new Compensation();
 
-            $saga->addCompensation(static fn() => $env->await($steps->append('never compensated')));
-            $saga->addCompensation(static fn() => throw new \LogicException('refund refused'));
-            $saga->addCompensation(static fn() => $env->await($steps->append('compensated')));
+            $compensation->addCompensation(static fn() => $env->await($steps->append('never compensated')));
+            $compensation->addCompensation(static fn() => throw new \LogicException('refund refused'));
+            $compensation->addCompensation(static fn() => $env->await($steps->append('compensated')));
 
-            $saga->compensate();
+            $compensation->compensate();
 
             return 'unreachable';
         };
@@ -96,7 +96,7 @@ final class SagaTest extends TestCase
         $this->expectExceptionMessage('refund refused');
 
         try {
-            $this->driveToTheEnd('saga-2', $handler);
+            $this->driveToTheEnd('compensation-2', $handler);
         } finally {
             self::assertSame(['compensated'], $this->ran);
         }
@@ -106,27 +106,27 @@ final class SagaTest extends TestCase
     {
         $handler = static function (WorkflowEnvironment $env): int {
             $calls = 0;
-            $saga = new Saga();
-            $saga->addCompensation(static function () use (&$calls): void {
+            $compensation = new Compensation();
+            $compensation->addCompensation(static function () use (&$calls): void {
                 ++$calls;
             });
 
-            $saga->compensate();
-            $saga->compensate();
+            $compensation->compensate();
+            $compensation->compensate();
 
             return $calls;
         };
 
-        self::assertSame(1, $this->driveToTheEnd('saga-3', $handler));
+        self::assertSame(1, $this->driveToTheEnd('compensation-3', $handler));
     }
 
     public function testACompensationThatForgetsToAwaitIsRefused(): void
     {
         $handler = static function (WorkflowEnvironment $env): mixed {
-            $saga = new Saga();
-            $saga->addCompensation(static fn() => $env->activityStub(SuiteActivities::class)->append('refund'));
+            $compensation = new Compensation();
+            $compensation->addCompensation(static fn() => $env->activityStub(SuiteActivities::class)->append('refund'));
 
-            $saga->compensate();
+            $compensation->compensate();
 
             return 'unreachable';
         };
@@ -134,7 +134,7 @@ final class SagaTest extends TestCase
         $this->expectException(\LogicException::class);
 
         try {
-            $this->driveToTheEnd('saga-4', $handler);
+            $this->driveToTheEnd('compensation-4', $handler);
         } finally {
             self::assertSame([], $this->ran);
         }
