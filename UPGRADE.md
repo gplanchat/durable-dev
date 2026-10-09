@@ -1366,7 +1366,10 @@ class-not-found error.
 
 1. Run the Rector set, which rewrites the class name in `use` statements, `new` expressions, type
    declarations and docblocks (`vendor/bin/rector process src`).
-2. Rename any variable called `$saga` by hand if you want it to follow. Rector leaves variable
+2. Delete the leftover `use Gplanchat\Durable\Workflow\Saga;` line by hand, aliased (`... as Alias`)
+   or not. Rector rewrites the uses of the class to the full `Compensation` name and keeps the old
+   import, which is unused and harmless.
+3. Rename any variable called `$saga` by hand if you want it to follow. Rector leaves variable
    names alone.
 
 The Temporal SDK class `Temporal\Workflow\Saga` is unchanged, and the migration set from the SDK

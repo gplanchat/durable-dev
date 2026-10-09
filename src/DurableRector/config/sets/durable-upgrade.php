@@ -93,7 +93,7 @@ return RectorConfig::configure()
         // to `gplanchat/durable`. Clear the container cache after it (#350).
         'Gplanchat\Durable\Plugin\Dashboard\RunDashboardView' => RunDashboard::class,
 
-        // Unreleased — the helper that records one compensation per step and replays them in
+        // Unreleased — the helper that records one compensation per step and runs them in
         // reverse is called what it does, which frees the word Saga for the next rename (#993).
         // It stores nothing, so there is no data to migrate and no alias.
         'Gplanchat\Durable\Workflow\Saga' => 'Gplanchat\Durable\Workflow\Compensation',
