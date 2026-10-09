@@ -1,0 +1,9 @@
+{# A text the core words as a key and its parameters (#850): translated in the durable domain, the core's English string when the locale has no entry. #}
+{% macro say(message, english) -%}
+    {%- set values = {} -%}
+    {%- for name, value in message.params -%}
+        {%- set values = values|merge({('%' ~ name ~ '%'): value}) -%}
+    {%- endfor -%}
+    {%- set text = message.key|trans(values, 'durable') -%}
+    {{- text == message.key ? english : text -}}
+{%- endmacro %}

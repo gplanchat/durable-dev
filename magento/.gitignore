@@ -62,3 +62,9 @@
 !app/code/Gplanchat/
 !app/code/Gplanchat/DurableProbe/
 !app/code/Gplanchat/DurableProbe/**
+
+# The conformance harness (#747): PHPUnit runs from the repository's own vendor/, so the bench
+# adds no dependency.
+!phpunit.xml.dist
+!tests/
+!tests/**

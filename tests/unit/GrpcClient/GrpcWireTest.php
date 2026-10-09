@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace unit\Gplanchat\Bridge\Temporal\Http;
+namespace unit\Gplanchat\GrpcClient;
 
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+use Gplanchat\GrpcClient\GrpcException;
+use Gplanchat\GrpcClient\GrpcWire;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Messenger\Exception\TransportException;
 
 final class GrpcWireTest extends TestCase
 {
@@ -24,14 +24,14 @@ final class GrpcWireTest extends TestCase
 
     public function testATruncatedFrameIsRefusedWithUnknown(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(GrpcException::class);
         $this->expectExceptionCode(GrpcWire::UNKNOWN);
         GrpcWire::unframe("\x00\x00\x00\x00\x05ab");
     }
 
     public function testACompressedFrameIsRefusedWithUnimplemented(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(GrpcException::class);
         $this->expectExceptionCode(GrpcWire::UNIMPLEMENTED);
         GrpcWire::unframe("\x01\x00\x00\x00\x01a");
     }
@@ -52,9 +52,10 @@ final class GrpcWireTest extends TestCase
     public function testTheFailureCarriesTheGrpcCodeAsExceptionCode(): void
     {
         $failure = GrpcWire::failure(5, 'gone');
-        self::assertInstanceOf(TransportException::class, $failure);
+        self::assertInstanceOf(GrpcException::class, $failure);
         self::assertSame(5, $failure->getCode());
-        self::assertSame('Temporal gRPC error [5]: gone', $failure->getMessage());
+        self::assertSame('gone', $failure->statusMessage);
+        self::assertSame('gRPC error [5]: gone', $failure->getMessage());
     }
 
     public function testTheTimeoutOptionIsMicrosecondsRoundedUpToMilliseconds(): void

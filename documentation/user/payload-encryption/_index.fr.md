@@ -191,9 +191,10 @@ clair.
 Avant de répondre, le worker journalise l'erreur au niveau `error` via le logger PSR-3 de votre
 framework : l'exception elle-même, trace d'appels comprise, sous `exception`, et l'id de l'événement
 d'historique qui ne se décode pas sous `event_id`, quand le payload appartient à un événement. La
-tâche y est nommée aussi : `workflow_id` et `run_id` pour une tâche de workflow, `activity_id` pour
-une tâche d'activité.
-Gardez ce journal là où seuls vos opérateurs le lisent, puisque la trace peut citer ce que le
+tâche y est nommée aussi : `workflow_id` et `run_id` pour une tâche de workflow, `workflow_id`,
+`run_id` et `activity_id` pour une tâche d'activité (un `activity_id` n'est unique qu'au sein de son
+workflow), `service`, `operation` et, pour une requête de démarrage, `request_id` pour une tâche
+Nexus. Gardez ce journal là où seuls vos opérateurs le lisent, puisque la trace peut citer ce que le
 serveur ne doit pas voir.
 
 Pour un worker qui utilise un codec, passez

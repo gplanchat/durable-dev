@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Observation;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationState;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunDashboard;
@@ -40,6 +41,7 @@ final class RunDashboardTest extends TestCase
         self::assertStringNotContainsStringIgnoringCase('temporal', $view['backend']['message']);
         self::assertArrayNotHasKey('name', $view['backend'], 'with no backend, naming a server would send the reader down a false trail');
         self::assertSame([], $view['runs']);
+        self::assertEquals(new Message('backend.not_configured'), $view['backend']['localizedMessage'], 'the English string stays; the message is beside it');
     }
 
     public function testRunsAreListedWithTheirNameAndOutcome(): void
@@ -187,6 +189,7 @@ final class RunDashboardTest extends TestCase
         self::assertTrue($view['backend']['available']);
         self::assertSame('Fake backend', $view['backend']['name']);
         self::assertInstanceOf(\DateTimeImmutable::class, $view['backend']['checkedAt']);
+        self::assertEquals(new Message('backend.answers'), $view['backend']['localizedMessage']);
     }
 
     public function testTheSelectedRunHistoryIsGroupedIntoActions(): void
@@ -420,6 +423,9 @@ final class RunDashboardTest extends TestCase
         self::assertSame($dispatched, $view['runs'][0]['waitingForWorkerSince']);
         self::assertSame('waiting for a worker · 42 s', $view['runs'][0]['waitingForWorker']);
         self::assertSame('waiting for a worker · 2 h', $view['runs'][1]['waitingForWorker']);
+        self::assertEquals(new Message('run.waiting_for_worker', ['elapsed' => '42 s']), $view['runs'][0]['localizedWaitingForWorker']);
+        self::assertEquals(new Message('run.waiting_for_worker', ['elapsed' => '2 h']), $view['runs'][1]['localizedWaitingForWorker']);
+        self::assertArrayNotHasKey('localizedWaitingForWorker', $view['runs'][2]);
         self::assertArrayNotHasKey('waitingForWorker', $view['runs'][2], 'a run waiting on a timer, or picked up, carries no such fact');
         self::assertSame(2, $view['waitingForWorkerOnThisPage'], 'counted over the page, like the outcome counters');
     }
@@ -433,6 +439,9 @@ final class RunDashboardTest extends TestCase
 
         self::assertSame('waiting on timer due at 2026-09-24T10:00:00+00:00', $view['runs'][0]['waitingOn']);
         self::assertArrayNotHasKey('waitingOn', $view['runs'][1], 'a fact the backend does not keep is absent');
+        // The reason is persisted English prose until the stored wait carries a code (#850): it travels as a parameter.
+        self::assertEquals(new Message('run.waiting_on', ['reason' => 'timer due at 2026-09-24T10:00:00+00:00']), $view['runs'][0]['localizedWaitingOn']);
+        self::assertArrayNotHasKey('localizedWaitingOn', $view['runs'][1]);
     }
 
     public function testABackendThatCannotTellCountsNoRunAsWaitingForAWorker(): void
@@ -489,6 +498,7 @@ final class FakeRunCatalog implements WorkflowRunCatalogInterface
             $this->reachable ? 'The fake backend answers.' : 'The fake backend is unreachable.',
             new \DateTimeImmutable('@1700000000'),
             $this->ephemeral,
+            new Message($this->reachable ? 'backend.answers' : 'backend.unreachable'),
         );
     }
 
