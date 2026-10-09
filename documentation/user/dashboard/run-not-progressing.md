@@ -48,7 +48,7 @@ exits non-zero when a role's queue has gone two minutes without a poll, and name
 
 The backend records no pickup time. The SQL backends record it, on a runs table that has the `picked_up_at` column
 (see [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) for a table created
-before it existed). Temporal records none the run list can read, and the Magento grid does not show it:
+before it existed). Temporal records none the run list can read, so the Magento grid on Temporal does not show it:
 Temporal UI lists the pending tasks.
 
 ## The name and id filters are missing

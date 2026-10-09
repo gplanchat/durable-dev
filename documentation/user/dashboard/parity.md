@@ -19,7 +19,7 @@ when a gap closes.
 | Outcome filter | Yes | Yes | Yes | No |
 | Workflow name filter | Whole name, where the backend can | Whole name, within the window | Whole name, where the backend can | No |
 | Execution id filter | Prefix, where the backend can | Prefix, within the window | Prefix, where the backend can | No |
-| `waiting for a worker` | Line and counter | No | Line and counter | No |
+| `waiting for a worker` | Line and counter | Line and counter, on the database backend | Line and counter | No |
 | `waiting on` | List and run page | List and run page | List and run page | Run section |
 | One line per action | Yes | Yes, plus a journal table | Yes | Yes |
 | Hatched queue time | Yes | Yes | On the timeline | Yes |

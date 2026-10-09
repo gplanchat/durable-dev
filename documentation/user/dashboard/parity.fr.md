@@ -19,7 +19,7 @@ surfaces diffèrent encore. Elle change quand un écart se referme.
 | Filtre par issue | Oui | Oui | Oui | Non |
 | Filtre par nom de workflow | Nom entier, là où le backend sait l'appliquer | Nom entier, dans la fenêtre | Nom entier, là où le backend sait l'appliquer | Non |
 | Filtre par identifiant d'exécution | Préfixe, là où le backend sait l'appliquer | Préfixe, dans la fenêtre | Préfixe, là où le backend sait l'appliquer | Non |
-| `waiting for a worker` | Ligne et compteur | Non | Ligne et compteur | Non |
+| `waiting for a worker` | Ligne et compteur | Ligne et compteur, sur le backend base de données | Ligne et compteur | Non |
 | `waiting on` | Liste et page de l'exécution | Liste et page de l'exécution | Liste et page de l'exécution | Section de l'exécution |
 | Une ligne par action | Oui | Oui, plus une table du journal | Oui | Oui |
 | Temps de file hachuré | Oui | Oui | Sur la frise | Oui |
