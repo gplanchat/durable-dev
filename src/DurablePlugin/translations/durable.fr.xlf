@@ -58,6 +58,16 @@
             <trans-unit id="nexus.state.failed"><source>nexus.state.failed</source><target>en échec</target></trans-unit>
             <trans-unit id="nexus.state.timed_out"><source>nexus.state.timed_out</source><target>expirée</target></trans-unit>
             <trans-unit id="nexus.state.cancelled"><source>nexus.state.cancelled</source><target>annulée</target></trans-unit>
+            <trans-unit id="run.waiting_for_worker"><source>run.waiting_for_worker</source><target>En attente d’un worker · %elapsed%</target></trans-unit>
+            <trans-unit id="run.waiting_on"><source>run.waiting_on</source><target>En attente de %reason%</target></trans-unit>
+            <trans-unit id="backend.not_configured"><source>backend.not_configured</source><target>Aucun backend Durable lisible n’est configuré pour cette application.</target></trans-unit>
+            <trans-unit id="backend.sql.answers"><source>backend.sql.answers</source><target>La base SQL répond.</target></trans-unit>
+            <trans-unit id="backend.sql.unreachable"><source>backend.sql.unreachable</source><target>La base SQL est injoignable : %error%</target></trans-unit>
+            <trans-unit id="backend.database.answers"><source>backend.database.answers</source><target>La base de données répond.</target></trans-unit>
+            <trans-unit id="backend.database.unreachable"><source>backend.database.unreachable</source><target>La base de données est injoignable : %error%</target></trans-unit>
+            <trans-unit id="backend.temporal.connected"><source>backend.temporal.connected</source><target>Connecté au namespace Temporal « %namespace% ».</target></trans-unit>
+            <trans-unit id="backend.temporal.unreachable"><source>backend.temporal.unreachable</source><target>Le namespace Temporal « %namespace% » est injoignable : %error%</target></trans-unit>
+            <trans-unit id="backend.memory.ephemeral"><source>backend.memory.ephemeral</source><target>Le catalogue en mémoire répond, mais il ne voit que les exécutions de ce processus. Une liste vide dit seulement qu’aucune exécution n’a tourné ici. Configurez un backend qui enregistre hors de ce processus, une base SQL ou un cluster Temporal, pour lire les exécutions de tous les autres.</target></trans-unit>
         </body>
     </file>
 </xliff>

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Bridge\Temporal\Grpc;
 
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+use Gplanchat\GrpcClient\GrpcWire;
 use Grpc\UnaryCall;
 
 /**

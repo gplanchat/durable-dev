@@ -149,8 +149,8 @@ it, the check on the activity's name detects it.
 
 ## On the backends without workflow tasks
 
-The journal backends (In-Memory, DBAL and Illuminate) have no notion of a workflow *task*, so there
-is nothing to fail and retry. There, a divergence ends the execution instead of resolving the wrong
+The journal backends (In-Memory, DBAL and Illuminate) record a workflow *task* as three events, but a
+task there has no server to fail it and retry it. There, a divergence ends the execution instead of resolving the wrong
 recorded value in silence, and reverting does not bring the run back.
 
 ---

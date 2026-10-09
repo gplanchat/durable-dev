@@ -121,6 +121,9 @@ final readonly class TemporalNexusWorker
                 'exception' => $raised,
                 'event_id' => null,
                 'rpc' => 'RespondNexusTaskFailed',
+                'service' => $service,
+                'operation' => $operation,
+                'request_id' => $start->getRequestId(),
             ]);
             $this->respondFailed($taskToken, NexusHandlerErrorType::Internal, $raised->getMessage());
 

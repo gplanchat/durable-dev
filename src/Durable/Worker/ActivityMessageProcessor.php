@@ -22,6 +22,7 @@ use Gplanchat\Durable\Port\NoActivityAttemptClaim;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\ActivityEventJournal;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\WorkflowTaskJournal;
 use Gplanchat\Durable\SystemClock;
 use Gplanchat\Durable\Transport\ActivityMessage;
 use Gplanchat\Durable\Transport\ActivityTransportInterface;
@@ -88,6 +89,7 @@ final readonly class ActivityMessageProcessor
             $message->activityId,
             $message->attempt,
         )) {
+            WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, $id);
             $this->resumeDispatcher->dispatchResume($id);
 
             return null;
@@ -202,6 +204,7 @@ final readonly class ActivityMessageProcessor
                 $message->activityId,
                 $result,
             ));
+            WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, $id);
             $this->resumeDispatcher->dispatchResume($id);
         } catch (\Throwable $e) {
             if ($settled) {
@@ -307,6 +310,7 @@ final readonly class ActivityMessageProcessor
             $e,
             $retryState,
         ));
+        WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, ExecutionId::fromString($message->executionId));
         $this->resumeDispatcher->dispatchResume(ExecutionId::fromString($message->executionId));
     }
 
@@ -318,6 +322,7 @@ final readonly class ActivityMessageProcessor
             $message->activityId,
             $reason,
         ));
+        WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, ExecutionId::fromString($message->executionId));
         $this->resumeDispatcher->dispatchResume(ExecutionId::fromString($message->executionId));
     }
 

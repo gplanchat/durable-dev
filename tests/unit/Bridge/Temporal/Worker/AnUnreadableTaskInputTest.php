@@ -23,6 +23,7 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 use Temporal\Api\Common\V1\Payload;
 use Temporal\Api\Common\V1\Payloads;
+use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\ActivityTaskFailedCause;
 use Temporal\Api\Enums\V1\NexusHandlerErrorRetryBehavior;
 use Temporal\Api\Nexus\V1\Request as NexusRequest;
@@ -63,7 +64,7 @@ final class AnUnreadableTaskInputTest extends TestCase
         $failed = null;
         $client = $this->createMock(WorkflowServiceClientInterface::class);
         $client->expects(self::exactly(2))->method('PollActivityTaskQueue')->willReturnOnConsecutiveCalls(
-            new PollActivityTaskQueueResponse(['task_token' => 'act-token', 'activity_id' => 'act-1', 'input' => $input]),
+            new PollActivityTaskQueueResponse(['task_token' => 'act-token', 'activity_id' => 'act-1', 'workflow_execution' => new WorkflowExecution(['workflow_id' => 'wf-1', 'run_id' => 'run-1']), 'input' => $input]),
             new PollActivityTaskQueueResponse(),
         );
         $client->expects(self::once())->method('RespondActivityTaskFailed')->willReturnCallback(static function (RespondActivityTaskFailedRequest $request) use (&$failed): RespondActivityTaskFailedResponse {
@@ -95,12 +96,14 @@ final class AnUnreadableTaskInputTest extends TestCase
         $context = $this->assertOneErrorRecord($class);
         self::assertSame('RespondActivityTaskFailed', $context['rpc'] ?? null);
         self::assertSame('act-1', $context['activity_id'] ?? null);
+        self::assertSame('wf-1', $context['workflow_id'] ?? null);
+        self::assertSame('run-1', $context['run_id'] ?? null);
     }
 
     public function testANonJsonNexusInputIsLoggedAndTheWorkerPollsAgain(): void
     {
         $failed = null;
-        $start = new StartOperationRequest(['service' => 'billing', 'operation' => 'charge', 'payload' => self::notJson()]);
+        $start = new StartOperationRequest(['service' => 'billing', 'operation' => 'charge', 'request_id' => 'req-1', 'payload' => self::notJson()]);
         $client = $this->createMock(WorkflowServiceClientInterface::class);
         $client->expects(self::exactly(2))->method('PollNexusTaskQueue')->willReturnOnConsecutiveCalls(
             new PollNexusTaskQueueResponse(['task_token' => 'nexus-token', 'request' => new NexusRequest(['start_operation' => $start])]),
@@ -127,6 +130,9 @@ final class AnUnreadableTaskInputTest extends TestCase
         self::assertSame(NexusHandlerErrorRetryBehavior::NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE, $failed->getError()->getRetryBehavior());
         $context = $this->assertOneErrorRecord(\JsonException::class);
         self::assertSame('RespondNexusTaskFailed', $context['rpc'] ?? null);
+        self::assertSame('billing', $context['service'] ?? null);
+        self::assertSame('charge', $context['operation'] ?? null);
+        self::assertSame('req-1', $context['request_id'] ?? null);
     }
 
     /** @return array<string, mixed> */

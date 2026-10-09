@@ -6,6 +6,8 @@ namespace Gplanchat\Durable\Bundle\Handler;
 
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\WorkflowTaskJournal;
 use Gplanchat\Durable\Transport\DeliverWorkflowUpdateMessage;
 
 /**
@@ -23,11 +25,14 @@ final readonly class DeliverWorkflowUpdateHandler
 {
     public function __construct(
         private readonly WorkflowResumeDispatcher $resumeDispatcher,
+        private readonly EventStoreInterface $eventStore,
     ) {}
 
     public function __invoke(DeliverWorkflowUpdateMessage $message): void
     {
-        $this->resumeDispatcher->dispatchResume(ExecutionId::fromString($message->executionId), [[
+        $id = ExecutionId::fromString($message->executionId);
+        WorkflowTaskJournal::schedule($this->eventStore, $this->resumeDispatcher, $id);
+        $this->resumeDispatcher->dispatchResume($id, [[
             'name' => $message->updateName,
             'arguments' => $message->arguments,
         ]]);

@@ -228,6 +228,7 @@ final class CoreServices
         $container->register('durable.handler.deliver_update', DeliverWorkflowUpdateHandler::class)
             ->setArguments([
                 new Reference(WorkflowResumeDispatcher::class),
+                new Reference(EventStoreInterface::class),
             ])
             ->addTag('messenger.message_handler')
             ->setPublic(false);

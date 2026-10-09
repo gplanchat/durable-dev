@@ -232,15 +232,14 @@ Declared by: app.charge.
 
 Le côté appelant se comporte autrement, et c'est voulu. Un appel sur un backend sans route échoue à
 l'appel, et vous l'apprenez tout de suite. Un *gestionnaire* sans route ne reçoit rien, et rien
-n'échoue : aucune requête ne lui parvient. Sur Symfony et Magento, le contrôle a donc lieu avant toute
-requête : au montage du conteneur, et au démarrage du worker Nexus.
+n'échoue : aucune requête ne lui parvient. Sur chaque hôte, le contrôle a donc lieu avant toute
+requête : au montage du conteneur (Symfony), au démarrage (Laravel) et au démarrage du worker Nexus (Magento).
 
 Le message ci-dessus est celui de Symfony. Sur Magento, `bin/magento durable:worker --role=nexus`
 échoue avec `A Nexus worker needs a cluster` quand `app/etc/env.php` n'a pas de DSN.
-Sur Laravel, rien n'échoue au démarrage. Hors de `temporal`, rien ne résout le registre Nexus : un
-gestionnaire listé dans `durable.nexus.handlers` ne lève rien et ne reçoit rien, et
-`php artisan durable:nexus-worker` se termine sur `Command "durable:nexus-worker" is not defined.`,
-qui ne nomme pas le backend (voir [#931](https://github.com/gplanchat/durable-dev/issues/931)).
+Sur Laravel, le fournisseur de services échoue au démarrage avec `NexusUnsupportedByBackendException` quand
+un gestionnaire est listé dans `durable.nexus.handlers` et que le backend n'est pas `temporal`. Le message
+nomme le backend.
 
 ---
 
