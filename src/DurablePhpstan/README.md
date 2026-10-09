@@ -169,6 +169,31 @@ parameters:
 Add a `path:` to scope it, or put `// @phpstan-ignore durable.activityStubCouldBeParameter` on the
 line of the call.
 
+### A clock or randomness read in a workflow class
+
+A workflow method is replayed from its journal, so a value it reads from the clock or from a random
+source differs on every replay. In a class carrying `#[AsWorkflow]`, the extension reports these
+reads with the identifier `durable.nondeterministic`:
+
+- the functions `time()`, `microtime()`, `hrtime()`, `rand()`, `mt_rand()`, `random_int()`,
+  `uniqid()`, `sleep()`, `usleep()`, `now()`, `today()`, and `date()` without a timestamp;
+- `new` on a class implementing `DateTimeInterface` (`DateTime`, `DateTimeImmutable`, Symfony's
+  `DatePoint`, Carbon, your own subclasses) without an argument or with a relative string such as
+  `'now'` or `'tomorrow'`, and `::now()`, `::today()`, `::tomorrow()`, `::yesterday()` or
+  `::parse()` without an absolute date on those classes;
+- `now()`, `sleep()` and `usleep()` on a `Psr\Clock\ClockInterface`.
+
+An absolute date (`'2026-01-01'`), a timestamp (`'@1700000000'`), an argument whose value is not a
+constant, and anything inside a closure passed to `$env->sideEffect()` are not reported.
+
+```php
+$deadline = new \DateTimeImmutable('+3 days');                                // reported
+$deadline = $env->sideEffect(static fn () => new \DateTimeImmutable('+3 days')); // journalled
+```
+
+The whole class is checked, signal and query handlers and private helpers included. A helper
+class called from the workflow is not: the rule reads the workflow class only.
+
 ## What it does not do
 
 A method absent from the contract, or present but without `#[AsActivityMethod]` — respectively

@@ -1256,6 +1256,26 @@ needs no change: it stores the event class and payload like any other event.
 where the run passes through a worker. Journals written before this change replay as they did.
 No Rector rule: no signature changes.
 
+### PHPStan: a clock or randomness read in a workflow class is reported (`durable.nondeterministic`)
+
+`gplanchat/durable-phpstan` gains a rule. In a class carrying `#[AsWorkflow]`, it reports `time()`,
+`random_int()`, `new \DateTimeImmutable()`, `Carbon::now()`, `$clock->now()` on a PSR-20 clock and
+the other reads listed in the package README. A workflow method is replayed from its journal, and
+these values differ on every replay. Analysis that passed before can now fail on such a read.
+
+**What Rector does** - nothing. Whether a read belongs in an activity or in `$env->sideEffect()` is
+a choice about your code.
+
+**What you have to do** - for each reported line, wrap the read in `$env->sideEffect(static fn () => ...)`,
+or move it to an activity. To postpone the work, ignore the identifier:
+
+```neon
+parameters:
+    ignoreErrors:
+        -
+            identifier: durable.nondeterministic
+```
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
