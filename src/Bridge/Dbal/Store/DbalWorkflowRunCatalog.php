@@ -10,6 +10,7 @@ use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\RunPageCursor;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
@@ -137,10 +138,11 @@ final readonly class DbalWorkflowRunCatalog implements WorkflowRunCatalogInterfa
                 false,
                 \sprintf('The SQL database is unreachable: %s', $failure->getMessage()),
                 $checkedAt,
+                localized: new Message('backend.sql.unreachable', ['error' => $failure->getMessage()]),
             );
         }
 
-        return new BackendHealth(self::BACKEND, true, 'The SQL database answers.', $checkedAt);
+        return new BackendHealth(self::BACKEND, true, 'The SQL database answers.', $checkedAt, localized: new Message('backend.sql.answers'));
     }
 
     /**
