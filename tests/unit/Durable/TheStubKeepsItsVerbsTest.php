@@ -9,6 +9,7 @@ use Gplanchat\Durable\Attribute\AsSignalMethod;
 use Gplanchat\Durable\Attribute\AsUpdateMethod;
 use Gplanchat\Durable\Exception\ExceptionInterface;
 use Gplanchat\Durable\Exception\ReservedStubMethodName;
+use Gplanchat\Durable\Exception\WorkflowClassNotFound;
 use Gplanchat\Durable\Workflow\ReservedStubMethods;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +44,24 @@ final class StubTestExecuteUpdate
     public function EXECUTE(): void {}
 }
 
+final class StubTestTerminateQuery
+{
+    #[AsQueryMethod('t')]
+    public function TeRmInAtE(): void {}
+}
+
+final class StubTestStartUpdate
+{
+    #[AsUpdateMethod('s')]
+    public function start(): void {}
+}
+
+final class StubTestExecutionIdSignal
+{
+    #[AsSignalMethod('i')]
+    public function executionId(): void {}
+}
+
 /**
  * The stub's verbs share the namespace of the workflow's signal, query and update methods (#974).
  */
@@ -62,6 +81,9 @@ final class TheStubKeepsItsVerbsTest extends TestCase
     {
         yield 'signal, other case' => [StubTestCancelSignal::class, 'Cancel'];
         yield 'query' => [StubTestResultQuery::class, 'result'];
+        yield 'query, mixed case' => [StubTestTerminateQuery::class, 'TeRmInAtE'];
+        yield 'update, start' => [StubTestStartUpdate::class, 'start'];
+        yield 'signal, executionId' => [StubTestExecutionIdSignal::class, 'executionId'];
         yield 'update, upper case' => [StubTestExecuteUpdate::class, 'EXECUTE'];
     }
 
@@ -78,6 +100,19 @@ final class TheStubKeepsItsVerbsTest extends TestCase
             self::assertSame($class, $e->workflowClass);
             self::assertSame($method, $e->method);
             self::assertInstanceOf(ExceptionInterface::class, $e);
+        }
+    }
+
+    public function testAClassThatDoesNotExistIsRefusedWithItsCause(): void
+    {
+        $missing = 'App\\NoSuchWorkflow';
+
+        try {
+            ReservedStubMethods::assertFreeFor($missing); // @phpstan-ignore argument.type (a class that does not exist: deliberate)
+            self::fail('A missing class must be refused.');
+        } catch (WorkflowClassNotFound $e) {
+            self::assertSame($missing, $e->workflowClass);
+            self::assertInstanceOf(\ReflectionException::class, $e->getPrevious());
         }
     }
 }
