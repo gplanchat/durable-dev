@@ -36,7 +36,8 @@ final class MagentoRuntime
         private readonly EventStoreInterface $eventStore,
         private readonly RegistryActivityExecutor $activities,
         private readonly WorkflowRegistry $workflows,
-        private readonly InMemoryWorkflowRunner $runner,
+        /** Null on the database backend, which holds nothing in-process. */
+        private readonly ?InMemoryWorkflowRunner $runner,
         /**
          * Null runs in this process. Typed as a closure so no bridge type reaches this signature.
          *
@@ -81,6 +82,10 @@ final class MagentoRuntime
 
         if (null !== $this->runOnBackend) {
             return ($this->runOnBackend)($workflowClass, $input, $executionId);
+        }
+
+        if (null === $this->runner) {
+            throw BackendSelectionException::nothingToRunWith();
         }
 
         $this->projection?->recordStart(ExecutionId::fromString($executionId), (new WorkflowDefinitionLoader())->aliasForTemporalInterop($workflowClass));
