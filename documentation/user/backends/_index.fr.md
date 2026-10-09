@@ -18,11 +18,13 @@ mémoire ; les trois autres sont les ponts entre lesquels vous choisissez.
 | **Temporal** | Production et recette à l'échelle, tests d'intégration réalistes ; `ext-grpc` et un cluster Temporal requis. |
 
 > [!NOTE]
-> **Sur Magento, les deux backends SQL ne sont pas disponibles.** `gplanchat/durable-magento`
+> **Sur Magento, les deux ponts SQL ne sont pas disponibles.** `gplanchat/durable-magento`
 > déclare un `conflict` Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection`
 > n'est ni une connexion Doctrine DBAL ni celle d'Illuminate, donc aucun des deux n'a de quoi se
-> lier. L'état vit soit dans un cluster Temporal, soit dans un processus. La présence de
-> `durable/temporal/dsn` dans `app/etc/env.php` détermine lequel des deux ; aucun réglage ne le fait.
+> lier. Le module a son propre backend de base de données à la place. `RuntimeFactory` assemble
+> exactement un backend, choisi par `app/etc/env.php` : la base de données quand `resource/durable`
+> est déclaré, sinon Temporal quand `durable/temporal/dsn` l'est, sinon la mémoire. Déclarer à la
+> fois `resource/durable` et un DSN échoue avec `BackendSelectionException`.
 
 Les quatre font tourner le **même pilote à fibres** et le même code de workflows et d'activités.
 Vous en choisissez trois par `durable.backend` (et `DURABLE_DSN` pour Temporal). **Illuminate
@@ -446,35 +448,40 @@ qui ressemblent à des bugs sans en être.
 
 ## Matrice de capacités {#capability-matrix}
 
-Les quatre backends font tourner le **même pilote à fibres** et le même chemin d'exécution des
+Les cinq backends font tourner le **même pilote à fibres** et le même chemin d'exécution des
 activités. Ce qui diffère, c'est ce que la plateforme autour peut offrir. Les deux colonnes SQL ne
 diffèrent que par la connexion sur laquelle elles reposent : leurs réponses concordent sur chaque
 ligne, sauf pour le transport et ce que l'hôte livre (signaux, mises à jour et service Nexus).
 
-La colonne Magento Database n'est pas un backend de la version courante. Son code est en cours de
-développement (épopée [#740](https://github.com/gplanchat/durable-dev/issues/740)), et rien n'en
-est sur `main`. Une cellule indique « pas encore » tant que la capacité n'est pas fusionnée.
+La colonne Magento Database est le backend de `gplanchat/durable-magento` que `resource/durable`
+dans `app/etc/env.php` sélectionne (épopée [#740](https://github.com/gplanchat/durable-dev/issues/740)).
+Il exécute les gestionnaires de journal, d'activités et de workflows du noyau sur des tables de la
+connexion que nomme `resource/durable`, avec une file en table que `bin/magento durable:worker`
+vide. Ses tests d'intégration ne tournent que sous `phpunit.magento.xml`, et aucun job de CI
+n'exécute encore cette configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+Une cellule indique « pas encore » quand la capacité est absente et que rien dans le module ne la
+fournit.
 
 | Capacité | En mémoire | DBAL | Illuminate | Temporal | Magento Database |
 |---|---|---|---|---|---|
-| Activités, réessais, délais | ✅ | ✅ | ✅ | ✅ | pas encore |
-| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ (délais de la file) | ✅ | pas encore |
-| Gestionnaires de signaux, de mises à jour et de requêtes dans un workflow | ✅ | ✅ | ✅ | ✅ | pas encore |
+| Activités, réessais, délais | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Minuteurs, effets de bord | ✅ | ✅ (délais Messenger) | ✅ (délais de la file) | ✅ | ✅ (délais de la file en table) |
+| Gestionnaires de signaux, de mises à jour et de requêtes dans un workflow | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Envoi d'un signal ou d'une mise à jour depuis l'application | ✅ (message Symfony) | ✅ (message Symfony) | ❌ (Laravel n'en livre aucun) | ✅ (client ou message Symfony) | pas encore |
-| Résultat de la mise à jour renvoyé à l'appelant | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::update()`) | pas encore |
-| Lecture d'une requête depuis l'application | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::query()`) | pas encore |
-| Workflows enfants | ✅ | ✅ | ✅ | ✅ | pas encore |
-| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ | ✅ (pilotée par le serveur) | pas encore |
-| Continue-as-new | ✅ | ✅ | ✅ | ✅ | pas encore |
-| Annulation avec compensation (le `RequestCancel` d'un parent) | ✅ | ✅ | ✅ | ✅ | pas encore |
-| Annulation demandée de l'extérieur | ❌ | ❌ | ❌ | ✅ | pas encore |
-| Survit au redémarrage du processus | ❌ | ✅ | ✅ | ✅ | pas encore |
-| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | verrou applicatif | ✅ côté serveur | pas encore |
-| Attributs de recherche | journalisés seulement | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables | pas encore |
-| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ | pas encore |
-| Rétention d'historique / API de visibilité | ❌ | votre table SQL | votre table SQL | ✅ | pas encore |
-| Appel d'une opération Nexus | ❌ | ❌ | ❌ | ✅ | pas encore |
-| Service d'une opération Nexus | ✅ avec `temporal.dsn` (Symfony) | ✅ avec `temporal.dsn` (Symfony) | ❌ | ✅ (Symfony, Laravel, Magento) | pas encore |
+| Résultat de la mise à jour renvoyé à l'appelant | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::update()`) | ❌ |
+| Lecture d'une requête depuis l'application | ❌ | ❌ | ❌ | ✅ (`WorkflowClient::query()`) | ❌ |
+| Workflows enfants | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cascade `ParentClosePolicy` | ✅ | ✅ | ✅ | ✅ (pilotée par le serveur) | ✅ |
+| Continue-as-new | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Annulation avec compensation (le `RequestCancel` d'un parent) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Annulation demandée de l'extérieur | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Survit au redémarrage du processus | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Sérialisation des tâches par exécution | sans objet (processus unique) | verrou applicatif | verrou applicatif | ✅ côté serveur | verrou applicatif (`GET_LOCK`) |
+| Attributs de recherche | journalisés seulement | journalisés seulement | journalisés seulement | ✅ indexés et interrogeables | journalisés seulement |
+| Planifications cron | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ❌ pas d'ordonnanceur | ✅ | ❌ pas d'ordonnanceur |
+| Rétention d'historique / API de visibilité | ❌ | votre table SQL | votre table SQL | ✅ | table du catalogue des exécutions, affichée dans la grille d'administration |
+| Appel d'une opération Nexus | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Service d'une opération Nexus | ✅ avec `temporal.dsn` (Symfony) | ✅ avec `temporal.dsn` (Symfony) | ❌ | ✅ (Symfony, Laravel, Magento) | sans objet |
 
 `gplanchat/durable-magento` ne livre ni signal ni mise à jour. Sur les backends à journal, un signal
 ou une mise à jour envoyé depuis l'application est écrit au journal, et la passe suivante du
@@ -507,6 +514,9 @@ Magento, l'exécution s'effectue dans le processus appelant : la requête l'atte
 retient la requête pendant tout le budget. Rien d'autre ne peut faire avancer une exécution en
 mémoire, donc l'attente ne peut pas disparaître. Renseignez `durable/temporal/dsn` là où une requête
 ne doit pas attendre.
+
+Sur le backend base de données de Magento, l'appel enregistre les métadonnées de l'exécution, met
+une reprise en file et rend la main. Un `bin/magento durable:worker` fait avancer l'exécution.
 
 Une seconde différence concerne l'échec que l'appel absorbe. Le journal en mémoire s'arrête avec la
 requête : la ligne de log est donc la seule trace de l'échec, et seulement si un logger est
