@@ -1346,6 +1346,32 @@ follow.
 3. On Temporal or in memory, you can remove the bridge if nothing else requires it:
    `composer remove gplanchat/durable-bridge-illuminate`.
 
+### `Workflow\Saga` is renamed `Compensation` (#993)
+
+The helper that records one compensation per completed step and runs them in reverse
+(`compensate()`) is renamed from `Gplanchat\Durable\Workflow\Saga` to
+`Gplanchat\Durable\Workflow\Compensation`. Its methods are unchanged. The word Saga is freed for a
+later rename of Workflow, so that one name never means two things in the same release.
+
+**Who is affected:**
+
+- Code that does `use Gplanchat\Durable\Workflow\Saga`, calls `new Saga()`, or type-hints the class.
+- Nobody else: the helper keeps its compensations in the workflow's memory and stores nothing, so no
+  journal, table, queue message or Temporal marker carries the old name.
+
+There is no alias: the old class is gone, and an application that still names it fails with a
+class-not-found error.
+
+**What to do:**
+
+1. Run the Rector set, which rewrites the class name in `use` statements, `new` expressions, type
+   declarations and docblocks (`vendor/bin/rector process src`).
+2. Rename any variable called `$saga` by hand if you want it to follow. Rector leaves variable
+   names alone.
+
+The Temporal SDK class `Temporal\Workflow\Saga` is unchanged, and the migration set from the SDK
+still reports it as unmigratable.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
