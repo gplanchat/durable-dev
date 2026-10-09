@@ -401,12 +401,13 @@ when@test:
 
 One row per setting. The last column is a **proposal** under review (#357): *same* (the setting
 exists on each host that can use it), *host-specific* (with the reason), or *to add*. Magento
-reaches two journals only, in memory and Temporal, so the SQL rows do not apply there.
+has three journals: in memory, Temporal and its own database backend, which uses neither the Doctrine DBAL nor the
+Illuminate bridge. The `dbal.*` and `lock.*` rows do not apply there.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposal |
 |---|---|---|---|
-| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | a DSN means Temporal, none means in memory: the `temporalDsn` argument in `di.xml`, else `durable/temporal/dsn` in `env.php` | same; the SQL value is named after each host's connection |
-| `dbal.connection` | `connection` | none | same |
+| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | `resource/durable` in `env.php` selects the database, a DSN (the `temporalDsn` argument in `di.xml`, else `durable/temporal/dsn` in `env.php`) selects Temporal, neither leaves the journal in the process; declaring both throws `BackendSelectionException` | same; the SQL value is named after each host's connection |
+| `dbal.connection` | `connection` | `resource/durable` in `env.php`: `['connection' => 'durable']`, naming an entry of `db/connection` (a dedicated `db/connection/durable` is recommended; `bin/magento durable:setup` creates the tables there) | same |
 | `dbal.auto_setup` | none (the bridge ships migrations) | none | host-specific: Laravel creates tables with `php artisan migrate` |
 | `dbal.lock_factory`, `dbal.allow_local_lock` | `lock.store` | none | host-specific: Symfony Lock and Laravel's cache locks are different services |
 | `dbal.lock_ttl` | `lock.ttl` | none | same |

@@ -44,11 +44,19 @@ dashboard names each role whose queue has no poller. From a shell, `bin/console 
 exits non-zero when a role's queue has gone two minutes without a poll, and names the
 `durable:worker --role` to start.
 
+## No worker is draining the tables on the Magento database backend
+
+Nothing fails: the run stays queued in the journal's tables. The Magento grid shows `waiting for a
+worker` for a running execution that no worker has picked up, from the `picked_up_at` column of the
+runs table. Start `bin/magento durable:worker --role=journal` and `--role=activity` (and `--role=nexus`
+only if the module serves Nexus). On this backend the grid is the check: `durable:health` counts
+Temporal pollers, and the database catalog it reads reports only whether the journal's database answers.
+
 ## `waiting for a worker` never appears
 
-The backend records no pickup time. The SQL backends record it, on a runs table that has the `picked_up_at` column
+The backend records no pickup time. The SQL backends and the Magento database backend record it, on a runs table that has the `picked_up_at` column
 (see [Upgrading](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md) for a table created
-before it existed). Temporal records none the run list can read, and the Magento grid does not show it:
+before it existed). Temporal records none the run list can read, so no grid shows it there:
 Temporal UI lists the pending tasks.
 
 ## The name and id filters are missing

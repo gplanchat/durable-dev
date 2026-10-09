@@ -48,14 +48,24 @@ Magento Open Source and Adobe Commerce are not in CI: their packages come from
 `repo.magento.com`, which needs credentials. Mage-OS 2.2.0 replaces `magento/framework` 103.0.8-p4,
 Magento 2.4.8-p4's framework: the closest booted line to a Magento 2.4.8 shop, not proof of one.
 
-## Two backends, and Composer enforces it
+## Three backends, and Composer enforces the bridges' absence
 
-Magento reaches **in-memory** and **Temporal**, and nothing else. The module declares `conflict` on
-both SQL bridges, because `Magento\Framework\App\ResourceConnection` is neither Doctrine DBAL nor
-Illuminate's connection. This is the final shape, not a stage: an incoherent install is refused by
-the dependency solver rather than by a runtime check nobody reads.
+Magento reaches **in-memory**, its own **database** backend and **Temporal**. The module declares
+`conflict` on both SQL bridges, because `Magento\Framework\App\ResourceConnection` is neither
+Doctrine DBAL nor Illuminate's connection: the database backend is an adapter of this module, built
+on that connection layer (DUR056). An install with a bridge is refused by the dependency solver
+rather than by a runtime check nobody reads.
 
-Which backend you get is decided by a DSN in `app/etc/env.php`, not by a setting:
+`app/etc/env.php` selects the backend. Declare a journal connection under `db/connection` and name
+it in `resource/durable` to select the database (`bin/magento durable:setup` creates the tables, and
+`bin/magento durable:worker` drains their queues):
+
+```php
+'db' => ['connection' => ['durable' => [/* host, dbname, username, password... */]]],
+'resource' => ['durable' => ['connection' => 'durable']],
+```
+
+A DSN selects Temporal instead:
 
 ```php
 'durable' => [
@@ -63,7 +73,7 @@ Which backend you get is decided by a DSN in `app/etc/env.php`, not by a setting
 ],
 ```
 
-Without it the journal lives in the process that writes it, and dies with it — fine for a console
+Declaring both throws `BackendSelectionException` at boot. Without either the journal lives in the process that writes it, and dies with it — fine for a console
 command, ruinous for anything served by PHP-FPM.
 
 With `transport=guzzle` in the DSN, gRPC travels through Guzzle 7.14 or newer, which Magento

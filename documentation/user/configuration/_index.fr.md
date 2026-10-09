@@ -409,13 +409,13 @@ when@test:
 
 Une ligne par réglage. La dernière colonne est une **proposition** en cours de revue (#357) :
 *identique* (le réglage existe sur chaque hôte qui peut s'en servir), *propre à l'hôte* (avec la
-raison), ou *à ajouter*. Magento n'atteint que deux journaux, en mémoire et Temporal : les lignes
-SQL ne s'y appliquent pas.
+raison), ou *à ajouter*. Magento a trois journaux : en mémoire, Temporal et son propre backend base de données, qui n'utilise ni le pont Doctrine DBAL
+ni le pont Illuminate. Les lignes `dbal.*` et `lock.*` ne s'y appliquent pas.
 
 | Symfony (`durable.yaml`) | Laravel (`config/durable.php`) | Magento (`env.php`, `di.xml`) | Proposition |
 |---|---|---|---|
-| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | un DSN veut dire Temporal, aucun veut dire en mémoire : l'argument `temporalDsn` dans `di.xml`, sinon `durable/temporal/dsn` dans `env.php` | identique ; la valeur SQL porte le nom de la connexion de chaque hôte |
-| `dbal.connection` | `connection` | aucun | identique |
+| `backend` | `backend` (`illuminate`, `temporal`, `memory`) | `resource/durable` dans `env.php` sélectionne la base de données, un DSN (l'argument `temporalDsn` dans `di.xml`, sinon `durable/temporal/dsn` dans `env.php`) sélectionne Temporal, aucun des deux laisse le journal dans le processus ; déclarer les deux lève `BackendSelectionException` | identique ; la valeur SQL porte le nom de la connexion de chaque hôte |
+| `dbal.connection` | `connection` | `resource/durable` dans `env.php` : `['connection' => 'durable']`, qui désigne une entrée de `db/connection` (une `db/connection/durable` dédiée est recommandée ; `bin/magento durable:setup` y crée les tables) | identique |
 | `dbal.auto_setup` | aucun (le pont livre des migrations) | aucun | propre à l'hôte : Laravel crée les tables par `php artisan migrate` |
 | `dbal.lock_factory`, `dbal.allow_local_lock` | `lock.store` | aucun | propre à l'hôte : Symfony Lock et les verrous de cache de Laravel sont deux services différents |
 | `dbal.lock_ttl` | `lock.ttl` | aucun | identique |

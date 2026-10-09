@@ -1346,6 +1346,22 @@ follow.
 3. On Temporal or in memory, you can remove the bridge if nothing else requires it:
    `composer remove gplanchat/durable-bridge-illuminate`.
 
+### Changed: Magento reaches a third backend, its own database (#739)
+
+`gplanchat/durable-magento` documented two backends, in memory and Temporal, and said Magento
+could reach nothing else. It now has a database backend (DUR056) that uses neither SQL bridge:
+the `conflict` on `gplanchat/durable-bridge-dbal` and `gplanchat/durable-bridge-illuminate` stays.
+
+**Who is affected**: Magento stores that declare `resource/durable` in `app/etc/env.php`, or
+that add the key later. A store that sets neither it nor `durable/temporal/dsn` keeps its journal
+in the process, and one with only a DSN keeps Temporal. Declaring both keys throws
+`BackendSelectionException` at boot.
+
+**What to do**: nothing, unless you want the database backend. Then declare a dedicated
+`db/connection/durable`, set `resource/durable` to `['connection' => 'durable']`, and run
+`bin/magento durable:setup` and `bin/magento durable:worker`. The
+[backends page](documentation/user/backends/_index.md) lists what the database backend supports.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
