@@ -10,6 +10,8 @@ use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
+use Gplanchat\Durable\Event\WorkflowTaskCompleted;
+use Gplanchat\Durable\Event\WorkflowTaskStarted;
 use Gplanchat\Durable\Exception\ContinueAsNewRequested;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionEngine;
@@ -113,7 +115,7 @@ final class AContinueAsNewOptionTheJournalCannotApplyIsRefusedTest extends TestC
         }
 
         self::assertSame(
-            [WorkflowExecutionFailed::class],
+            [WorkflowTaskStarted::class, WorkflowExecutionFailed::class, WorkflowTaskCompleted::class],
             array_map(get_class(...), iterator_to_array($store->readStream(ExecutionId::fromString('exec-refused')), false)),
             'The run is closed as completed: the journal must say how it ended.',
         );

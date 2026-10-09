@@ -326,6 +326,7 @@ jobs:
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableLaravel" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Illuminate" },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient" },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableFilament" }
                     ],
@@ -525,6 +526,7 @@ jobs:
                         { "type": "composer", "url": "https://repo.mage-os.org/" },
                         { "type": "path", "url": "${{ github.workspace }}/src/DurableModule", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Durable", "options": { "symlink": false } },
+                        { "type": "path", "url": "${{ github.workspace }}/src/GrpcClient", "options": { "symlink": false } },
                         { "type": "path", "url": "${{ github.workspace }}/src/Bridge/Temporal", "options": { "symlink": false } }
                     ],
                     "require": {

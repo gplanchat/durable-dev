@@ -183,7 +183,9 @@ trace, which could quote the key or the plaintext.
 Before it answers, the worker logs the error at the `error` level through the PSR-3 logger of your
 framework: the exception itself, stack trace included, under `exception`, and the id of the history
 event that did not decode under `event_id`, when the payload belongs to one. The task is named
-too: `workflow_id` and `run_id` for a workflow task, `activity_id` for an activity task. Keep that
+too: `workflow_id` and `run_id` for a workflow task, `workflow_id`, `run_id` and `activity_id` for an
+activity task (an `activity_id` is unique only within its workflow), `service`, `operation` and, for
+a start request, `request_id` for a Nexus task. Keep that
 log where only operators read it, since the trace may quote what the server must not see.
 
 For a worker that uses a codec, set

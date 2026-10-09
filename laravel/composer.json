@@ -16,6 +16,7 @@
         "gplanchat/durable-laravel": "@dev",
         "gplanchat/durable-bridge-illuminate": "@dev",
         "gplanchat/durable-bridge-temporal": "@dev",
+        "gplanchat/grpc-client": "@dev",
         "gplanchat/durable-demo-contracts": "@dev"
     },
     "require-dev": {
@@ -109,6 +110,13 @@
         {
             "type": "path",
             "url": "../src/Bridge/Illuminate",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../src/GrpcClient",
             "options": {
                 "symlink": true
             }

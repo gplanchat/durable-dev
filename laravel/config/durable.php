@@ -107,7 +107,9 @@ return [
      * first call.
      */
     'nexus' => [
-        'handlers' => [
+        // Declared on the temporal backend only: the provider refuses a handler on any other one at
+        // boot, and DrainCommandTest runs this bench on the memory backend.
+        'handlers' => 'temporal' !== env('DURABLE_BACKEND', 'temporal') ? [] : [
             // handler => the contract it serves. The **whole** contract, the one the caller reads,
             // and not the interface the class implements: that is what makes it possible to find
             // that `ship` has no body here because a workflow claims it.

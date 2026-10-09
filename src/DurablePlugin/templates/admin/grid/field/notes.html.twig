@@ -1,3 +1,4 @@
+{% import '@DurablePlugin/admin/_message.html.twig' as message %}
 {# Dispatched and not picked up (#447), and what a suspended run last waited on (#324), both worded by the core. #}
-{% if data.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ data.waitingForWorker }}</span>{% endif %}
-{% if data.waitingOn is defined %}<span class="text-secondary-emphasis">{{ data.waitingOn }}</span>{% endif %}
+{% if data.waitingForWorker is defined %}<span class="text-warning-emphasis">{{ data.localizedWaitingForWorker is defined ? message.say(data.localizedWaitingForWorker, data.waitingForWorker) : data.waitingForWorker }}</span>{% endif %}
+{% if data.waitingOn is defined %}<span class="text-secondary-emphasis">{{ data.localizedWaitingOn is defined ? message.say(data.localizedWaitingOn, data.waitingOn) : data.waitingOn }}</span>{% endif %}

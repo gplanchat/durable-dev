@@ -30,8 +30,8 @@
                 <dd>
                     <x-filament::badge :color="\Gplanchat\Durable\Filament\StatusColor::of($run['status'])">{{ $t('status.' . $run['status']) }}</x-filament::badge>
                     {{-- What the run waits on, worded once by the core for every surface (#324, #447). --}}
-                    @isset($run['waitingForWorker'])<span>{{ $run['waitingForWorker'] }}</span>@endisset
-                    @isset($run['waitingOn'])<span>{{ $run['waitingOn'] }}</span>@endisset
+                    @isset($run['waitingForWorker'])<span>{{ \Gplanchat\Durable\Filament\CoreMessage::say($run['localizedWaitingForWorker'] ?? null, $run['waitingForWorker']) }}</span>@endisset
+                    @isset($run['waitingOn'])<span>{{ \Gplanchat\Durable\Filament\CoreMessage::say($run['localizedWaitingOn'] ?? null, $run['waitingOn']) }}</span>@endisset
                 </dd>
             </dl>
         </x-filament::section>

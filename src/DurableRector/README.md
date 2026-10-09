@@ -117,6 +117,17 @@ Workflow::timer($d)` waits, so it becomes `sleep($d)`; a bare `Workflow::timer($
 assembles, so it becomes `timer($d)`. `yield $stub->charge()` becomes `await($stub->charge())`,
 because a stub assembles and `await()` is the only wait. `Promise::all($p)` becomes `all(...$p)` —
 one iterable on that side, variadic on this one — and `Promise::some($p, 2)` becomes `some(2, ...$p)`.
+`yield Workflow::getVersion($changeId, $min, $max)` becomes `version($changeId, $min, $max)`, with
+no `await()`: the SDK returns a promise of the version, `version()` returns the int. In a workflow
+class, `Workflow::DEFAULT_VERSION` becomes `ChangePoint::DEFAULT_VERSION`, with its `use` import:
+both are `-1`, so a comparison with it keeps its meaning. A reference outside a workflow class is
+marked. A `getVersion()` call with another number of arguments, or one that is not yielded where it
+is made, is left as written and marked.
+
+One runtime case differs. A run that went past the point before the call existed and has no
+recorded work after it, for example one waiting only on a condition or a signal, gets
+`$maxSupported` from `version()`, where the SDK returns `DEFAULT_VERSION`. The docblock of
+`ExecutionContext::version()` describes this limit.
 
 **Two arities it refuses.** The SDK's `Workflow::await(...$conditions)` is variadic and settles on
 the first condition; Durable's second parameter is a **deadline**. One condition maps —
@@ -149,9 +160,9 @@ afterwards is a plain iterator generator living inside a workflow class.
 question that comes *before* the migration — a workflow built on `Workflow::async()` and
 `Workflow::runLocked()` is a redesign, not a long rewrite — and `git checkout` undoes it.
 
-It works from an **allow-list**: seven facade methods are recognised as ones the execution-model
+It works from an **allow-list**: eight facade methods are recognised as ones the execution-model
 half will rewrite (`newActivityStub`, `newChildWorkflowStub`, `await`, `awaitWithTimeout`, `timer`,
-`sideEffect`, `continueAsNew`), and **everything else is reported**. `Workflow::` carries some forty
+`sideEffect`, `continueAsNew`, `getVersion`), and **everything else is reported**. `Workflow::` carries some forty
 static methods and `WorkflowEnvironment` answers eight; a deny-list would pass in silence every one
 nobody enumerated, the next SDK release included.
 
@@ -192,9 +203,8 @@ method returns is yours, and the contract's docblock is usually where it is writ
 **Migrate the options objects or a Saga.** It reports them. See
 [OST004 §6](https://github.com/gplanchat/durable-dev/blob/main/documentation/ost/OST004-what-is-not-built-yet.md).
 
-**Anything with no counterpart** — it reports those rather than pretending. `Workflow::getVersion()`
-has no target at all until workflow versioning lands; `Workflow::newUntypedActivityStub()` and
-activity-by-name calls were removed on purpose
+**Anything with no counterpart** — it reports those rather than pretending.
+`Workflow::newUntypedActivityStub()` and activity-by-name calls were removed on purpose
 ([DUR039](https://github.com/gplanchat/durable-dev/blob/main/documentation/adr/DUR039-workflow-authoring-surface.md)).
 
 ### What it leaves unchanged without a marker

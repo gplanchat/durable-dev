@@ -26,6 +26,7 @@ use Temporal\Api\Nexus\V1\HandlerError;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedRequest;
@@ -143,7 +144,12 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
                     'workflow_id' => $response->getWorkflowExecution()?->getWorkflowId(),
                     'run_id' => $response->getWorkflowExecution()?->getRunId(),
                 ],
-                $response instanceof PollActivityTaskQueueResponse => ['activity_id' => $response->getActivityId()],
+                $response instanceof PollActivityTaskQueueResponse => [
+                    'workflow_id' => $response->getWorkflowExecution()?->getWorkflowId(),
+                    'run_id' => $response->getWorkflowExecution()?->getRunId(),
+                    'activity_id' => $response->getActivityId(),
+                ],
+                $response instanceof PollNexusTaskQueueResponse => self::nexusTaskContext($response),
                 default => [],
             },
         ]);
@@ -169,6 +175,27 @@ final class PayloadCodecWorkflowServiceClient extends AbstractWorkflowServiceCli
         }
 
         return true;
+    }
+
+    /**
+     * A Nexus task has no workflow id: the poll response names its service and operation, and a
+     * start request its request id.
+     *
+     * @return array<string, string>
+     */
+    private static function nexusTaskContext(PollNexusTaskQueueResponse $response): array
+    {
+        $start = $response->getRequest()?->getStartOperation();
+        $call = $start ?? $response->getRequest()?->getCancelOperation();
+        if (null === $call) {
+            return [];
+        }
+
+        return [
+            'service' => $call->getService(),
+            'operation' => $call->getOperation(),
+            ...(null === $start ? [] : ['request_id' => $start->getRequestId()]),
+        ];
     }
 
     /**
