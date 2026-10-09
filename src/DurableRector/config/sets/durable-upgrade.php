@@ -92,6 +92,11 @@ return RectorConfig::configure()
         // screen reads it too (DUR049). Another move between packages: `gplanchat/durable-plugin`
         // to `gplanchat/durable`. Clear the container cache after it (#350).
         'Gplanchat\Durable\Plugin\Dashboard\RunDashboardView' => RunDashboard::class,
+
+        // Unreleased — the helper that records one compensation per step and replays them in
+        // reverse is called what it does, which frees the word Saga for the next rename (#993).
+        // It stores nothing, so there is no data to migrate and no alias.
+        'Gplanchat\Durable\Workflow\Saga' => 'Gplanchat\Durable\Workflow\Compensation',
     ])
     // 0.1.0-beta1 — `WorkflowClientInterface::signal()` takes a request id and `update()` an update
     // id, so that a redelivered call reaches the cluster as the same one (#333). An implementation
