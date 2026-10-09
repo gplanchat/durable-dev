@@ -25,10 +25,10 @@ final class Harness
     public array $events = [];
 
     /** @param list<string> $arguments */
-    public function __construct(array $arguments)
+    public function __construct(array $arguments, string $script = 'worker.php')
     {
         $this->process = proc_open(
-            [\PHP_BINARY, '-d', 'memory_limit=256M', __DIR__ . '/Fixture/worker.php', ...$arguments],
+            [\PHP_BINARY, '-d', 'memory_limit=256M', __DIR__ . '/Fixture/' . $script, ...$arguments],
             [1 => ['pipe', 'w'], 2 => ['file', 'php://stderr', 'w']],
             $pipes,
         ) ?: throw new \RuntimeException('cannot start a worker');
