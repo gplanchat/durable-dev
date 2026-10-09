@@ -6,7 +6,9 @@ namespace Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
 use Gplanchat\Bridge\Temporal\AbstractWorkflowServiceClient;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+use Gplanchat\GrpcClient\GrpcException;
+use Gplanchat\GrpcClient\GrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
 
 /**
  * The Temporal WorkflowService over gRPC. The RPC methods are the traits'; how each call travels
@@ -22,7 +24,11 @@ final class GrpcWorkflowServiceClient extends AbstractWorkflowServiceClient
     {
         $timeoutMs = GrpcWire::timeoutMs($options);
 
-        /** @var array<string, list<string>> $metadata */
-        return $this->transport->unary(self::SERVICE_PATH . $rpc, $request, $responseClass, $metadata, $timeoutMs > 0 ? $timeoutMs : null);
+        try {
+            /** @var array<string, list<string>> $metadata */
+            return $this->transport->unary(self::SERVICE_PATH . $rpc, $request, $responseClass, $metadata, $timeoutMs > 0 ? $timeoutMs : null);
+        } catch (GrpcException $e) {
+            throw GrpcFailure::from($e);
+        }
     }
 }
