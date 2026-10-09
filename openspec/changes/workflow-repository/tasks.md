@@ -45,7 +45,7 @@ once per backend by hand.
 - [ ] 2.2 The read-only query pass. Test: a query answers the state the live execution holds, and
       the journal has no new event afterwards.
 - [ ] 2.3 Result with a bound; a failed execution rethrows its failure.
-- [ ] 2.4 Cancel, then Saga compensation in the workflow, on the journal.
+- [ ] 2.4 Cancel, then compensation in the workflow, on the journal.
 - [ ] 2.5 Terminate: the `terminated` kind, and no workflow code runs afterwards.
 - [ ] 2.6 Start options: id reuse and timeouts honoured; task timeout, task queue, search
       attributes and cron refused at `start()` with a named exception.

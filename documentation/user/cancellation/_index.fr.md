@@ -15,7 +15,7 @@ où il attend**, pour qu'il puisse compenser avant de se terminer. C'est l'équi
 ## Compenser
 
 Pour défaire les étapes terminées avant un échec ou une annulation, enregistrez une compensation
-par étape avec `Saga`, et exécutez-les depuis un `catch` :
+par étape avec `Compensation`, et exécutez-les depuis un `catch` :
 
 ```php
 use Gplanchat\Durable\Activity\ActivityStub;
@@ -24,7 +24,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
-use Gplanchat\Durable\Workflow\Saga;
+use Gplanchat\Durable\Workflow\Compensation;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 #[AsWorkflow(name: 'checkout')]
@@ -38,18 +38,18 @@ final class CheckoutWorkflow
         ActivityStub $orders,
         WorkflowEnvironment $env,
     ): string {
-        $saga = new Saga();
+        $compensation = new Compensation();
 
         try {
             $reservation = $env->await($orders->reserve($orderId));
-            $saga->addCompensation(fn () => $env->await($orders->release($reservation)));
+            $compensation->addCompensation(fn () => $env->await($orders->release($reservation)));
 
             $charge = $env->await($orders->charge($orderId));
-            $saga->addCompensation(fn () => $env->await($orders->refund($charge)));
+            $compensation->addCompensation(fn () => $env->await($orders->refund($charge)));
 
             return $env->await($orders->ship($orderId));
         } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
-            $saga->compensate();
+            $compensation->compensate();
 
             throw $e;   // l'exécution se termine annulée, ou en échec
         }
@@ -57,7 +57,7 @@ final class CheckoutWorkflow
 }
 ```
 
-`Saga` enregistre une compensation par étape terminée et, à l'appel de `compensate()`, les exécute
+`Compensation` enregistre une compensation par étape terminée et, à l'appel de `compensate()`, les exécute
 dans l'ordre inverse. Chaque compensation fait son propre `await()`, si bien qu'elle se termine avant
 que la suivante ne commence. Si une compensation renvoie un `Awaitable` à la place, `compensate()` lève une
 `LogicException`. Une étape qui ne s'est jamais terminée n'a rien à défaire,

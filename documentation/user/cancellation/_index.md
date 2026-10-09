@@ -15,7 +15,7 @@ waiting**, so the workflow can compensate before it ends. It is the equivalent o
 ## Compensating
 
 To undo the steps that completed before a failure or a cancellation, register one compensation per
-step with `Saga`, and run them from a `catch`:
+step with `Compensation`, and run them from a `catch`:
 
 ```php
 use Gplanchat\Durable\Activity\ActivityStub;
@@ -24,7 +24,7 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\Exception\DurableActivityFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledFailure;
-use Gplanchat\Durable\Workflow\Saga;
+use Gplanchat\Durable\Workflow\Compensation;
 use Gplanchat\Durable\WorkflowEnvironment;
 
 #[AsWorkflow(name: 'checkout')]
@@ -38,18 +38,18 @@ final class CheckoutWorkflow
         ActivityStub $orders,
         WorkflowEnvironment $env,
     ): string {
-        $saga = new Saga();
+        $compensation = new Compensation();
 
         try {
             $reservation = $env->await($orders->reserve($orderId));
-            $saga->addCompensation(fn () => $env->await($orders->release($reservation)));
+            $compensation->addCompensation(fn () => $env->await($orders->release($reservation)));
 
             $charge = $env->await($orders->charge($orderId));
-            $saga->addCompensation(fn () => $env->await($orders->refund($charge)));
+            $compensation->addCompensation(fn () => $env->await($orders->refund($charge)));
 
             return $env->await($orders->ship($orderId));
         } catch (DurableActivityFailedException|WorkflowCancelledFailure $e) {
-            $saga->compensate();
+            $compensation->compensate();
 
             throw $e;   // the execution ends cancelled, or failed
         }
@@ -57,7 +57,7 @@ final class CheckoutWorkflow
 }
 ```
 
-`Saga` records one compensation per completed step and, on `compensate()`, runs them in reverse
+`Compensation` records one compensation per completed step and, on `compensate()`, runs them in reverse
 order. Each compensation does its own `await()`, so it finishes before the next one starts. A
 compensation that returns an `Awaitable` instead makes `compensate()` throw a `LogicException`. A
 step that never completed has nothing to undo, because its compensation was never added. The first
