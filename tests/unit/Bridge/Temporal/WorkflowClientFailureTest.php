@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Temporal;
 
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
+use Gplanchat\Bridge\Temporal\Codec\WorkflowFailureCodec;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -218,6 +219,31 @@ final class WorkflowClientFailureTest extends TestCase
         self::assertInstanceOf(DeadlineExceededException::class, $caught);
         self::assertSame($cause->getMessage(), $caught->getMessage());
         self::assertSame('activity charge_card', $caught->awaited());
+    }
+
+    public function testAnElapsedDeadlineCarriesThePreviousExceptionTheWorkflowSaw(): void
+    {
+        $cause = new DeadlineExceededException(Duration::seconds(30.0), 'activity charge_card', new OrderRejected('order 42 rejected', 7));
+
+        $caught = $this->pollFailedWith($cause);
+
+        self::assertInstanceOf(DeadlineExceededException::class, $caught);
+        self::assertInstanceOf(OrderRejected::class, $caught->getPrevious());
+        self::assertSame('order 42 rejected', $caught->getPrevious()->getMessage());
+        self::assertSame(7, $caught->getPrevious()->getCode());
+    }
+
+    public function testAnElapsedDeadlineWhosePreviousClassCannotBeLoadedStillComesBackWithoutPrevious(): void
+    {
+        $failure = $this->failureOf(new DeadlineExceededException(Duration::seconds(30.0), 'x'));
+        $details = WorkflowFailureCodec::details($failure);
+        $details['cause'] = ['previous' => ['class' => 'App\\Gone', 'message' => 'gone', 'code' => 0]];
+        $failure->getApplicationFailureInfo()->setDetails(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($details)));
+
+        $caught = $this->poll($this->failedEvent($failure));
+
+        self::assertInstanceOf(DeadlineExceededException::class, $caught);
+        self::assertNull($caught->getPrevious());
     }
 
     public function testAFailureWithDetailsThatAreNotJsonComesBackAsWorkflowFailed(): void
