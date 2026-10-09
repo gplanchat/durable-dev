@@ -1,5 +1,10 @@
 {
     "symbol-whitelist": [
+        "Gplanchat\\Bridge\\Illuminate\\Schema\\DurableSchema",
+        "Gplanchat\\Bridge\\Illuminate\\Store\\IlluminateChildWorkflowParentLinkStore",
+        "Gplanchat\\Bridge\\Illuminate\\Store\\IlluminateEventStore",
+        "Gplanchat\\Bridge\\Illuminate\\Store\\IlluminateWorkflowMetadataStore",
+        "Gplanchat\\Bridge\\Illuminate\\Store\\IlluminateWorkflowRunCatalog",
         "Gplanchat\\Bridge\\Temporal\\Grpc\\TemporalHistoryCursor",
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceActivityRpc",
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceExecutionRpc",

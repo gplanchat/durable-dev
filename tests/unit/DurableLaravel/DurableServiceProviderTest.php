@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Laravel;
 
-use Gplanchat\Bridge\Illuminate\Queue\ActivityAttemptLock;
-use Gplanchat\Bridge\Illuminate\Queue\ResumeLock;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateEventStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowRunCatalog;
 use Gplanchat\Durable\Activity\NullActivityHeartbeatSender;
 use Gplanchat\Durable\Laravel\DurableServiceProvider;
+use Gplanchat\Durable\Laravel\Queue\ActivityAttemptLock;
+use Gplanchat\Durable\Laravel\Queue\ResumeLock;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
