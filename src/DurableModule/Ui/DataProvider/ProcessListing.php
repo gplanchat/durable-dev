@@ -88,7 +88,9 @@ class ProcessListing extends AbstractDataProvider
                 // Since when a running run waits for a worker to pick it up (#816), and the line the
                 // grid paints from it (#818).
                 'waiting_for_worker_since' => $run->waitingForWorkerSince?->format('Y-m-d H:i:s') ?? self::ABSENT,
-                'waiting_for_worker' => WaitingForWorker::of($run) ?? self::ABSENT,
+                // Empty when nothing waits or the backend cannot tell, as Sylius and Filament print
+                // nothing: a dash on every row reads as "none waits".
+                'waiting_for_worker' => WaitingForWorker::of($run) ?? '',
             ], $window),
         ];
     }

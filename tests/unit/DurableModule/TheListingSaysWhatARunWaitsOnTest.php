@@ -58,7 +58,7 @@ final class TheListingSaysWhatARunWaitsOnTest extends TestCase
         );
 
         self::assertSame('waiting for a worker · 3 d', $rows[0]['waiting_for_worker']);
-        self::assertSame('—', $rows[1]['waiting_for_worker']);
+        self::assertSame('', $rows[1]['waiting_for_worker']);
         self::assertSame('Waiting for a worker', $this->columns()['waiting_for_worker'] ?? null);
     }
 
