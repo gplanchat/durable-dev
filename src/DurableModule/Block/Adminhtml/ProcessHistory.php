@@ -7,6 +7,8 @@ namespace Gplanchat\DurableModule\Block\Adminhtml;
 use Gplanchat\Bridge\Temporal\Store\TaskQueuePollers;
 use Gplanchat\Durable\Observation\BackendHealth;
 use Gplanchat\Durable\Observation\RunDashboard;
+use Gplanchat\Durable\Observation\WorkflowRunDescription;
+use Gplanchat\Durable\Observation\WorkflowRunPage;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
 use Magento\Backend\Block\Template;
 use Magento\Backend\Block\Template\Context;
@@ -41,6 +43,8 @@ class ProcessHistory extends Template
 
     /** @var array<string, int>|null */
     private ?array $counters = null;
+
+    private ?WorkflowRunPage $page = null;
 
     public function __construct(
         Context $context,
@@ -96,13 +100,25 @@ class ProcessHistory extends Template
      */
     public function getCounters(): array
     {
-        if ($this->counters === null) {
-            $this->counters = RunDashboard::outcomeCounters(
-                $this->runtimeFactory->catalog()->listRuns(limit: RuntimeFactory::OBSERVATION_WINDOW)->runs,
-            );
-        }
+        return $this->counters ??= RunDashboard::outcomeCounters($this->page()->runs);
+    }
 
-        return $this->counters;
+    /**
+     * How many of the window's runs no worker has picked up (#818): a subset of the running ones,
+     * `null` when the backend cannot tell, since zero would claim that none waits.
+     */
+    public function getWaitingForWorker(): ?int
+    {
+        $page = $this->page();
+
+        return $page->tellsWaitingForWorker
+            ? \count(array_filter($page->runs, static fn(WorkflowRunDescription $run): bool => null !== $run->waitingForWorkerSince))
+            : null;
+    }
+
+    private function page(): WorkflowRunPage
+    {
+        return $this->page ??= $this->runtimeFactory->catalog()->listRuns(limit: RuntimeFactory::OBSERVATION_WINDOW);
     }
 
     public function getWindow(): int

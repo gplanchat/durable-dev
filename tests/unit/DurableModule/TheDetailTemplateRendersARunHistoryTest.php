@@ -93,6 +93,19 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('<th>Waiting on</th><td>signal approve</td>', $page);
     }
 
+    public function testARunNoWorkerPickedUpSaysSoOnItsPage(): void
+    {
+        // #818: the line of the grid, on the run page.
+        $page = $this->renderDetail(waitingNote: 'waiting for a worker · 42 s');
+
+        self::assertStringContainsString('waiting for a worker · 42 s', $page);
+    }
+
+    public function testARunAWorkerPickedUpSaysNothingOfTheKind(): void
+    {
+        self::assertStringNotContainsString('waiting for a worker', $this->renderDetail());
+    }
+
     public function testTheRunPageSaysWhereANexusOperationWaitsAndThatItIsInFlight(): void
     {
         // #672: a Nexus operation is the wait served by someone else; in flight is not a failure.
@@ -152,11 +165,11 @@ final class TheDetailTemplateRendersARunHistoryTest extends TestCase
     /**
      * @param list<NexusOperationSummary> $nexus
      */
-    private function renderDetail(bool $known = true, bool $secrets = false, array $nexus = []): string
+    private function renderDetail(bool $known = true, bool $secrets = false, array $nexus = [], ?string $waitingNote = null): string
     {
         require_once __DIR__ . '/Fixture/magento-template-globals.php';
 
-        $block = new DetailBlockDouble($known, $secrets, $nexus);
+        $block = new DetailBlockDouble($known, $secrets, $nexus, $waitingNote);
         $escaper = new EscaperDouble();
 
         ob_start();
@@ -191,6 +204,7 @@ final class DetailBlockDouble
         private readonly bool $known = true,
         bool $secrets = false,
         private readonly array $nexus = [],
+        private readonly ?string $waitingNote = null,
     ) {
         $this->timeline = RunTimeline::of($known ? [
             new WorkflowRunEvent(
@@ -232,6 +246,11 @@ final class DetailBlockDouble
         return $this->known
             ? new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('@1700000000'), waitingOn: 'signal approve')
             : null;
+    }
+
+    public function getWaitingForWorker(): ?string
+    {
+        return $this->waitingNote;
     }
 
     public function getTimeline(): RunTimeline

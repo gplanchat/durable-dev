@@ -141,6 +141,12 @@
                 <sortable>false</sortable>
             </settings>
         </column>
+        <column name="waiting_for_worker">
+            <settings>
+                <label translate="true">Waiting for a worker</label>
+                <sortable>false</sortable>
+            </settings>
+        </column>
 
         <actionsColumn name="actions" class="Gplanchat\DurableModule\Ui\Component\Listing\Column\ProcessActions">
             <settings>

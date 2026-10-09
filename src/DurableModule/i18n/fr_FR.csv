@@ -49,3 +49,5 @@
 "In the window","Dans la fenêtre"
 "This screen reads the %1 most recent runs. Older ones are beyond what it can list or open.","Cet écran lit les %1 exécutions les plus récentes. Les plus anciennes ne peuvent y être ni listées ni ouvertes."
 "Workflow","Workflow"
+"Waiting for a worker","En attente d’un worker"
+"waiting for a worker · %1","En attente d’un worker · %1"
