@@ -46,8 +46,16 @@ final class NondeterminismRulesTest extends TestCase
         file_put_contents($config, 'includes:' . "\n    - " . $root . "/src/DurablePhpstan/extension.neon\n"
             . "parameters:\n    level: 5\n    paths:\n        - " . self::FIXTURE . "\n");
 
-        $command = array_map(escapeshellarg(...), [$root . '/vendor/bin/phpstan', 'analyse', '--no-progress', '--error-format=json', '-c', $config]);
-        $out = (string) shell_exec(implode(' ', $command) . ' 2>/dev/null');
+        // No shell: the arguments go to PHPStan as they are. PHPStan exits 1 when it reports errors.
+        $process = proc_open(
+            [$root . '/vendor/bin/phpstan', 'analyse', '--no-progress', '--error-format=json', '-c', $config],
+            [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']],
+            $pipes,
+        );
+        self::assertIsResource($process);
+        $out = (string) stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($process);
         unlink($config);
 
         /** @var array{files?: array<string, array{messages: list<array{message: string, line: int, identifier?: string, tip?: string}>}>} $decoded */
