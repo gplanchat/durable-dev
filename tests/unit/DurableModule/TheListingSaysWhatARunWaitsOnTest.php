@@ -35,6 +35,19 @@ final class TheListingSaysWhatARunWaitsOnTest extends TestCase
         self::assertSame('—', $rows[0]['waiting_on']);
     }
 
+    /** #818 paints a run that no worker has picked up; the row carries the fact it reads. */
+    public function testARunNoWorkerPickedUpCarriesSinceWhen(): void
+    {
+        $since = new \DateTimeImmutable('2026-10-05 10:00:00');
+        $rows = $this->rows(
+            new WorkflowRunDescription('run-1', 'App\\OrderWorkflow', WorkflowRunStatus::Running, waitingForWorkerSince: $since),
+            new WorkflowRunDescription('run-2', 'App\\OrderWorkflow', WorkflowRunStatus::Running),
+        );
+
+        self::assertSame('2026-10-05 10:00:00', $rows[0]['waiting_for_worker_since']);
+        self::assertSame('—', $rows[1]['waiting_for_worker_since']);
+    }
+
     public function testTheGridDeclaresTheColumn(): void
     {
         // Review of #542: the row carried the field, and nothing noticed the grid dropping its column.
@@ -71,10 +84,10 @@ final class TheListingSaysWhatARunWaitsOnTest extends TestCase
     /**
      * @return list<array<string, mixed>>
      */
-    private function rows(WorkflowRunDescription $run): array
+    private function rows(WorkflowRunDescription ...$runs): array
     {
         $catalog = $this->createStub(WorkflowRunCatalogInterface::class);
-        $catalog->method('listRuns')->willReturn(new WorkflowRunPage([$run]));
+        $catalog->method('listRuns')->willReturn(new WorkflowRunPage($runs));
         $factory = $this->createStub(RuntimeFactory::class);
         $factory->method('catalog')->willReturn($catalog);
 
