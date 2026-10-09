@@ -443,6 +443,6 @@ de données. Les lignes DBAL et Illuminate ne s'y appliquent pas.
 
 ## Voir aussi
 
-- [Backends](../backends/) compare la mémoire et Temporal : mise en place Docker, workers, paramètres du DSN.
+- [Backends](../backends/) compare les backends mémoire, SQL et Temporal : mise en place Docker, workers, paramètres du DSN.
 - [Premiers pas](../getting-started/) couvre la configuration du routage Messenger.
 - [Tester des workflows](../testing/) couvre `DurableBundleTestTrait` et la configuration de test en mémoire.

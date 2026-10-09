@@ -435,6 +435,6 @@ rows do not apply there.
 
 ## See also
 
-- [Backends](../backends/) compares In-Memory and Temporal: Docker setup, workers, DSN parameters.
+- [Backends](../backends/) compares the in-memory, SQL and Temporal backends: Docker setup, workers, DSN parameters.
 - [Getting started](../getting-started/) covers Messenger routing configuration.
 - [Testing workflows](../testing/) covers `DurableBundleTestTrait` and in-memory test configuration.
