@@ -64,12 +64,16 @@ final class TheTestsSpeakEnglishTest extends TestCase
             "'Exécution côté backend run-1'" => 'same',
             "'En cours', 'Terminée', 'En échec', 'Annulée', 'Poursuivie à neuf'" => 'same',
             'Messenger ne tient aucune liste des processus' => 'same',
+            'En attente d’un worker · ' => 'same',
+            'La base SQL répond.' => 'same',
         ],
         'src/DurableFilament/tests/TheIlluminateBackendTest.php' => [
             'Impossible de demander au backend si un worker queue est à l’écoute : la file de Laravel ne tient aucune liste' => 'asserts the French catalogue renders, the one product exception WA006 makes',
         ],
         'src/DurableFilament/tests/TheRunListTest.php' => [
             'Issues des 2 exécutions de cette page' => 'asserts the French catalogue renders, the one product exception WA006 makes',
+            'En attente d’un worker · ' => 'same',
+            'La base SQL répond.' => 'same',
         ],
         'src/DurableFilament/tests/TheWorkerPresenceTest.php' => [
             'Le worker workflow est à l’écoute.' => 'asserts the French catalogue renders, the one product exception WA006 makes',

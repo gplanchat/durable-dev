@@ -52,5 +52,4 @@ without one, the key-name redactor of the [overview](../) applies.
 
 ## Known differences
 
-The run page does not repeat the `waiting on` line of the list, and the start date of a run
-without one is blank in the grid. See [Parity](../parity/).
+The run page and the grid cells follow the rules of the [overview](../). The differences between the four surfaces are in [Parity](../parity/).

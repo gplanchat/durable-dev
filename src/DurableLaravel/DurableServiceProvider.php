@@ -39,6 +39,7 @@ use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowResumeDispatcher;
 use Gplanchat\Durable\Laravel\Queue\LaravelWorkflowTimerDispatcher;
 use Gplanchat\Durable\Laravel\Queue\ResumeDeferral;
 use Gplanchat\Durable\Laravel\Workflow\DeclaredWorkflowTypes;
+use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
@@ -139,6 +140,8 @@ final class DurableServiceProvider extends ServiceProvider
             );
         }
 
+        $this->refuseANexusHandlerOffTemporal();
+
         // §1.3: `null` never locks, in any deployment. The refusal is therefore risk-free at
         // boot, where `array` (correct inside a single process, and the default cache of the test
         // environment) can only be judged by the worker command.
@@ -152,6 +155,24 @@ final class DurableServiceProvider extends ServiceProvider
         $this->refuseAQueueThatRunsInline();
 
         $this->warnWhenTheJournalSharesTheDefaultConnection();
+    }
+
+    /**
+     * A declared Nexus handler on a backend that cannot route is refused at boot, as Symfony's
+     * `NexusHandlerPass` refuses it at container build. The registry refuses too, but only when
+     * something resolves it, and only `TemporalNexusWorker` does: without this, the handler would
+     * receive nothing and raise nothing.
+     */
+    private function refuseANexusHandlerOffTemporal(): void
+    {
+        $config = $this->durableConfig();
+        $backend = $config['backend'] ?? 'illuminate';
+        /** @var array<string, mixed> $nexus */
+        $nexus = $config['nexus'] ?? [];
+
+        if ('temporal' !== $backend && [] !== ($nexus['handlers'] ?? [])) {
+            throw NexusUnsupportedByBackendException::forHandlerOn(\is_string($backend) ? $backend : 'configured');
+        }
     }
 
     /**

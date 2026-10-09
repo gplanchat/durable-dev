@@ -29,6 +29,7 @@ final class TheThirdBackendStateTest extends TestCase
 
         self::assertTrue($health->reachable, 'it answers: this is not a failure');
         self::assertTrue($health->ephemeral);
+        self::assertSame('backend.memory.ephemeral', $health->localized?->key);
     }
 
     public function testItSaysWhatToConfigureToReadAcrossProcesses(): void
