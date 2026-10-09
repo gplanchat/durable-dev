@@ -32,6 +32,8 @@ parameters:
         - tests/unit/DurableRector/Source
         - tests/unit/DurableRector/Fixture
         # Magento's adapter, loaded at run time from magento/vendor: absent from the root graph.
+        - tests/integration/DurableModule/TableQueue/Fixture
+        - tests/integration/DurableModule/RunProjection/Fixture
         - tests/integration/DurableModule/ResumeLock/Fixture
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
