@@ -155,8 +155,8 @@ bouge avec lui, le contrôle du nom de l'activité le détecte.
 
 ## Sur les backends sans tâches de workflow
 
-Les backends à journal (en mémoire, DBAL et Illuminate) n'ont pas de notion de *tâche* de workflow,
-il n'y a donc rien à faire échouer puis à réessayer. Là, une divergence met fin à l'exécution au
+Les backends à journal (en mémoire, DBAL et Illuminate) enregistrent une *tâche* de workflow sous
+forme de trois événements, mais aucun serveur n'y fait échouer puis réessayer une tâche. Là, une divergence met fin à l'exécution au
 lieu de résoudre en silence la mauvaise valeur enregistrée, et revenir en arrière ne ramène pas
 l'exécution.
 

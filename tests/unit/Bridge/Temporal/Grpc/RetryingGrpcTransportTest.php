@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Bridge\Temporal\Grpc;
 
 use Google\Protobuf\Internal\Message;
-use Gplanchat\Bridge\Temporal\Grpc\GrpcTransport;
 use Gplanchat\Bridge\Temporal\Grpc\RetryingGrpcTransport;
-use Gplanchat\Bridge\Temporal\Http\GrpcWire;
+use Gplanchat\GrpcClient\GrpcException;
+use Gplanchat\GrpcClient\GrpcTransport;
+use Gplanchat\GrpcClient\GrpcWire;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Messenger\Exception\TransportException;
 use Temporal\Api\Update\V1\Meta;
 use Temporal\Api\Update\V1\Request as UpdateRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
@@ -39,14 +39,14 @@ final class RetryingGrpcTransportTest extends TestCase
         self::assertCount(2, $this->slept);
     }
 
-    public function testTheRetriesAreBoundedAndTheLastFailureIsATransportException(): void
+    public function testTheRetriesAreBoundedAndTheLastFailureIsTheGrpcException(): void
     {
         $inner = $this->failing(array_fill(0, 10, GrpcWire::DEADLINE_EXCEEDED));
 
         try {
             $this->retrying($inner)->unary(self::PATH . 'PollWorkflowTaskQueue', new PollWorkflowTaskQueueRequest(), PollWorkflowTaskQueueResponse::class, [], null);
-            self::fail('expected a TransportException');
-        } catch (TransportException $e) {
+            self::fail('expected a GrpcException');
+        } catch (GrpcException $e) {
             self::assertSame(GrpcWire::DEADLINE_EXCEEDED, $e->getCode());
         }
         self::assertCount(3, $inner->requests);

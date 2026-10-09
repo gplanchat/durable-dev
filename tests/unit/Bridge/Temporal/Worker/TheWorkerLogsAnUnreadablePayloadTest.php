@@ -26,11 +26,16 @@ use Temporal\Api\History\V1\History;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionSignaledEventAttributes;
 use Temporal\Api\History\V1\WorkflowExecutionStartedEventAttributes;
+use Temporal\Api\Nexus\V1\Request as NexusRequest;
+use Temporal\Api\Nexus\V1\StartOperationRequest;
 use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\PollActivityTaskQueueResponse;
+use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueRequest;
+use Temporal\Api\Workflowservice\V1\PollNexusTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueResponse;
 use Temporal\Api\Workflowservice\V1\RespondActivityTaskFailedResponse;
+use Temporal\Api\Workflowservice\V1\RespondNexusTaskFailedResponse;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskFailedResponse;
 
 /**
@@ -98,13 +103,29 @@ final class TheWorkerLogsAnUnreadablePayloadTest extends TestCase
         $inner->method('PollActivityTaskQueue')->willReturn(new PollActivityTaskQueueResponse([
             'task_token' => 'act-token',
             'activity_id' => 'act-1',
+            'workflow_execution' => new WorkflowExecution(['workflow_id' => 'wf-1', 'run_id' => 'run-1']),
             'input' => new Payloads(['payloads' => [self::undecodable()]]),
         ]));
         $inner->expects(self::once())->method('RespondActivityTaskFailed')->willReturn(new RespondActivityTaskFailedResponse());
 
         (new PayloadCodecWorkflowServiceClient($inner, self::failingCodec(), $this->logger()))->PollActivityTaskQueue(new PollActivityTaskQueueRequest());
 
-        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', null, ['activity_id' => 'act-1']);
+        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', null, ['activity_id' => 'act-1', 'workflow_id' => 'wf-1', 'run_id' => 'run-1']);
+    }
+
+    public function testAnUndecodableNexusTaskIsLoggedWithItsServiceAndOperation(): void
+    {
+        $start = new StartOperationRequest(['service' => 'billing', 'operation' => 'charge', 'request_id' => 'req-1', 'payload' => self::undecodable()]);
+        $inner = $this->createMock(WorkflowServiceClientInterface::class);
+        $inner->method('PollNexusTaskQueue')->willReturn(new PollNexusTaskQueueResponse([
+            'task_token' => 'nexus-token',
+            'request' => new NexusRequest(['start_operation' => $start]),
+        ]));
+        $inner->expects(self::once())->method('RespondNexusTaskFailed')->willReturn(new RespondNexusTaskFailedResponse());
+
+        (new PayloadCodecWorkflowServiceClient($inner, self::failingCodec(), $this->logger()))->PollNexusTaskQueue(new PollNexusTaskQueueRequest());
+
+        $this->assertOneRecord(\RuntimeException::class, 'unknown key k2', null, ['service' => 'billing', 'operation' => 'charge', 'request_id' => 'req-1']);
     }
 
     /**
