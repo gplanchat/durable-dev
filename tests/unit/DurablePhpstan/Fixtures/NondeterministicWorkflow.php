@@ -86,4 +86,16 @@ final class NondeterministicWorkflow
         Carbon::parse('2026-01-01 10:00');
         date('Y', 1_700_000_000);
     }
+
+    /** The value is journalled: the closure runs once, a replay reads what it returned. */
+    public function journalled(WorkflowEnvironment $env): void
+    {
+        $env->sideEffect(static fn(): int => time());
+        $env->sideEffect(static fn(): \DateTimeImmutable => new \DateTimeImmutable());
+        $env->sideEffect(static fn(): int => Carbon::now()->getTimestamp());
+        $env->sideEffect(static function (): float {
+            return microtime(true);
+        });
+        time(); // reported
+    }
 }

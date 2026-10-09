@@ -37,6 +37,9 @@ final class NondeterministicCallRule implements Rule
         if (null === $class || [] === $class->getNativeReflection()->getAttributes(AsWorkflow::class)) {
             return [];
         }
+        if (true === $node->getAttribute(SideEffectMarker::ATTRIBUTE)) {
+            return [];
+        }
         $label = ClockSources::of($node, $scope);
         if (null === $label) {
             return [];
