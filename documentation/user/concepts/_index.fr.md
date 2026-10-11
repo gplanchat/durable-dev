@@ -345,11 +345,13 @@ Durable tourne sur quatre backends qui partagent le même code de workflows et d
 - Nécessite l'extension PHP `ext-grpc`.
 
 > [!NOTE]
-> **Sur Magento, deux des quatre seulement sont atteignables.** `gplanchat/durable-magento` déclare
-> un `conflict` Composer sur les deux ponts SQL : `Magento\Framework\App\ResourceConnection` n'est
-> ni Doctrine DBAL ni la connexion d'Illuminate, aucun des deux n'a donc de quoi se brancher. L'état
-> vit dans un cluster Temporal, ou il vit dans un processus, et c'est la présence de
-> `durable/temporal/dsn` dans `app/etc/env.php` qui tranche.
+> **Sur Magento, trois états sont possibles, et aucun n'utilise les ponts SQL.**
+> `gplanchat/durable-magento` déclare un `conflict` Composer sur les deux ponts :
+> `Magento\Framework\App\ResourceConnection` n'est ni Doctrine DBAL ni la connexion d'Illuminate. Son
+> backend base de données est un adaptateur à lui, sur la connexion que `resource/durable` désigne
+> dans `app/etc/env.php`. Un DSN dans `durable/temporal/dsn` sélectionne Temporal. Sans l'un ni
+> l'autre, le journal vit dans un processus. Déclarer les deux échoue au démarrage avec
+> `BackendSelectionException`.
 
 Pour la mise en place, voir [Backends](../backends/).
 
@@ -371,8 +373,9 @@ worker.
 
 **Magento** ne se sert ni de l'un ni de l'autre. Les workers sont des commandes
 `bin/magento durable:worker --role=journal|activity` qui interrogent le backend directement ; rien ne
-passe par le `MessageQueue` de Magento, parce que sur Temporal une activité est déjà une commande
-Temporal et une reprise une tâche de workflow.
+passe par le `MessageQueue` de Magento. Sur Temporal, une activité est déjà une commande Temporal
+et une reprise une tâche de workflow. Sur le backend base de données, les workers interrogent les files
+en tables de la connexion du journal.
 
 ### Une reprise est livrée au moins une fois
 

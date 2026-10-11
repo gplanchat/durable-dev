@@ -355,11 +355,12 @@ Durable runs on four backends that share the same workflow and activity code:
 - Requires the `ext-grpc` PHP extension.
 
 > [!NOTE]
-> **On Magento, only two of the four are reachable.** `gplanchat/durable-magento` declares a Composer
-> `conflict` on both SQL bridges: `Magento\Framework\App\ResourceConnection` is neither Doctrine
-> DBAL nor Illuminate's connection, so neither has anything to bind to. The state lives in a Temporal
-> cluster, or it lives in one process, and the presence of `durable/temporal/dsn` in `app/etc/env.php`
-> decides which.
+> **On Magento, three states are possible, and none uses the SQL bridges.** `gplanchat/durable-magento`
+> declares a Composer `conflict` on both bridges: `Magento\Framework\App\ResourceConnection` is neither
+> Doctrine DBAL nor Illuminate's connection. Its database backend is its own adapter, on the
+> connection that `resource/durable` names in `app/etc/env.php`. A DSN in `durable/temporal/dsn`
+> selects Temporal. With neither, the journal lives in one process. Declaring both fails at boot with
+> `BackendSelectionException`.
 
 For setup details, see [Backends](../backends/).
 
@@ -379,8 +380,9 @@ the same consumer interface, a different underlying protocol.
 is a deferred timer-firing job on the queue's own delay, and `php artisan queue:work` is the only worker.
 
 **Magento** uses neither. Workers are `bin/magento durable:worker --role=journal|activity` commands
-that poll the backend directly; nothing rides Magento's own `MessageQueue`, because on Temporal an
-activity is already a Temporal command and a resume a workflow task.
+that poll the backend directly; nothing rides Magento's own `MessageQueue`. On Temporal, an
+activity is already a Temporal command and a resume a workflow task. On the database backend, the
+workers poll the table queues of the journal's connection.
 
 ### A resume is delivered at least once
 

@@ -10,7 +10,8 @@ declare(strict_types=1);
  *   php worker.php take    <queue> <lease> <claim> <hold|exit>   take one message, keep or drop the process
  *   php worker.php poll    <queue> <lease> <claim> <seconds>     take until one comes, print what it saw
  *   php worker.php stale   <queue> <lease> <claim>               take, let the lease run out, take again, then ack both copies
- *   php worker.php drain   <queue> <lease> <claim>               take and ack until the queue answers empty
+ *   php worker.php drain   <queue> <lease> <claim> [<dir> <n>]   take and ack until the queue answers empty; with a
+ *                                                                barrier, connect, then wait until n workers did
  *
  * It prints one line per event, with `hrtime(true)` in nanoseconds: the monotonic clock is shared
  * by every process of the machine.
@@ -72,6 +73,16 @@ switch ($mode) {
         say('FRESH_ACK', $tableQueue->ack($second) ? 'deleted' : 'refused');
         break;
     case 'drain':
+        if (isset($argv[5], $argv[6])) {
+            // Connect first, then release together: no worker drains while the other is still starting.
+            $connection->fetchOne('SELECT 1');
+            touch($argv[5] . '/ready.' . getmypid());
+            for ($until = microtime(true) + 60; \count(glob($argv[5] . '/ready.*') ?: []) < (int) $argv[6]; usleep(1_000)) {
+                if (microtime(true) > $until) {
+                    exit(1);
+                }
+            }
+        }
         while (null !== $message = $tableQueue->take($queue)) {
             usleep(random_int(5_000, 30_000));
             $tableQueue->ack($message);

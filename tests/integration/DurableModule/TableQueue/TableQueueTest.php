@@ -79,7 +79,10 @@ final class TableQueueTest extends TestCase
             $this->pdo->exec(\sprintf("INSERT INTO durable_queue (queue_name, body, available_at) VALUES ('q', 'm%d', NOW())", $i));
         }
 
-        $workers = [new Harness(['drain', 'q', '60', '30']), new Harness(['drain', 'q', '60', '30'])];
+        // A worker that starts a second early drains the 60 messages alone: both wait on a barrier, then take together.
+        $barrier = sys_get_temp_dir() . '/' . uniqid('durable-barrier-', true);
+        mkdir($barrier);
+        $workers = [new Harness(['drain', 'q', '60', '30', $barrier, '2']), new Harness(['drain', 'q', '60', '30', $barrier, '2'])];
         $ids = [];
         $counts = [];
         foreach ($workers as $worker) {
@@ -87,6 +90,8 @@ final class TableQueueTest extends TestCase
             $counts[] = \count($mine);
             $ids = [...$ids, ...$mine];
         }
+        array_map('unlink', glob($barrier . '/ready.*') ?: []);
+        rmdir($barrier);
 
         self::assertCount(60, $ids);
         self::assertCount(60, array_unique($ids), 'a message was taken twice');

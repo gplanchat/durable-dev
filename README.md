@@ -14,7 +14,8 @@ It runs on Symfony, Sylius, Laravel, Magento 2.4 and Mage-OS. On Symfony and Lar
 through Messenger or the application's queue; on Magento, through `bin/magento durable:worker`. The
 same workflow code runs on three backends (where the journal lives): in memory (tests), on one SQL
 database (Doctrine DBAL or Laravel's database layer), or on a Temporal cluster. To switch, you install
-that backend's bridge and change one configuration value. Magento offers memory and Temporal only.
+that backend's bridge and change one configuration value. Magento has its own
+database backend instead of the two SQL bridges, see [Backends](documentation/user/backends/_index.md).
 
 ## Example: a workflow that waits three days
 
@@ -98,7 +99,7 @@ This monorepo holds every package. A split publishes each one to its own read-on
 | `gplanchat/durable-bridge-illuminate` | [`src/Bridge/Illuminate/`](src/Bridge/Illuminate/) | Illuminate (Laravel) journal and stores: durable execution on one SQL database through Laravel's database layer (**DUR030**) |
 | `gplanchat/durable-laravel` | [`src/DurableLaravel/`](src/DurableLaravel/) | Laravel integration: binds the four storage ports from one published config file, work rides the application's queue |
 | `gplanchat/durable-filament` | [`src/DurableFilament/`](src/DurableFilament/) | Filament 3 and 4 panel plugin: read-only dashboard of workflow runs, requires the Laravel integration |
-| `gplanchat/durable-magento` | [`src/DurableModule/`](src/DurableModule/) | Magento 2 / Mage-OS module: `durable:worker`, a read-only admin grid and process history, memory and Temporal backends (**DUR046**) |
+| `gplanchat/durable-magento` | [`src/DurableModule/`](src/DurableModule/) | Magento 2 / Mage-OS module: `durable:worker`, a read-only admin grid and process history, memory, database and Temporal backends (**DUR046**, **DUR056**) |
 | `gplanchat/durable-plugin` | [`src/DurablePlugin/`](src/DurablePlugin/) | Sylius 2 admin plugin: workflow dashboard, backend-neutral (**DUR037**) |
 | `gplanchat/durable-phpstan` | [`src/DurablePhpstan/`](src/DurablePhpstan/) | PHPStan extension: resolves stub calls against their typed contract |
 | `gplanchat/durable-rector` | [`src/DurableRector/`](src/DurableRector/) | Rector rules migrating a project off the official Temporal PHP SDK |
