@@ -409,6 +409,16 @@ final class RunDashboardTest extends TestCase
         );
     }
 
+    public function testTheWordingOfAWaitForAWorkerIsPublicForAHostThatListsRunsItself(): void
+    {
+        $since = new \DateTimeImmutable('2026-09-24 10:00:00', new \DateTimeZone('UTC'));
+
+        $line = RunDashboard::waitingForWorker($since, $since->modify('+5 minutes'));
+
+        self::assertSame('waiting for a worker · 5 min', $line['waitingForWorker']);
+        self::assertEquals(new Message('run.waiting_for_worker', ['elapsed' => '5 min']), $line['localizedWaitingForWorker']);
+    }
+
     public function testARunNobodyPickedUpSaysHowLongItHasWaitedForAWorker(): void
     {
         $dispatched = new \DateTimeImmutable('2026-09-24 10:00:00', new \DateTimeZone('UTC'));

@@ -86,11 +86,17 @@ $health = $block->getHealth();
                     <?php $status = \Gplanchat\Durable\Observation\WorkflowRunStatus::tryFrom((string) $outcome); ?>
                     <th><?= $escaper->escapeHtml($status !== null ? \Gplanchat\DurableModule\Ui\OutcomeLabel::of($status) : __('In the window')) ?></th>
                 <?php endforeach; ?>
+                <?php if ($block->getWaitingForWorker() !== null): /* Not an outcome: a subset of the running ones (#818). */ ?>
+                    <th><?= $escaper->escapeHtml(__('Waiting for a worker')) ?></th>
+                <?php endif; ?>
             </tr>
             <tr>
                 <?php foreach ($counters as $count): ?>
                     <td><?= (int) $count ?></td>
                 <?php endforeach; ?>
+                <?php if ($block->getWaitingForWorker() !== null): ?>
+                    <td><?= (int) $block->getWaitingForWorker() ?></td>
+                <?php endif; ?>
             </tr>
         </table>
     </div>

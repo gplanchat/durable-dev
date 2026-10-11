@@ -71,9 +71,10 @@ Les backends SQL savent le dire (DBAL sous Symfony, Illuminate sous Laravel), su
 colonne `picked_up_at`, ainsi que le backend en mémoire dans son propre processus. Sous Laravel,
 le [panneau Filament](filament/) est la liste des exécutions. Temporal ne le peut pas
 depuis la liste des exécutions : ni la mention ni le nombre n'y apparaissent, et Temporal UI montre les
-tâches en attente. La grille Magento le peut sur le backend de base de données (`resource/durable`),
-dont le catalogue des exécutions enregistre la prise en charge ; elle ne le peut pas sur ses deux
-autres backends, celui en mémoire, vide depuis l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
+tâches en attente. L'administration Magento montre les deux (la grille, la page de l'exécution et
+les compteurs) sur le backend de base de données (`resource/durable`), dont le catalogue des
+exécutions enregistre la prise en charge ; elle ne le peut pas sur ses deux autres backends, celui
+en mémoire, vide depuis l'admin, et Temporal. Voir [la procédure de mise à jour](https://github.com/gplanchat/durable-dev/blob/main/UPGRADE.md)
 pour ajouter la colonne à une table créée avant elle.
 
 Après la première prise en charge, les backends à journal enregistrent chaque attente d'un worker

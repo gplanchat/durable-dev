@@ -74,6 +74,23 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
         self::assertStringContainsString('In-memory · checked at 2023-11-14 22:13:20', $page);
     }
 
+    public function testTheCountersCarryTheRunsWaitingForAWorkerWhenTheBackendCanTell(): void
+    {
+        // #818: a subset of the running ones, beside the outcomes and not among them.
+        $page = $this->renderBanner($this->health(), runs: 3, waiting: 2);
+
+        self::assertStringContainsString('<th>Waiting for a worker</th>', $page);
+        self::assertStringContainsString('<td>2</td>', $page);
+    }
+
+    public function testABackendThatCannotTellHasNoSuchCounter(): void
+    {
+        // Zero would claim that none waits.
+        $page = $this->renderBanner($this->health(), runs: 3);
+
+        self::assertStringNotContainsString('Waiting for a worker', $page);
+    }
+
     public function testAFullWindowAnnouncesItsCeiling(): void
     {
         // A bounded window that does not announce itself gets discovered through an execution
@@ -126,11 +143,11 @@ final class TheListingBannerSaysWhatTheGridCannotTest extends TestCase
     /**
      * @param array<string, TaskQueuePollers> $workers
      */
-    private function renderBanner(BackendHealth $health, int $runs = 0, array $workers = []): string
+    private function renderBanner(BackendHealth $health, int $runs = 0, array $workers = [], ?int $waiting = null): string
     {
         require_once __DIR__ . '/Fixture/magento-template-globals.php';
 
-        $block = new BannerBlockDouble($health, $runs, $workers);
+        $block = new BannerBlockDouble($health, $runs, $workers, $waiting);
         $escaper = new EscaperDouble();
 
         ob_start();
@@ -172,7 +189,13 @@ final class BannerBlockDouble
         private readonly BackendHealth $health,
         private readonly int $runs = 0,
         private readonly array $workers = [],
+        private readonly ?int $waiting = null,
     ) {}
+
+    public function getWaitingForWorker(): ?int
+    {
+        return $this->waiting;
+    }
 
     /**
      * @return array<string, TaskQueuePollers>

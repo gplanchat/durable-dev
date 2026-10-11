@@ -20,6 +20,11 @@ $timeline = $block->getTimeline();
         )) ?></span>
     </div>
 <?php else: ?>
+    <?php if ($block->getWaitingForWorker() !== null): /* Dispatched, and no worker has taken it (#818). */ ?>
+        <div class="message message-warning">
+            <span><?= $escaper->escapeHtml($block->getWaitingForWorker()) ?></span>
+        </div>
+    <?php endif; ?>
     <div class="admin__page-section">
         <div class="admin__page-section-title">
             <span class="title"><?= $escaper->escapeHtml($run->workflowName) ?></span>

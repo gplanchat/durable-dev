@@ -33,7 +33,9 @@ processes > Process history** dans les ressources du rôle.
 - **L'état du backend**, daté, avec une ligne par rôle de worker (journal et activité) quand
   Temporal tient le [journal](../../glossary/) (les étapes enregistrées d'une exécution et leurs résultats).
 - **Des compteurs** par issue, sur les 200 exécutions les plus récentes, quels que soient les
-  filtres de la grille.
+  filtres de la grille. Sur le backend base de données, un nombre **En attente d'un worker** s'y
+  ajoute. La grille et la page d'exécution affichent `waiting for a worker · 42 s` pour une
+  exécution que personne n'a prise en charge.
 - **La grille standard de l'administration** : pagination (20 par défaut), contrôle des colonnes,
   et filtres sur l'issue, le nom du workflow, l'identifiant d'exécution et l'identifiant d'exécution
   côté backend. Les filtres texte suivent la règle des autres surfaces, parmi les exécutions de la fenêtre : le nom entier du workflow, le début de l'identifiant d'exécution et de l'identifiant de run côté backend, le tout tel que saisi. Un avis indique la fenêtre quand elle est pleine.
@@ -43,7 +45,7 @@ processes > Process history** dans les ressources du rôle.
 
 ## Ce qu'elle ne montre pas
 
-La grille n'affiche pas `waiting for a worker`, ni en ligne ni en nombre. La fenêtre couvre 200
+Sur le backend Temporal, la grille n'affiche pas `waiting for a worker` : la liste des exécutions n'enregistre aucune heure de prise en charge. La fenêtre couvre 200
 exécutions : une exécution plus ancienne n'apparaît pas, et les compteurs ne la comptent pas non
 plus. Voir [Parité](../parity/).
 
