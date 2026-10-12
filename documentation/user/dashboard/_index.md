@@ -92,6 +92,11 @@ Magento grid included, from a `durableWaitingOn` memo the worker updates at each
 leaves out the attempt, since no workflow task runs when an activity attempt starts, and a timer's
 summary, which is never sent to the server. Sylius and Filament show the line in the list and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
 
+From a terminal, `durable:execution:diagnose <executionId> --story` prints the history, one line per
+event, and ends with the same information (`Waiting on: signal approve`) or with `Ended: completed`.
+It reads the run catalog, so a run is known to it only on a backend that records runs; with the
+in-memory backend, only the runs of the same process.
+
 ### 3. Counters, over what you are looking at
 
 One per outcome, and they cover **the set the list is paging through**, never the application's

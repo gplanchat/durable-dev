@@ -96,6 +96,11 @@ jour à chaque suspension. Le mémo omet la tentative, puisqu'aucune tâche de w
 tentative d'activité démarre, et le résumé d'un minuteur, qui n'est jamais envoyé au serveur.
 Sylius et Filament affichent la ligne dans la liste et sur la page de l'exécution. Magento et le profileur écrivent la raison sans le préfixe `waiting on`.
 
+Depuis un terminal, `durable:execution:diagnose <executionId> --story` affiche l'historique, une
+ligne par événement, et se termine par la même information (`Waiting on: signal approve`) ou par
+`Ended: completed`. La commande lit le catalogue des exécutions : elle ne connaît une exécution que
+sur un backend qui les enregistre, et, avec le backend en mémoire, que celles du même processus.
+
 ### 3. Les compteurs, sur ce que vous regardez
 
 Un par issue, et ils couvrent **l'ensemble que la liste parcourt**, jamais tout l'historique de
