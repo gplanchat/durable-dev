@@ -14,6 +14,7 @@ use Gplanchat\Durable\WorkflowEnvironment;
 #[AsWorkflow('shipping')]
 final class ShippingWorkflow
 {
+    /** @return array<string, mixed> */
     #[AsWorkflowMethod]
     public function ship(WorkflowEnvironment $env, string $orderId, int $parcels = 1): array
     {
