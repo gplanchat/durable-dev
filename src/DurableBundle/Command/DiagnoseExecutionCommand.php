@@ -12,11 +12,14 @@ use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
 use Gplanchat\Durable\Observation\RecordedDetails;
+use Gplanchat\Durable\Observation\RunNarrator;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -40,6 +43,8 @@ final class DiagnoseExecutionCommand extends Command
          * row there says nothing about the id (#337).
          */
         private readonly bool $metadataIsProcessLocal = false,
+        /** Where `--story` reads the run and what it waits on; the bundle passes the configured catalog. */
+        private readonly ?WorkflowRunCatalogInterface $runCatalog = null,
     ) {
         parent::__construct();
     }
@@ -50,6 +55,7 @@ final class DiagnoseExecutionCommand extends Command
             ->addArgument('executionId', InputArgument::REQUIRED, 'Execution identifier (workflow or child).')
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'How many events at most to detail in the output.', '30')
             ->addOption('json', null, InputOption::VALUE_NONE, 'Write structured JSON to stdout.')
+            ->addOption('story', null, InputOption::VALUE_NONE, 'Tell the history as one line per event, ending with what the run waits on (read from the run catalog).')
             ->addOption('raw', null, InputOption::VALUE_NONE, 'Print payloads as recorded. By default, values under keys such as password, token or card are masked and long strings truncated.')
         ;
     }
@@ -61,6 +67,10 @@ final class DiagnoseExecutionCommand extends Command
             $output->writeln('<error>executionId cannot be empty.</error>');
 
             return Command::FAILURE;
+        }
+
+        if ($input->getOption('story')) {
+            return $this->story($executionId, $output);
         }
 
         $limit = max(0, (int) $input->getOption('limit'));
@@ -188,6 +198,27 @@ final class DiagnoseExecutionCommand extends Command
             }
         } elseif ($limit > 0 && 0 === $totalEvents) {
             $io->note('Empty stream for this executionId.');
+        }
+
+        return Command::SUCCESS;
+    }
+
+    private function story(string $executionId, OutputInterface $output): int
+    {
+        if (null === $this->runCatalog) {
+            $output->writeln('<error>--story reads the run catalog, which this command was built without. Build it with a catalog, or print the raw journal without --story.</error>');
+
+            return Command::FAILURE;
+        }
+        $run = $this->runCatalog->findRun(ExecutionId::fromString($executionId));
+        if (null === $run) {
+            $id = OutputFormatter::escape($executionId);
+            $output->writeln(\sprintf('<error>No run "%1$s" in the run catalog, so there is no story to tell. The id may be wrong, or the run may predate the catalog. `durable:execution:diagnose %1$s` prints the raw journal.</error>', $id));
+
+            return Command::FAILURE;
+        }
+        foreach (RunNarrator::story($run, $this->runCatalog->readHistory($run)) as $line) {
+            $output->writeln($line, OutputInterface::OUTPUT_RAW);
         }
 
         return Command::SUCCESS;
