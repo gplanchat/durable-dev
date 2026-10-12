@@ -12,6 +12,7 @@ use Gplanchat\Durable\Bundle\EventListener\WarnOnIgnoredWorkerLimitsListener;
 use Gplanchat\Durable\Bundle\Messenger\DurableWorkerInspection;
 use Gplanchat\Durable\Observation\KeyPatternPayloadRedactor;
 use Gplanchat\Durable\Observation\PayloadRedactorInterface;
+use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -57,6 +58,7 @@ final class Commands
                 new Reference(PayloadRedactorInterface::class),
                 // On Temporal native the metadata store is per process: an empty row means nothing.
                 $isTemporalNative,
+                new Reference(WorkflowRunCatalogInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ])
             ->addTag('console.command')
             ->setPublic(false);
