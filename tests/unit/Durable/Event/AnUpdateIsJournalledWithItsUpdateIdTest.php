@@ -50,7 +50,6 @@ final class AnUpdateIsJournalledWithItsUpdateIdTest extends TestCase
 
         self::assertInstanceOf(WorkflowUpdateHandled::class, $read);
         self::assertNull($read->updateId());
-        self::assertNotSame('upd-1', $read->updateId(), 'a client waiting for its own id never matches it');
         self::assertSame($written, EventDataMapper::fromDomainEvent($read), 'the record is written back as it was read');
     }
 
