@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable;
 use Gplanchat\Durable\Attribute\AsUpdateMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
@@ -53,8 +54,10 @@ final class AnUpdateThatLeavesTheAwaitUnsettledIsHandledOnceTest extends TestCas
             new WorkflowDefinitionLoader(),
         ))(new ResumeWorkflowMessage('exec-1', [['name' => 'count', 'arguments' => [], 'updateId' => 'upd-1']]));
 
-        $handled = array_filter(iterator_to_array($store->readStream(ExecutionId::fromString('exec-1')), false), static fn(object $e): bool => $e instanceof WorkflowUpdateHandled);
+        $events = iterator_to_array($store->readStream(ExecutionId::fromString('exec-1')), false);
+        $handled = array_filter($events, static fn(object $e): bool => $e instanceof WorkflowUpdateHandled);
         self::assertCount(1, $handled);
+        self::assertEmpty(array_filter($events, static fn(object $e): bool => $e instanceof ExecutionCompleted), 'The pass must suspend: the condition is still unsettled.');
     }
 }
 
@@ -62,6 +65,7 @@ final class AnUpdateThatLeavesTheAwaitUnsettledIsHandledOnceTest extends TestCas
 final class CountingWorkflow
 {
     private bool $stop = false;
+    private int $calls = 0;
 
     public function __construct(
         private readonly WorkflowEnvironment $environment,
@@ -70,6 +74,12 @@ final class CountingWorkflow
     #[AsUpdateMethod('count')]
     public function count(): int
     {
+        // A pass that hands this update out again would end the wait here, so that the test fails
+        // on the count of journalled updates instead of looping.
+        if (++$this->calls > 1) {
+            $this->stop = true;
+        }
+
         return 1;
     }
 
