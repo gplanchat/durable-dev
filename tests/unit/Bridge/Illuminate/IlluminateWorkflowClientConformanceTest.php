@@ -41,6 +41,7 @@ use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Durable\WorkflowTimeouts;
+use Illuminate\Database\Connection;
 use unit\Bridge\SqlTestDatabase;
 use unit\Durable\Store\FlakyResumeDispatcher;
 
@@ -54,12 +55,13 @@ final class IlluminateWorkflowClientConformanceTest extends WorkflowClientPortCo
     private IlluminateEventStore $events;
     private IlluminateWorkflowMetadataStore $rows;
     private IlluminateWorkflowRunCatalog $catalog;
+    private Connection $connection;
     private InMemoryWorkflowClient $client;
     private FlakyResumeDispatcher $dispatcher;
 
     protected function setUp(): void
     {
-        $connection = SqlTestDatabase::illuminate();
+        $this->connection = $connection = SqlTestDatabase::illuminate();
         $schema = new DurableSchema($connection);
         $this->events = new IlluminateEventStore($connection, $schema);
         $this->rows = new IlluminateWorkflowMetadataStore($connection, $schema);
@@ -99,6 +101,12 @@ final class IlluminateWorkflowClientConformanceTest extends WorkflowClientPortCo
             new LinkedChildFinalizer($journal, $dispatcher, $links),
             new ParentChildWorkflowCoordinator($journal, $dispatcher),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        // A server database keeps one session per test otherwise: PostgreSQL runs out of clients.
+        $this->connection->disconnect();
     }
 
     protected function clientUnderTest(): WorkflowClientPort
