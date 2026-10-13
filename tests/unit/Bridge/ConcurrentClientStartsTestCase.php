@@ -8,9 +8,11 @@ use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Handler\LinkedChildFinalizer;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
+use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
@@ -84,7 +86,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         // A start never replays: the query side is built, not used.
         $engine = new ExecutionEngine($events, new ExecutionRuntime($events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true));
 
-        return new InMemoryWorkflowClient($projecting, $dispatcher, $catalog, $events, new ReadOnlyReplay($engine, $events, $projecting, new WorkflowRegistry()));
+        return new InMemoryWorkflowClient($projecting, $dispatcher, $catalog, $events, new ReadOnlyReplay($engine, $events, $projecting, new WorkflowRegistry()), new LinkedChildFinalizer($events, $dispatcher, new InMemoryChildWorkflowParentLinkStore()));
     }
 
     /**

@@ -1501,6 +1501,16 @@ message's `updateId` on, and the Magento store reads and writes the key through 
 3. In a `WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries, pass each entry on as
    it is, `updateId` included. The rule does not look for that.
 
+### A terminated execution ends with the failure kind `terminated` (#971)
+
+`WorkflowClientPort::terminate()` on the in-memory backend appends a `WorkflowExecutionFailed`
+whose `kind` is `terminated` (`WorkflowExecutionFailed::KIND_TERMINATED`), with
+`WorkflowTerminatedException` as `failureClass` and the reason as `failureMessage`. The run reads
+`failed` in the dashboards.
+
+**What to do:** if you match on the `kind` of `WorkflowExecutionFailed` with an exhaustive `match`,
+add the `terminated` case.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
