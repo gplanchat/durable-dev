@@ -12,6 +12,7 @@ use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Payloads;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\History\V1\WorkflowExecutionUpdateAcceptedEventAttributes;
@@ -51,6 +52,18 @@ final class UpdateEventConversionTest extends TestCase
         self::assertNull($read->result());
         self::assertSame(DurableUpdateFailedException::class, $read->failure()?->class);
         self::assertSame('nope', $read->failure()->message);
+    }
+
+    public function testAFailedUpdateWithAnApplicationFailureTypeKeepsThatClass(): void
+    {
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
+        $converter->convert($this->accepted(5, 'upd-a', 'approve'));
+        $failure = (new Failure())->setMessage('nope')->setApplicationFailureInfo((new ApplicationFailureInfo())->setType(\DomainException::class));
+
+        $read = $converter->convert($this->completed(7, 'upd-a', 5, (new Outcome())->setFailure($failure)));
+
+        self::assertInstanceOf(WorkflowUpdateHandled::class, $read);
+        self::assertSame(\DomainException::class, $read->failure()?->class);
     }
 
     public function testTwoInterleavedUpdatesArePairedByUpdateIdNotByPosition(): void
