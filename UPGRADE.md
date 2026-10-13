@@ -1506,15 +1506,10 @@ message's `updateId` on, and the Magento store reads and writes the key through 
 `WorkflowClientPort::terminate()` on the in-memory backend appends a `WorkflowExecutionFailed`
 whose `kind` is `terminated` (`WorkflowExecutionFailed::KIND_TERMINATED`), with
 `WorkflowTerminatedException` as `failureClass` and the reason as `failureMessage`. The run reads
-`failed` in the dashboards. `InMemoryWorkflowClient` takes the event store as a fourth constructor
-argument.
+`failed` in the dashboards.
 
-**What to do:**
-
-1. If you match on the `kind` of `WorkflowExecutionFailed` with an exhaustive `match`, add the
-   `terminated` case.
-2. If you build `InMemoryWorkflowClient` yourself, pass the event store, wrapped in
-   `ProjectingEventStore` so that the catalogue sees the ending.
+**What to do:** if you match on the `kind` of `WorkflowExecutionFailed` with an exhaustive `match`,
+add the `terminated` case.
 
 ## 0.1.0-beta1
 

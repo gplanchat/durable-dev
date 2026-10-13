@@ -77,7 +77,7 @@ A failure that the workflow code does not catch ends the execution with
 | `unhandled_activity_superseded` | the workflow awaited an activity that had lost a race |
 | `workflow_handler_failure` | the workflow code itself threw |
 | `terminated_by_parent` | a parent closed with `ParentClosePolicy::Terminate` |
-| `terminated` | an application called `terminate()` on the execution; no workflow code ran afterwards |
+| `terminated` | an application called `terminate()` on the execution; no workflow code runs afterwards |
 
 On the Temporal backend, the kind is stored in the `ApplicationFailureInfo` details. Reading the
 history back rebuilds a typed `WorkflowExecutionFailed` instead of a bare message, and keeps the
