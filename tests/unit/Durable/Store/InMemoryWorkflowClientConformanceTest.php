@@ -9,6 +9,9 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\Event;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\UpdateFailureReason;
@@ -23,6 +26,7 @@ use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -30,6 +34,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
@@ -85,8 +90,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
                 ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
             }
         };
+        $engine = new ExecutionEngine(
+            $this->events,
+            new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true),
+            workflowDefinitionLoader: new WorkflowDefinitionLoader(),
+        );
         $dispatcher->handler = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
+            $engine,
             $registry,
             $metadata,
             $dispatcher,
@@ -97,7 +107,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events, new ReadOnlyReplay($engine, $this->events, $metadata, $registry));
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -114,6 +124,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     {
         $this->catalog->recordOutcome($executionId, $outcome);
         $this->rows->markCompleted($executionId);
+    }
+
+    protected function appendEnding(Event $ending): void
+    {
+        (new ProjectingEventStore($this->events, $this->catalog))->append($ending);
     }
 
     protected function journalOf(ExecutionId $executionId): array
@@ -157,6 +172,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         }
     }
 
+    public function testASignalTheWorkflowHasNotRunOnYetIsInTheAnswerAndNothingIsWritten(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        // Journalled, not resumed: the live pass has not applied it, and has not journalled the timer after it.
+        $this->events->append(new WorkflowSignalReceived($id, 'pay', []));
+        $written = $this->events->countEventsInStream($id);
+
+        self::assertSame('paid', $this->client->query($id, 'status'));
+        self::assertSame($written, $this->events->countEventsInStream($id));
+    }
+
     public function testARefusedStartNamesTheBackendAndWritesNoRowBeforeTheCheck(): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -171,13 +198,23 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
+    public function testAResultOnARunThatContinuedAsNewWithoutAnIdIsRefusedByName(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        $this->appendEnding(new WorkflowContinuedAsNew($id, ConformanceClientWorkflow::TYPE, []));
+
+        $this->expectException(UnsupportedByBackendException::class);
+        $this->client->result($id, Duration::seconds(1));
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
     public static function operationsStillToBuild(): iterable
     {
         foreach (self::operations() as $name => $case) {
-            if (!\in_array($case[0], ['signal', 'update'], true)) {
+            if (!\in_array($case[0], ['signal', 'update', 'result', 'query'], true)) {
                 yield $name => $case;
             }
         }
@@ -188,14 +225,9 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     {
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        if (\in_array($operation, ['query', 'result'], true)) {
-            $this->endRun($id, WorkflowRunStatus::Completed);
-        }
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'query' => $this->client->query($id, 'status'),
-            'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
