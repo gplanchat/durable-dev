@@ -76,6 +76,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     private WorkflowResumeDispatcher $dispatcher;
     private InMemoryChildWorkflowParentLinkStore $links;
     private ProjectingEventStore $journal;
+    private ReadOnlyReplay $queries;
     private ProjectingWorkflowMetadataStore $metadata;
     private \unit\Durable\Store\FlakyResumeDispatcher $flaky;
 
@@ -118,7 +119,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             $dispatcher,
             $this->catalog,
             $journal,
-            new ReadOnlyReplay($engine, $journal, $metadata, $registry),
+            $this->queries = new ReadOnlyReplay($engine, $journal, $metadata, $registry),
             new LinkedChildFinalizer($journal, $dispatcher, $this->links),
             new ParentChildWorkflowCoordinator($journal, $dispatcher),
         );
@@ -299,29 +300,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             self::assertSame(UpdateFailureReason::NotHandled, $e->reason);
         }
     }
-}
-
-#[AsWorkflow(SleepingUpdatableWorkflow::TYPE)]
-final class SleepingUpdatableWorkflow
-{
-    public const TYPE = 'test.sleeping.updatable';
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    #[AsUpdateMethod('change')]
-    public function change(array $payload): int
-    {
-        return 1;
-    }
-
-    #[AsWorkflowMethod]
-    public function run(WorkflowEnvironment $env): string
-    {
-        $env->sleep(3600);
-
-        return 'done';
-    }
 
     #[DataProvider('actingOperations')]
     public function testAnExecutionThatContinuedAsNewLeavesTheJournalUntouched(string $operation): void
@@ -468,7 +446,7 @@ final class SleepingUpdatableWorkflow
                 $this->inner->appendFenced($event, $fence);
             }
         };
-        $client = new InMemoryWorkflowClient($this->metadata, $this->dispatcher, $this->catalog, $racing, new LinkedChildFinalizer($racing, $this->dispatcher, $this->links));
+        $client = new InMemoryWorkflowClient($this->metadata, $this->dispatcher, $this->catalog, $racing, $this->queries, new LinkedChildFinalizer($racing, $this->dispatcher, $this->links));
 
         try {
             $client->terminate($id);
@@ -480,5 +458,28 @@ final class SleepingUpdatableWorkflow
             iterator_to_array($this->events->readStream($id), false),
             static fn(object $event): bool => $event instanceof WorkflowExecutionFailed,
         ));
+    }
+}
+
+#[AsWorkflow(SleepingUpdatableWorkflow::TYPE)]
+final class SleepingUpdatableWorkflow
+{
+    public const TYPE = 'test.sleeping.updatable';
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    #[AsUpdateMethod('change')]
+    public function change(array $payload): int
+    {
+        return 1;
+    }
+
+    #[AsWorkflowMethod]
+    public function run(WorkflowEnvironment $env): string
+    {
+        $env->sleep(3600);
+
+        return 'done';
     }
 }
