@@ -213,6 +213,17 @@ execution and inherits it. Use `withoutExecutionBound()` to reuse a `WorkflowTim
 Its own copies are `withTimeouts()` and `withTaskQueue()`, which moves the next run to another
 task queue.
 
+### Which bounds a child workflow gets on the journal backends
+
+On the in-memory, DBAL, Illuminate and Magento Database backends, a child started with
+`ChildWorkflowOptions::$timeouts` gets these bounds. Temporal applies all three.
+
+| Bound | Journal backends |
+|-------|------------------|
+| `execution` | Applied. A child that has not ended by the deadline fails its parent's await with `DurableChildWorkflowFailedException` ("Child workflow `<id>` timed out."). |
+| `run` | Recorded, not applied. It differs from `execution` only across continue-as-new, where the deadline must restart with each run. |
+| `task` | Recorded, not applied. It bounds a worker round trip, which the journal does not have. |
+
 ---
 
 ## TaskQueue and WorkflowNamespace

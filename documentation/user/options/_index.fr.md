@@ -216,6 +216,17 @@ appartient à l'exécution courante et en hérite. Employez `withoutExecutionBou
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
 
+### Les bornes qu'un workflow enfant reçoit sur les backends à journal
+
+Sur les backends en mémoire, DBAL, Illuminate et Magento Database, un enfant démarré avec
+`ChildWorkflowOptions::$timeouts` reçoit les bornes suivantes. Temporal applique les trois.
+
+| Borne | Backends à journal |
+|-------|--------------------|
+| `execution` | Appliquée. Un enfant qui ne s'est pas terminé à l'échéance fait échouer l'attente de son parent avec `DurableChildWorkflowFailedException` (« Child workflow `<id>` timed out. »). |
+| `run` | Enregistrée, non appliquée. Elle ne diffère de `execution` qu'au travers d'un continue-as-new, où l'échéance doit repartir à chaque run. |
+| `task` | Enregistrée, non appliquée. Elle borne un aller-retour du worker, que le journal n'a pas. |
+
 ---
 
 ## `TaskQueue` et `WorkflowNamespace`
