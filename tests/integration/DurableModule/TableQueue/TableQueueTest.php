@@ -63,14 +63,14 @@ final class TableQueueTest extends TestCase
     public function aDelayedMessageIsNotTakenBeforeItsAvailableAt(): void
     {
         Harness::run(['enqueue', 'q', 'later', '3']);
-        $availableAt = (int) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
+        $availableAt = self::milliseconds((string) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn());
 
         $events = Harness::run(['poll', 'q', '60', '30', '8']);
 
         self::assertSame('EMPTY', $events[0][0], 'taken at once');
         $taken = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($taken, 'never taken');
-        self::assertGreaterThanOrEqual($availableAt, (int) $taken[3], 'taken before available_at');
+        self::assertGreaterThanOrEqual($availableAt, self::milliseconds($taken[3]), 'taken before available_at');
     }
 
     #[Test]
@@ -118,16 +118,23 @@ final class TableQueueTest extends TestCase
     public function aMessageDelayedByHalfASecondIsTakenAfterHalfASecondAndWithinASecond(): void
     {
         $enqueued = Harness::run(['enqueue', 'q', 'soon', '0.5'])[0];
-        $availableAt = (float) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
+        $availableAt = self::milliseconds((string) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn());
 
         $events = Harness::run(['poll', 'q', '60', '30', '5']);
 
         $taken = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($taken, 'never taken');
-        self::assertSame('EMPTY', $events[0][0]);
-        self::assertGreaterThanOrEqual($availableAt, (float) $taken[3], 'taken before available_at');
-        $afterSeconds = (float) ((int) $taken[1] - (int) $enqueued[1]) / 1e9;
-        self::assertGreaterThan(0.4, $afterSeconds, 'a 0.5 s delay fired early');
-        self::assertLessThan(1.0, $afterSeconds, 'a 0.5 s delay was rounded up to a second');
+        // Database clock only: `$enqueued[2]` and `$enqueued[3]` bracket the insert, `$taken[3]` is read after the take.
+        // Whether the poller started before or after the delay ran out depends on the runner, so the first answer is not asserted.
+        self::assertGreaterThanOrEqual(self::milliseconds($enqueued[2]) + 500, $availableAt, 'a 0.5 s delay fired early');
+        self::assertLessThanOrEqual(self::milliseconds($enqueued[3]) + 500, $availableAt, 'a 0.5 s delay was rounded up');
+        self::assertGreaterThanOrEqual($availableAt, self::milliseconds($taken[3]), 'taken before available_at');
+        self::assertLessThan($availableAt + 1_000, self::milliseconds($taken[3]), 'taken a second after available_at');
+    }
+
+    /** A `UNIX_TIMESTAMP` with three decimals, as whole milliseconds: no float rounding between two readings. */
+    private static function milliseconds(string $timestamp): int
+    {
+        return (int) round((float) $timestamp * 1000);
     }
 }
