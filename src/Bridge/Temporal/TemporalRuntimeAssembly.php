@@ -53,6 +53,7 @@ final class TemporalRuntimeAssembly
         private readonly WorkflowRegistry $registry,
         private readonly WorkflowDefinitionLoader $definitionLoader,
         private readonly ?LoggerInterface $logger = null,
+        private readonly int $maxActivityRetries = 0,
     ) {}
 
     public function historyCursor(): TemporalHistoryCursor
@@ -67,7 +68,7 @@ final class TemporalRuntimeAssembly
 
     public function workflowTaskRunner(): WorkflowTaskRunner
     {
-        return $this->workflowTaskRunner ??= new WorkflowTaskRunner($this->historyCursor(), $this->registry, $this->connection, $this->definitionLoader);
+        return $this->workflowTaskRunner ??= new WorkflowTaskRunner($this->historyCursor(), $this->registry, $this->connection, $this->definitionLoader, $this->maxActivityRetries);
     }
 
     public function workflowTaskProcessor(): WorkflowTaskProcessor

@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
+use Gplanchat\Durable\Activity\RetryLimit;
 use Gplanchat\Durable\ChildWorkflowOptions;
 use Gplanchat\Durable\ContinueAsNewOptions;
 use Gplanchat\Durable\Duration as DurableDuration;
@@ -56,9 +57,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
  */
 final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterface
 {
-    /** Execution bound set when the activity fixes none; the server demands one. */
-    private const DEFAULT_EXECUTION_BOUND_SECONDS = 30.0;
-
     /** @var list<Command> */
     private array $commands = [];
 
@@ -78,6 +76,8 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
          * activity cancellation is not emitted — see that method's note.
          */
         private readonly ?TemporalExecutionHistory $history = null,
+        /** `max_activity_retries`: retries allowed to every activity; its own limit can only be stricter. 0: no ceiling. */
+        private readonly int $maxActivityRetries = 0,
     ) {
         $this->id = $executionId;
         $this->executionId = $this->id->toString();
@@ -108,7 +108,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // domain side rather than hidden inside a `?: 30.0`.
         $timeouts = null !== $options ? $options->timeouts : ActivityTimeouts::none();
         $attrs->setStartToCloseTimeout($this->durationSeconds(
-            $timeouts->executionBoundOr(DurableDuration::seconds(self::DEFAULT_EXECUTION_BOUND_SECONDS))->toSeconds(),
+            $timeouts->attemptBound()->toSeconds(),
         ));
 
         if (null !== $options) {
@@ -121,24 +121,29 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
             if (null !== $timeouts->heartbeat) {
                 $attrs->setHeartbeatTimeout($this->durationSeconds($timeouts->heartbeat->toSeconds()));
             }
+        }
 
-            // Retry is governed by the Temporal server via this policy. Without it the
-            // server applies its default (unbounded retries), so a bounded RetryLimit
-            // or a non-retryable business exception only takes effect once it is set here.
-            // The server treats a failure as non-retryable when its ApplicationFailureInfo
-            // type matches nonRetryableErrorTypes (the exception FQCNs).
+        // Retry is governed by the Temporal server via this policy. Without it the
+        // server applies its default (unbounded retries), so a bounded RetryLimit,
+        // the max_activity_retries ceiling or a non-retryable business exception only
+        // takes effect once it is set here. The server treats a failure as non-retryable
+        // when its ApplicationFailureInfo type matches nonRetryableErrorTypes (the exception FQCNs).
+        $limit = (null !== $options ? $options->retryLimit : RetryLimit::unlimited())->narrowedTo(RetryLimit::ofRetries($this->maxActivityRetries));
+        if (null !== $options || !$limit->isUnlimited()) {
             $retryPolicy = new RetryPolicy();
-            $retryPolicy->setInitialInterval($this->durationSeconds($options->initialInterval->toSeconds()));
-            $retryPolicy->setBackoffCoefficient($options->backoffCoefficient);
-            if (null !== $options->maximumInterval) {
-                $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumInterval->toSeconds()));
+            if (null !== $options) {
+                $retryPolicy->setInitialInterval($this->durationSeconds($options->initialInterval->toSeconds()));
+                $retryPolicy->setBackoffCoefficient($options->backoffCoefficient);
+                if (null !== $options->maximumInterval) {
+                    $retryPolicy->setMaximumInterval($this->durationSeconds($options->maximumInterval->toSeconds()));
+                }
+                if ([] !== $options->nonRetryableExceptions) {
+                    // Already a list<class-string> (per ActivityOptions) — pass as-is.
+                    $retryPolicy->setNonRetryableErrorTypes($options->nonRetryableExceptions);
+                }
             }
-            if (!$options->retryLimit->isUnlimited()) {
-                $retryPolicy->setMaximumAttempts($options->retryLimit->maxAttempts());
-            }
-            if ([] !== $options->nonRetryableExceptions) {
-                // Already a list<class-string> (per ActivityOptions) — pass as-is.
-                $retryPolicy->setNonRetryableErrorTypes($options->nonRetryableExceptions);
+            if (!$limit->isUnlimited()) {
+                $retryPolicy->setMaximumAttempts($limit->maxAttempts());
             }
             $attrs->setRetryPolicy($retryPolicy);
         }
