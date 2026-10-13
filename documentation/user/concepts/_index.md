@@ -103,6 +103,7 @@ Because the result is in history, the activity handler is **not called again** d
 | `UpdateAccepted` | Transactional update accepted |
 | `ChildWorkflowStarted` | Child workflow dispatched |
 | `ChildWorkflowCompleted` | Child workflow finished |
+| `ChildWorkflowDeadline` | Child workflow scheduled with an execution timeout: the moment it must have ended by |
 | `ExecutionCompleted` | Workflow returned a result |
 | `WorkflowExecutionFailed` | Workflow threw an unhandled exception |
 

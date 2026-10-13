@@ -1392,6 +1392,23 @@ in the process, and one with only a DSN keeps Temporal. Declaring both keys thro
 `bin/magento durable:setup` and `bin/magento durable:worker`. The
 [backends page](documentation/user/backends/_index.md) lists what the database backend supports.
 
+### A child workflow's execution timeout is enforced on the journal backends (#979)
+
+On the in-memory, DBAL, Illuminate and Magento Database backends, `ChildWorkflowOptions::$timeouts->execution`
+was journaled and never applied. Scheduling the child now also appends a `ChildWorkflowDeadline`
+event to the parent's journal, and a child that has no outcome when the deadline falls fails the
+parent's await with `DurableChildWorkflowFailedException` ("Child workflow <id> timed out."), the
+failure Temporal gives it. `timeouts->run` and `timeouts->task` are still journaled and not
+applied.
+
+`ChildWorkflowDeadline` is a new stored event name. A backend that stores events through its own
+mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds). The DBAL,
+Illuminate and Magento stores use `EventDataMapper`, which does. A child scheduled before the
+upgrade has no deadline event and keeps running without a bound.
+
+**What to do**: nothing, unless a child declares an execution timeout that your tests relied on
+being ignored.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
