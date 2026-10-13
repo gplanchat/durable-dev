@@ -352,7 +352,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
      * ({@see UpdateProtocol}); a worker that journalled as well would record each update twice.
      * `WorkflowUpdateTest::testTheServerRecordsTheUpdateTheWorkerHandled()` shows the record.
      */
-    public function recordUpdateHandled(string $updateName, array $arguments, mixed $result, ?FailureEnvelope $failure): void {}
+    public function recordUpdateHandled(string $updateName, array $arguments, mixed $result, ?FailureEnvelope $failure, ?string $updateId = null): void {}
 
     /**
      * COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK.
