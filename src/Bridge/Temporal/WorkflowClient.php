@@ -14,6 +14,7 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowTerminatedException;
@@ -65,8 +66,33 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         ExecutionId $executionId,
         ?WorkflowStartOptions $options = null,
     ): ExecutionId {
+        try {
+            $this->start($executionId, $workflowType, $payload, $options);
+        } catch (WorkflowExecutionAlreadyStarted) {
+            // The engine's start must stay harmless on a redelivery.
+        }
+
+        return $executionId;
+    }
+
+    /**
+     * Starts a workflow and fails when the server reports the workflow id as already started: the
+     * first execution is unchanged. This is the start of {@see \Gplanchat\Durable\Port\WorkflowClientPort};
+     * {@see startAsync()} and {@see startSync()} carry on instead.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @throws WorkflowExecutionAlreadyStarted
+     */
+    public function start(ExecutionId $executionId, string $workflowType, array $payload = [], ?WorkflowStartOptions $options = null): ExecutionId
+    {
         $id = $executionId->toString();
-        $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $payload, $id, $options);
+
+        try {
+            $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $payload, $id, $options);
+        } catch (\RuntimeException $e) {
+            throw self::isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage()) ? new WorkflowExecutionAlreadyStarted($id, $e) : $e;
+        }
 
         return $executionId;
     }
@@ -104,7 +130,12 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         ?WorkflowStartOptions $options = null,
     ): mixed {
         $workflowId = self::workflowIdOf($executionId->toString());
-        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId->toString(), $options);
+
+        try {
+            $this->start($executionId, $workflowType, $payload, $options);
+        } catch (WorkflowExecutionAlreadyStarted) {
+            // Waits for the execution that is running.
+        }
 
         return $this->waitForCompletion($workflowId);
     }
@@ -436,15 +467,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);
         $req->setMemo($memo);
 
-        try {
-            $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        } catch (\RuntimeException $e) {
-            if ($this->isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage())) {
-                return;
-            }
-
-            throw $e;
-        }
+        $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
     }
 
     private function decodeCompletedResult(HistoryEvent $event): mixed
