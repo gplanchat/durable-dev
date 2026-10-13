@@ -350,6 +350,26 @@ Les workflows enfants acceptent la même planification par `ChildWorkflowOptions
 
 ---
 
+## Réutiliser l'identifiant d'un workflow enfant {#child-workflow-id-reuse}
+
+`ChildWorkflowOptions::$workflowIdReusePolicy` fixe ce qui se passe quand un enfant démarre sous un
+identifiant qu'une exécution antérieure a déjà utilisé. Une politique ne juge qu'une exécution
+terminée : un identifiant dont l'exécution tourne encore est refusé sous toutes les politiques.
+
+| Exécution antérieure sous l'identifiant | `AllowDuplicate` | `AllowDuplicateFailedOnly` | `RejectDuplicate` |
+|---|---|---|---|
+| Encore en cours | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` |
+| Terminée avec succès | Une nouvelle exécution démarre | `ChildWorkflowIdCompletedException` | `ChildWorkflowIdAlreadyUsedException` |
+| Échouée, annulée ou terminée de force | Une nouvelle exécution démarre | Une nouvelle exécution démarre | `ChildWorkflowIdAlreadyUsedException` |
+
+Chaque exception porte l'identifiant dans sa propriété `childExecutionId` et étend
+`\InvalidArgumentException`. Sur les backends à journal (mémoire, DBAL, Illuminate, Magento
+Database), l'appel de la méthode du stub lève l'exception. Sur Temporal, le serveur refuse
+le démarrage et le parent reçoit `DurableChildWorkflowFailedException` à l'`await` de l'enfant ; les
+trois exceptions nommées n'y sont pas encore levées.
+
+---
+
 ## Mémo, résumé et détails d'un enfant {#child-memo-summary-and-details}
 
 `ChildWorkflowOptions` prend un mémo, un résumé d'une ligne et des détails plus longs pour l'enfant.
