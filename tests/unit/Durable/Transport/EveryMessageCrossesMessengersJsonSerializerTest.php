@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Transport;
 
-use Gplanchat\Durable\Activity\ActivityCancellationType;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Activity\ActivityTimeouts;
 use Gplanchat\Durable\Activity\RetryLimit;
@@ -70,7 +69,6 @@ final class EveryMessageCrossesMessengersJsonSerializerTest extends TestCase
                 taskQueue: TaskQueue::named('quotes'),
                 activityId: 'quote-1',
                 timeouts: new ActivityTimeouts(startToClose: Duration::seconds(30.0), heartbeat: Duration::seconds(5.0)),
-                cancellationType: ActivityCancellationType::WaitCancellationCompleted,
                 summary: 'Quote A-1',
             ),
             2,

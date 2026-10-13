@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Attribute;
 
-use Gplanchat\Durable\Activity\ActivityCancellationType;
 use Gplanchat\Durable\Attribute\Activities;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -31,7 +30,6 @@ final class ActivitiesOptionsTest extends TestCase
             maximumInterval: 60.0,
             nonRetryable: [\DomainException::class],
             taskQueue: 'payments',
-            cancellationType: ActivityCancellationType::WaitCancellationCompleted,
             summary: 'charge the card',
         ))->options();
 
@@ -46,7 +44,6 @@ final class ActivitiesOptionsTest extends TestCase
         self::assertSame(60.0, $options->maximumInterval?->toSeconds());
         self::assertSame([\DomainException::class], $options->nonRetryableExceptions);
         self::assertSame('payments', $options->taskQueue?->name());
-        self::assertSame(ActivityCancellationType::WaitCancellationCompleted, $options->cancellationType);
         self::assertSame('charge the card', $options->summary);
     }
 

@@ -45,7 +45,7 @@ final class ActivityStubCouldBeParameterRuleTest extends RuleTestCase
     public function testLiteralPositionalOptionsAreSpelledAsAttributeFields(): void
     {
         $this->analyse([self::DIR . 'literal-options.php'], [
-            [self::message('run', 'orders', ', attempts: 5, startToClose: 120, initialInterval: 2.5, nonRetryable: [\RuntimeException::class], taskQueue: \'billing\', backoffCoefficient: 3.0, maximumInterval: 60.0, summary: \'Charge\', cancellationType: \Gplanchat\Durable\Activity\ActivityCancellationType::Abandon'), 17, self::TIP],
+            [self::message('run', 'orders', ', attempts: 5, startToClose: 120, initialInterval: 2.5, nonRetryable: [\RuntimeException::class], taskQueue: \'billing\', backoffCoefficient: 3.0, maximumInterval: 60.0, summary: \'Charge\''), 16, self::TIP],
         ]);
     }
 
