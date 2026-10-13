@@ -106,7 +106,7 @@ return RectorConfig::configure()
     // Unreleased — the ports take an `ExecutionId` rather than a string (#638). This rule wraps the
     // string arguments it can prove; a class that implements a port, and code that reads an id a
     // port now returns, are migrated by hand (UPGRADE.md).
-    // Unreleased — the `cancellationType` activity option is gone; the rule drops the argument (#1052).
+    // Unreleased: the `cancellationType` activity option is gone; the rule drops the argument (#1052).
     // `WorkflowFiberDriver::run()` reads the id from its context; the rule drops it from a call (#682).
     ->withRules([
         AddParamBasedOnParentClassMethodRector::class,
