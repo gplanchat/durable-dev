@@ -1449,6 +1449,36 @@ upgrade has no deadline event and keeps running without a bound.
 **What to do**: nothing, unless a test declares a child execution timeout that it relied on being
 ignored.
 
+### The `cancellationType` activity option is removed (#1052)
+
+`ActivityOptions`, `ActivityOptions::of()` and `#[Activities]` no longer take `cancellationType`,
+and the enum `Gplanchat\Durable\Activity\ActivityCancellationType` is deleted. No backend reads
+the option, Temporal included: cancelling an activity stays a request that the attempt in flight
+may outlive, whatever the value. `ActivityOptions::toMetadata()` stops writing the
+`cancellation_type` key, and `fromMetadata()` ignores it in a history written before this change,
+so no journal needs a migration.
+
+**Who is affected:**
+
+- Code that passes `cancellationType:` to one of these three, or imports `ActivityCancellationType`.
+  A named argument fails with an unknown named parameter error, and the enum with a class-not-found
+  error.
+- Code that passes the value positionally. In `new ActivityOptions(...)`, the enum lands in
+  `$summary` and raises a `TypeError`. As the tenth argument of `ActivityOptions::of()`, it is
+  silently ignored.
+- Code that reads the removed public properties `ActivityOptions::$cancellationType` or
+  `Activities::$cancellationType`.
+
+**What to do:**
+
+1. Run the Rector set (`vendor/bin/rector process src`). It removes the named argument from `new
+   ActivityOptions()`, `ActivityOptions::of()` and `#[Activities]`, and the positional one from
+   the first two.
+2. Delete by hand the `use Gplanchat\Durable\Activity\ActivityCancellationType;` line it leaves,
+   and any positional value in `#[Activities]`, which the rule does not touch.
+3. Remove by hand each read of `$options->cancellationType` or `$activities->cancellationType`:
+   the property no longer exists and the rule does not look for it.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

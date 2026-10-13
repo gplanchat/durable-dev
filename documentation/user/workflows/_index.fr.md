@@ -285,7 +285,7 @@ public function run(
 
   Disponibles : `attempts`, `startToClose`, `scheduleToClose`, `scheduleToStart`, `heartbeat`,
   `initialInterval`, `backoffCoefficient`, `maximumInterval`, `nonRetryable`, `taskQueue`,
-  `cancellationType`, `summary`. Chaque option omise garde sa valeur par défaut
+  `summary`. Chaque option omise garde sa valeur par défaut
   d'`ActivityOptions` ; sans aucune, le stub est celui qu'`activityStub()` construit sans options. Sous Temporal, un stub
   sans `startToClose` ni `scheduleToClose` reçoit une borne de 30 secondes par tentative. `heartbeat`
   exige Temporal : un backend à journal lève `UnsupportedByBackendException` quand le stub planifie

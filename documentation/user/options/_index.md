@@ -441,6 +441,7 @@ with an error.
 | `namespace: 'billing'` | `namespace: WorkflowNamespace::named('billing')` |
 | `cronSchedule: '0 9 * * *'` | `cronSchedule: CronSchedule::parse('0 9 * * *')` |
 | `searchAttributes: ['OrderId' => 'x']` | `SearchAttributes::none()->keyword('OrderId', 'x')` |
+| `cancellationType: ActivityCancellationType::Abandon` | removed: no backend reads it, so delete the argument (Rector does it) |
 
 > [!CAUTION]
 > **The behaviour changes as well as the signatures.** `maxAttempts: 0` used to mean *no retry* and now means

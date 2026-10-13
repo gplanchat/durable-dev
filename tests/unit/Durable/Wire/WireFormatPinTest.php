@@ -68,7 +68,6 @@ final class WireFormatPinTest extends TestCase
                 'initial_interval_seconds' => 2.0,
                 'backoff_coefficient' => 2.5,
                 'non_retryable_exceptions' => ['App\\Boom'],
-                'cancellation_type' => 0,
                 'maximum_interval_seconds' => 60.0,
                 'task_queue' => 'payments',
                 'activity_id' => 'act-1',
@@ -129,6 +128,18 @@ final class WireFormatPinTest extends TestCase
     }
 
     /**
+     * Histories written before the option was removed (#1052) still carry `cancellation_type`.
+     */
+    public function testAHistoryWrittenWithTheRemovedCancellationTypeStillReads(): void
+    {
+        $options = ActivityOptions::fromMetadata(['activity_options' => ['max_attempts' => 3, 'cancellation_type' => 2]]);
+
+        self::assertNotNull($options);
+        self::assertSame(3, $options->retryLimit->maxAttempts());
+        self::assertArrayNotHasKey('cancellation_type', $options->toMetadata()['activity_options']);
+    }
+
+    /**
      * A scheduled activity as the journal carries it today.
      */
     public function testScheduledActivityJournalRecord(): void
@@ -156,7 +167,6 @@ final class WireFormatPinTest extends TestCase
                         'initial_interval_seconds' => 1.0,
                         'backoff_coefficient' => 2.0,
                         'non_retryable_exceptions' => [],
-                        'cancellation_type' => 0,
                         'start_to_close_timeout_seconds' => 30.0,
                     ],
                 ],
@@ -202,7 +212,6 @@ final class WireFormatPinTest extends TestCase
                 'initial_interval_seconds' => 1.0,
                 'backoff_coefficient' => 2.0,
                 'non_retryable_exceptions' => [],
-                'cancellation_type' => 0,
                 'start_to_close_timeout_seconds' => 30.0,
             ],
             'queued_at' => 1_700_000_000.0,
