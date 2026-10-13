@@ -31,6 +31,7 @@ use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Enums\V1\CommandType;
+use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
@@ -117,6 +118,15 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
     protected function journalOf(ExecutionId $executionId): array
     {
         throw UnsupportedByBackendException::forMethod('Temporal', 'journalOf', 'read the history through the Temporal client');
+    }
+
+    protected function assertTerminationWasRecorded(ExecutionId $executionId, string $reason): void
+    {
+        $history = $this->history($executionId);
+        $closing = $history[\count($history) - 1];
+
+        self::assertSame(EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED, $closing->getEventType(), 'The history must end with the termination.');
+        self::assertSame($reason, $closing->getWorkflowExecutionTerminatedEventAttributes()?->getReason());
     }
 
     protected function runsWorkflowCode(): bool
