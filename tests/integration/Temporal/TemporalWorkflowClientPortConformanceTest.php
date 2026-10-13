@@ -7,6 +7,7 @@ namespace integration\Temporal;
 use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
+use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowClientPort;
 use Gplanchat\Bridge\Temporal\Store\TemporalWorkflowRunCatalog;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -16,24 +17,31 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\TaskQueue as StartTaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
+use Gplanchat\Durable\Testing\ConformanceOtherClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Durable\WorkflowTimeouts;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Temporal\Api\Command\V1\CancelWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
+use Temporal\Api\Command\V1\ContinueAsNewWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\FailWorkflowExecutionCommandAttributes;
+use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
+use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\CommandType;
 use Temporal\Api\Enums\V1\EventType;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
+use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\PollWorkflowTaskQueueRequest;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
@@ -159,11 +167,11 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
             'namespace' => $this->connection->namespace->name(),
             'task_token' => $task->getTaskToken(),
             'identity' => $this->connection->identity,
-            'commands' => [self::closingCommand($outcome)],
+            'commands' => [$this->closingCommand($outcome, $executionId)],
         ]));
     }
 
-    private static function closingCommand(WorkflowRunStatus $outcome): Command
+    private function closingCommand(WorkflowRunStatus $outcome, ExecutionId $executionId): Command
     {
         $command = new Command();
 
@@ -177,8 +185,90 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
             WorkflowRunStatus::Cancelled => $command
                 ->setCommandType(CommandType::COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION)
                 ->setCancelWorkflowExecutionCommandAttributes(new CancelWorkflowExecutionCommandAttributes()),
-            default => self::fail('the suite never ends a run as ' . $outcome->value),
+            // The server opens the successor under the same workflow id; it carries no memo over.
+            WorkflowRunStatus::ContinuedAsNew => $command
+                ->setCommandType(CommandType::COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
+                ->setContinueAsNewWorkflowExecutionCommandAttributes(new ContinueAsNewWorkflowExecutionCommandAttributes([
+                    'workflow_type' => new WorkflowType(['name' => ConformanceClientWorkflow::TYPE]),
+                    'task_queue' => new TaskQueue(['name' => $this->connection->workflowTaskQueue->name()]),
+                    'memo' => self::memoOf($executionId),
+                ])),
+            WorkflowRunStatus::Running => self::fail('the suite never ends a run as running'),
         };
+    }
+
+    private static function memoOf(ExecutionId $executionId): Memo
+    {
+        $memo = new Memo();
+        $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId->toString());
+
+        return $memo;
+    }
+
+    /**
+     * Only a completed run refuses a restart under the default reuse policy: the server restarts the
+     * id of a failed or cancelled run, and a continued run leaves a successor running (see the two
+     * tests below). The journal backends refuse all four (#1083).
+     */
+    public static function endedOutcomesThatRefuseARestart(): iterable
+    {
+        yield 'completed' => [WorkflowRunStatus::Completed];
+    }
+
+    /**
+     * The Temporal side of #1083, read on a live server: under the default reuse policy
+     * (AllowDuplicateFailedOnly) a start after a failed or cancelled run succeeds. It opens a new
+     * run under the same workflow id, with the new input.
+     */
+    #[DataProvider('restartableOutcomes')]
+    public function testTemporalRestartsAnIdWhoseRunFailedOrWasCancelled(WorkflowRunStatus $outcome): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->clientUnderTest()->start($id, ConformanceClientWorkflow::TYPE, ['tag' => 'first']);
+        $this->endRun($id, $outcome);
+        $firstRun = $this->runIdOf($id);
+
+        $this->clientUnderTest()->start($id, ConformanceOtherClientWorkflow::TYPE, ['tag' => 'second']);
+
+        self::assertNotSame($firstRun, $this->runIdOf($id), 'The restart opens a new run.');
+        self::assertSame(['tag' => 'second'], $this->startedInputOf($id));
+        self::assertSame(WorkflowRunStatus::Running, $this->catalogUnderTest()->findRun($id)?->status);
+    }
+
+    /** @return iterable<string, array{WorkflowRunStatus}> */
+    public static function restartableOutcomes(): iterable
+    {
+        yield 'failed' => [WorkflowRunStatus::Failed];
+        yield 'cancelled' => [WorkflowRunStatus::Cancelled];
+    }
+
+    /**
+     * A run that continued as new leaves its successor running under the same workflow id, so a start
+     * fails there as it does on a running id. The catalogue shows the successor, not the closed run.
+     */
+    public function testTemporalRefusesAStartWhileTheSuccessorOfAContinuedRunRuns(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->clientUnderTest()->start($id, ConformanceClientWorkflow::TYPE, ['tag' => 'first']);
+        $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
+
+        try {
+            $this->clientUnderTest()->start($id, ConformanceOtherClientWorkflow::TYPE, ['tag' => 'second']);
+            self::fail('A start while the successor runs must fail.');
+        } catch (WorkflowExecutionAlreadyStarted $e) {
+            self::assertSame('exec-1', $e->executionId);
+        }
+        self::assertSame(WorkflowRunStatus::Running, $this->catalogUnderTest()->findRun($id)?->status);
+    }
+
+    private function runIdOf(ExecutionId $executionId): string
+    {
+        $info = $this->grpc->DescribeWorkflowExecution(new DescribeWorkflowExecutionRequest([
+            'namespace' => $this->connection->namespace->name(),
+            'execution' => new WorkflowExecution(['workflow_id' => WorkflowClient::workflowIdOf($executionId->toString())]),
+        ]))->getWorkflowExecutionInfo();
+
+        return (string) $info?->getExecution()?->getRunId();
     }
 
     /** @return list<\Temporal\Api\History\V1\HistoryEvent> empty when the server holds no such workflow */
