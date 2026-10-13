@@ -19,6 +19,7 @@ use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -78,8 +79,9 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
                 ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
             }
         };
+        $runtime = new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true);
         $dispatcher->handler = $this->resume = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
+            new ExecutionEngine($this->events, $runtime),
             $registry,
             $metadata,
             $dispatcher,
@@ -90,7 +92,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, new ReadOnlyReplay($this->events, $metadata, $registry, $runtime));
     }
 
     protected function clientUnderTest(): WorkflowClientPort
