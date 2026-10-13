@@ -144,6 +144,6 @@ final class TableQueueTest extends TestCase
     /** A `UNIX_TIMESTAMP` with three decimals, as whole milliseconds: no float rounding between two readings. */
     private static function milliseconds(string $timestamp): int
     {
-        return (int) round((float) $timestamp * 1000);
+        return (int) round((float) $timestamp * 1000.0);
     }
 }
