@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace unit\Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
+use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -32,6 +35,7 @@ use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\WorkflowStartOptions;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The in-memory client on a stack that runs the first pass of a workflow in the caller's process,
@@ -81,7 +85,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -92,6 +96,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     protected function catalogUnderTest(): WorkflowRunCatalogInterface
     {
         return $this->catalog;
+    }
+
+    protected function endRun(ExecutionId $executionId, WorkflowRunStatus $outcome): void
+    {
+        $this->catalog->recordOutcome($executionId, $outcome);
     }
 
     protected function startedInputOf(ExecutionId $executionId): ?array
@@ -130,5 +139,46 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         self::assertNull($this->rows->get($id));
         self::assertSame(0, $this->events->countEventsInStream($id));
+    }
+
+    #[DataProvider('operations')]
+    public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        if (\in_array($operation, ['query', 'result'], true)) {
+            $this->endRun($id, WorkflowRunStatus::Completed);
+        }
+
+        $this->expectException(UnsupportedByBackendException::class);
+        match ($operation) {
+            'signal' => $this->client->signal($id, 'pay'),
+            'query' => $this->client->query($id, 'status'),
+            'update' => $this->client->update($id, 'change'),
+            'result' => $this->client->result($id, Duration::seconds(0.1)),
+            'cancel' => $this->client->cancel($id),
+            default => $this->client->terminate($id),
+        };
+    }
+
+    #[DataProvider('operations')]
+    public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
+    {
+        if (!\in_array($operation, ['signal', 'update', 'cancel', 'terminate'], true)) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
+
+        $this->expectException(UnsupportedByBackendException::class);
+        match ($operation) {
+            'signal' => $this->client->signal($id, 'pay'),
+            'update' => $this->client->update($id, 'change'),
+            'cancel' => $this->client->cancel($id),
+            default => $this->client->terminate($id),
+        };
     }
 }
