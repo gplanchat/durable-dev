@@ -211,10 +211,15 @@ Une borne de run plus longue que la borne d'exécution est **rejetée** à la co
 serveur l'accepte et rabaisse silencieusement la borne de run à la borne d'exécution, si bien que la
 configuration que vous avez écrite n'est pas celle qui s'applique.
 
-`ContinueAsNewOptions` rejette toute borne d'exécution : le nouveau run
-appartient à l'exécution courante et en hérite. Employez `withoutExecutionBound()` pour y réutiliser
+`ContinueAsNewOptions` rejette toute borne d'exécution : le run suivant
+prolonge la chaîne de l'exécution courante et en hérite la borne. Employez `withoutExecutionBound()` pour y réutiliser
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
+
+L'identifiant d'exécution diffère selon le backend. Sur Temporal, le run suivant garde
+l'identifiant d'exécution Durable. Sur les backends à journal, le journal génère un nouvel
+`ExecutionId` pour lui. Voir
+[l'identifiant d'exécution après `continueAsNew`](../backends/#continue-as-new-execution-id).
 
 ---
 
@@ -381,6 +386,15 @@ de telles options échoue à cette ligne, y compris pendant le rejeu (le code du
 à nouveau depuis sa première ligne pour reprendre ; voir le [glossaire](../glossary/)). Le rejeu
 compare le type et l'entrée d'un enfant avec le journal, pas son mémo : une exécution en cours
 reprend dès que le code utilise une autre clé.
+
+---
+
+## Comportements qui diffèrent selon le backend
+
+Deux différences acceptées touchent les options de cette page. L'identifiant d'exécution après
+`continueAsNew` est décrit plus haut. Un run dont le code ne correspond plus à son journal est mis
+en attente sur Temporal et se termine en échec sur les backends à journal ; voir
+[la page des backends](../backends/#replay-divergence).
 
 ---
 

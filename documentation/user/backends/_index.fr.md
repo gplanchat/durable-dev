@@ -559,6 +559,41 @@ Voir [Échecs et réessais](../failures/) et [Options](../options/#retrylimit).
 
 ---
 
+## Différences acceptées : identifiant après continueAsNew et divergence au rejeu {#accepted-journal-differences}
+
+Les deux différences ci-dessous, entre les backends à journal (en mémoire, DBAL, Illuminate et
+Magento Database) et Temporal, sont des exceptions acceptées à la règle selon laquelle l'application
+se comporte de la même façon sur tous les backends, comme Nexus et les autres que cette page
+nomme. Le projet ne prévoit de changer ni l'une ni l'autre.
+
+### L'identifiant d'exécution après `continueAsNew` {#continue-as-new-execution-id}
+
+Temporal conserve l'identifiant d'exécution Durable d'un `continueAsNew` à l'autre : l'identifiant
+passe de run en run dans le memo (les données clé-valeur attachées à une exécution Temporal), si
+bien que l'`ExecutionId` désigne toute la chaîne. Sur les backends à journal, chaque run a son
+propre journal, et le journal génère un nouvel `ExecutionId` pour le run que `continueAsNew`
+démarre. L'ancien identifiant désigne le run terminé : envoyez signaux et requêtes à l'identifiant
+de son événement `WorkflowContinuedAsNew`. Un signal envoyé à l'ancien identifiant est journalisé
+dans le run terminé, qu'aucun worker ne rejoue, et aucune erreur ne le signale
+(`DeliverWorkflowSignalHandler` ne vérifie rien avant d'ajouter).
+
+### Un run dont le code ne correspond plus à son journal {#replay-divergence}
+
+Le rejeu compare ce que le code du workflow demande à ce que le journal contient. Deux cas font
+échouer cette comparaison : un appel à `version()` hors de la plage prise en charge, et toute autre
+divergence, par exemple une activité appelée avec un autre payload que celui enregistré.
+
+- Sur Temporal, le worker répond `RespondWorkflowTaskFailed` et n'écrit rien. Le run reste ouvert,
+  en attente, et la tâche est réessayée dès que vous déployez un code compatible.
+- Sur les backends à journal, le run enregistre `WorkflowExecutionFailed` et se termine en échec.
+  Déployer ensuite un code compatible ne le rouvre pas.
+
+Le journal n'a pas d'état « tâche en échec » où mettre un run en attente, et aucun n'est ajouté.
+Sur un backend à journal, déployez la modification d'un workflow de façon que les runs en cours
+se rejouent encore (`version()` existe pour cela), ou laissez-les se terminer d'abord.
+
+---
+
 ## Écrire son propre backend
 
 Deux ports définissent un backend : `WorkflowCommandBufferInterface` pour ce qu'un workflow demande,

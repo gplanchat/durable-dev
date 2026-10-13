@@ -208,10 +208,14 @@ A run bound longer than the execution bound is **rejected** at construction. The
 it and silently lowers the run bound to the execution bound, so the configuration you wrote is
 not the one that applies.
 
-`ContinueAsNewOptions` rejects any execution bound: the new run belongs to the current
-execution and inherits it. Use `withoutExecutionBound()` to reuse a `WorkflowTimeouts` there.
+`ContinueAsNewOptions` rejects any execution bound: the next run continues the current
+execution's chain and inherits its bound. Use `withoutExecutionBound()` to reuse a `WorkflowTimeouts` there.
 Its own copies are `withTimeouts()` and `withTaskQueue()`, which moves the next run to another
 task queue.
+
+The execution id differs between backends. On Temporal, the next run keeps the Durable execution
+id. On the journal backends, the journal generates a new `ExecutionId` for it. See
+[the execution id after `continueAsNew`](../backends/#continue-as-new-execution-id).
 
 ---
 
@@ -369,6 +373,14 @@ child's memo itself on Temporal. On every backend, `new ChildWorkflowOptions()` 
 fails at that line, during replay too (the workflow code running again from its first line to
 resume; see the [glossary](../glossary/)). Replay compares a child's type and input with the
 journal, not its memo, so a run in flight resumes once the code uses another key.
+
+---
+
+## Behaviour that differs between backends
+
+Two accepted differences touch the options of this page. The execution id after `continueAsNew` is
+covered above. A run whose code no longer matches its journal is parked on Temporal and ends failed
+on the journal backends; see [the backends page](../backends/#replay-divergence).
 
 ---
 

@@ -525,6 +525,40 @@ See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
 
 ---
 
+## Accepted differences: continueAsNew id and replay divergence {#accepted-journal-differences}
+
+The two differences below, between the journal backends (In-Memory, DBAL, Illuminate and
+Magento Database) and Temporal, are accepted exceptions to the rule that the application behaves
+the same on every backend, like Nexus and the others this page names. The project plans to change
+neither.
+
+### The execution id after `continueAsNew` {#continue-as-new-execution-id}
+
+Temporal keeps the Durable execution id across `continueAsNew`: the id travels from run to run in
+the memo (the key-value data attached to a Temporal execution), so `ExecutionId` identifies the
+whole chain. On the journal backends, each run has its own journal, and the journal generates a
+new `ExecutionId` for the run that `continueAsNew` starts. The old id names the run that ended:
+send signals and queries to the id in its `WorkflowContinuedAsNew` event. A signal sent to the old
+id is journaled in the ended run, which no worker replays, and no error reports it
+(`DeliverWorkflowSignalHandler` checks nothing before it appends).
+
+### A run whose code no longer matches its journal {#replay-divergence}
+
+Replay compares what the workflow code asks for with what the journal holds. Two cases fail that
+comparison: a `version()` call outside the supported range, and any other divergence, such as an
+activity called with another payload than the one recorded.
+
+- On Temporal, the worker answers `RespondWorkflowTaskFailed` and writes nothing. The run stays
+  open, parked, and the task retries once you deploy compatible code.
+- On the journal backends, the run records `WorkflowExecutionFailed` and ends failed. Deploying
+  compatible code afterwards does not reopen it.
+
+The journal has no "task failed" state to park a run in, and none is added. On a journal backend,
+deploy a change to a workflow so that runs in flight still replay (`version()` exists for this),
+or let them finish first.
+
+---
+
 ## Writing your own backend
 
 Two ports define a backend: `WorkflowCommandBufferInterface` for what a workflow asks for, and
