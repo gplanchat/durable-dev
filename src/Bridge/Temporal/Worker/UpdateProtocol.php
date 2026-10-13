@@ -10,6 +10,7 @@ use Gplanchat\Durable\Workflow\PendingUpdate;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\ProtocolMessageCommandAttributes;
 use Temporal\Api\Enums\V1\CommandType;
+use Temporal\Api\Failure\V1\ApplicationFailureInfo;
 use Temporal\Api\Failure\V1\Failure;
 use Temporal\Api\Protocol\V1\Message;
 use Temporal\Api\Update\V1\Acceptance;
@@ -137,7 +138,10 @@ final class UpdateProtocol
         $outcome = new Outcome();
         $failure = $update->pending->failure;
         if (null !== $failure) {
-            $outcome->setFailure(new Failure(['message' => $failure->message]));
+            $outcome->setFailure(new Failure([
+                'message' => $failure->message,
+                'application_failure_info' => new ApplicationFailureInfo(['type' => $failure->class]),
+            ]));
         } else {
             $outcome->setSuccess(JsonPlainPayload::singlePayloads(JsonPlainPayload::encode($update->pending->result)));
         }
