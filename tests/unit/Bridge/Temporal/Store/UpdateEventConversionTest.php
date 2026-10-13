@@ -110,6 +110,18 @@ final class UpdateEventConversionTest extends TestCase
         self::assertSame('reject', $read->updateName());
     }
 
+    public function testTwoAcceptedUpdatesWithoutAnIdDoNotOverwriteEachOther(): void
+    {
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
+        $converter->convert($this->accepted(5, '', 'approve'));
+        $converter->convert($this->accepted(6, '', 'reject'));
+
+        $read = $converter->convert($this->completed(8, '', 5, $this->success('A')));
+
+        self::assertInstanceOf(WorkflowUpdateHandled::class, $read);
+        self::assertSame('approve', $read->updateName());
+    }
+
     public function testACompletionOfAnUpdateNeverAcceptedEmitsNothing(): void
     {
         $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));

@@ -424,7 +424,7 @@ final class TemporalEventConverter
                     $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
                 }
                 // Kept until the completion arrives: the journal writes one event, at the completion.
-                $this->acceptedUpdates[(string) $request->getMeta()?->getUpdateId()] = ['name' => (string) $request->getInput()?->getName(), 'arguments' => $arguments, 'eventId' => $eventId];
+                $this->acceptedUpdates[$request->getMeta()?->getUpdateId() ?: '#' . $eventId] = ['name' => (string) $request->getInput()?->getName(), 'arguments' => $arguments, 'eventId' => $eventId];
 
                 return null;
 
