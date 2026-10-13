@@ -216,6 +216,15 @@ appartient à l'exécution courante et en hérite. Employez `withoutExecutionBou
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
 
+L'identifiant d'exécution diffère selon le backend. Sur Temporal, le run suivant garde
+l'identifiant d'exécution Durable. Sur les backends à journal, le journal génère un nouvel
+`ExecutionId` pour lui. Voir
+[l'identifiant d'exécution après `continueAsNew`](../backends/#continue-as-new-execution-id).
+
+Un run dont le code ne correspond plus à son journal se termine aussi différemment : en attente
+sur Temporal, en échec sur les backends à journal. Voir
+[la page des backends](../backends/#replay-divergence).
+
 ---
 
 ## `TaskQueue` et `WorkflowNamespace`

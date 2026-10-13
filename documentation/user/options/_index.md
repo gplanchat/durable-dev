@@ -213,6 +213,13 @@ execution and inherits it. Use `withoutExecutionBound()` to reuse a `WorkflowTim
 Its own copies are `withTimeouts()` and `withTaskQueue()`, which moves the next run to another
 task queue.
 
+The execution id differs between backends. On Temporal, the next run keeps the Durable execution
+id. On the journal backends, the journal generates a new `ExecutionId` for it. See
+[the execution id after `continueAsNew`](../backends/#continue-as-new-execution-id).
+
+A run whose code no longer matches its journal also ends differently: parked on Temporal, failed
+on the journal backends. See [the backends page](../backends/#replay-divergence).
+
 ---
 
 ## TaskQueue and WorkflowNamespace
