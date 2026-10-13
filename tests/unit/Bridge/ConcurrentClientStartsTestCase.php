@@ -32,7 +32,13 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
      */
     abstract protected function twoStoresOverOneDatabase(): array;
 
-    private int $dispatched = 0;
+    /** @var \ArrayObject<int, ExecutionId> */
+    private \ArrayObject $dispatched;
+
+    protected function setUp(): void
+    {
+        $this->dispatched = new \ArrayObject();
+    }
 
     public function testOfTwoStartsOfOneIdTheSecondInsertFailsAndTheFirstInputStays(): void
     {
@@ -49,7 +55,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         }
 
         self::assertSame(['workflowType' => 'App\\Winner', 'payload' => ['v' => 'winner'], 'completed' => false], $first->get($id));
-        self::assertSame(1, $this->dispatched, 'the loser dispatched no run');
+        self::assertCount(1, $this->dispatched, 'the loser dispatched no run');
     }
 
     public function testOfTwoRestartsAfterAFailedExecutionTheConditionalUpdateLetsOneWin(): void
@@ -57,7 +63,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         [$first, $second] = $this->twoStoresOverOneDatabase();
         $id = ExecutionId::fromString('exec-1');
         $this->client($first)->start($id, 'App\\Old', ['v' => 'old']);
-        $this->dispatched = 0;
+        $this->dispatched->exchangeArray([]);
         $first->markCompleted($id);
         $winner = $this->client($second, true);
         $loser = $this->client($this->before($first, static fn() => $winner->start($id, 'App\\Winner', ['v' => 'winner'])), true);
@@ -70,7 +76,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         }
 
         self::assertSame(['workflowType' => 'App\\Winner', 'payload' => ['v' => 'winner'], 'completed' => false], $first->get($id));
-        self::assertSame(1, $this->dispatched, 'the loser dispatched no run');
+        self::assertCount(1, $this->dispatched, 'the loser dispatched no run');
     }
 
     private function client(WorkflowMetadataStore&ReopensCompletedWorkflowMetadata $store, bool $failed = false): InMemoryWorkflowClient
@@ -78,7 +84,8 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         $catalog = new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
         $projecting = new ProjectingWorkflowMetadataStore($store, $catalog);
         $dispatcher = new class ($this->dispatched) implements WorkflowResumeDispatcher {
-            public function __construct(private int &$count) {}
+            /** @param \ArrayObject<int, ExecutionId> $dispatched */
+            public function __construct(private \ArrayObject $dispatched) {}
 
             public function dispatchResume(ExecutionId $executionId, array $pendingUpdates = []): void {}
 
@@ -86,7 +93,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
 
             public function dispatchNewWorkflowRun(ExecutionId $executionId, string $workflowType, array $payload): void
             {
-                ++$this->count;
+                $this->dispatched->append($executionId);
             }
         };
 
