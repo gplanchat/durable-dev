@@ -1430,6 +1430,24 @@ determines what comes next.
 code does not show which activities run long. The
 [options page](documentation/user/options/_index.md) describes the bounds.
 
+### A child workflow's execution timeout is enforced on a child that runs inline (#979)
+
+`ChildWorkflowOptions::$timeouts->execution` was journaled and never applied. Scheduling a child
+with an execution timeout now also appends a `ChildWorkflowDeadline` event to the parent's journal.
+A child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`) and whose
+next timer falls after the deadline fails the parent's await with `DurableChildWorkflowFailedException` ("Child
+workflow <id> timed out."), the failure Temporal gives it, with no failure kind. A child that runs
+on a worker (DBAL, Illuminate and Magento Database in asynchronous mode) gets the event and is not
+bound yet (#1069). The inline check happens when the child's virtual clock jumps to a timer, so
+activity time and time inside an inline grandchild are not counted. `timeouts->run` and `timeouts->task` are still journaled and not applied.
+
+`ChildWorkflowDeadline` is a new stored event name. A backend that stores events through its own
+mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds). The DBAL,
+Illuminate and Magento stores use `EventDataMapper`, which does. A child scheduled before the
+upgrade has no deadline event and keeps running without a bound.
+
+**What to do**: nothing, unless a test declares a child execution timeout that it relied on being
+ignored.
 
 ## 0.1.0-beta1
 

@@ -106,6 +106,7 @@ Parce que le résultat est dans l'historique, l'implémentation de l'activité *
 | `UpdateAccepted` | une mise à jour transactionnelle a été acceptée |
 | `ChildWorkflowStarted` | un workflow enfant a été lancé |
 | `ChildWorkflowCompleted` | un workflow enfant s'est terminé |
+| `ChildWorkflowDeadline` | un workflow enfant a été planifié avec un timeout d'exécution : l'instant avant lequel il doit s'être terminé |
 | `ExecutionCompleted` | le workflow a rendu un résultat |
 | `WorkflowExecutionFailed` | le workflow a levé une exception non rattrapée |
 

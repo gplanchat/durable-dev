@@ -63,14 +63,14 @@ final class TableQueueTest extends TestCase
     public function aDelayedMessageIsNotTakenBeforeItsAvailableAt(): void
     {
         Harness::run(['enqueue', 'q', 'later', '3']);
-        $availableAt = (int) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
+        $availableAt = self::milliseconds((string) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn());
 
         $events = Harness::run(['poll', 'q', '60', '30', '8']);
 
         self::assertSame('EMPTY', $events[0][0], 'taken at once');
         $taken = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($taken, 'never taken');
-        self::assertGreaterThanOrEqual($availableAt, (int) $taken[3], 'taken before available_at');
+        self::assertGreaterThanOrEqual($availableAt, self::milliseconds($taken[3]), 'taken before available_at');
     }
 
     #[Test]
@@ -117,17 +117,33 @@ final class TableQueueTest extends TestCase
     #[Test]
     public function aMessageDelayedByHalfASecondIsTakenAfterHalfASecondAndWithinASecond(): void
     {
+        // The poller is running, and has found the queue empty, before the message exists: its attempts then precede
+        // `available_at` whatever the runner's speed.
+        $poller = new Harness(['poll', 'q', '60', '30', '8']);
+        $firstAttempt = $poller->waitForEvent('EMPTY');
+        self::assertNotNull($firstAttempt, 'the poller never asked');
         $enqueued = Harness::run(['enqueue', 'q', 'soon', '0.5'])[0];
-        $availableAt = (float) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn();
+        $availableAt = self::milliseconds((string) $this->pdo->query('SELECT UNIX_TIMESTAMP(available_at) FROM durable_queue')->fetchColumn());
 
-        $events = Harness::run(['poll', 'q', '60', '30', '5']);
+        $events = [$firstAttempt, ...$poller->events()];
 
         $taken = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($taken, 'never taken');
-        self::assertSame('EMPTY', $events[0][0]);
-        self::assertGreaterThanOrEqual($availableAt, (float) $taken[3], 'taken before available_at');
-        $afterSeconds = (float) ((int) $taken[1] - (int) $enqueued[1]) / 1e9;
-        self::assertGreaterThan(0.4, $afterSeconds, 'a 0.5 s delay fired early');
-        self::assertLessThan(1.0, $afterSeconds, 'a 0.5 s delay was rounded up to a second');
+        // Database clock only: `$enqueued[2]` and `$enqueued[3]` bracket the insert, `$taken[3]` is read after the take.
+        // Each attempt carries the database time read after it: before `available_at`, it must have answered EMPTY.
+        $early = array_filter($events, static fn(array $e): bool => 'TIMEOUT' !== $e[0] && self::milliseconds($e[2 + (int) ('TAKEN' === $e[0])]) < $availableAt);
+        self::assertSame([], array_filter($early, static fn(array $e): bool => 'EMPTY' !== $e[0]), 'taken before available_at');
+        $afterInsert = array_filter($early, static fn(array $e): bool => self::milliseconds($e[2]) >= self::milliseconds($enqueued[3]));
+        self::assertNotEmpty($afterInsert, 'no attempt between the insert and available_at: the delay was not exercised');
+        self::assertGreaterThanOrEqual(self::milliseconds($enqueued[2]) + 500, $availableAt, 'a 0.5 s delay fired early');
+        self::assertLessThanOrEqual(self::milliseconds($enqueued[3]) + 500, $availableAt, 'a 0.5 s delay was rounded up');
+        self::assertGreaterThanOrEqual($availableAt, self::milliseconds($taken[3]), 'taken before available_at');
+        self::assertLessThan($availableAt + 1_000, self::milliseconds($taken[3]), 'taken a second after available_at');
+    }
+
+    /** A `UNIX_TIMESTAMP` with three decimals, as whole milliseconds: no float rounding between two readings. */
+    private static function milliseconds(string $timestamp): int
+    {
+        return (int) round((float) $timestamp * 1000.0);
     }
 }
