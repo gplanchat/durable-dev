@@ -35,6 +35,7 @@ final readonly class DeliverWorkflowUpdateHandler
         $this->resumeDispatcher->dispatchResume($id, [[
             'name' => $message->updateName,
             'arguments' => $message->arguments,
+            'updateId' => $message->updateId,
         ]]);
     }
 }

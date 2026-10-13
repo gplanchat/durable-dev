@@ -41,6 +41,26 @@ final class UpdateEventConversionTest extends TestCase
         self::assertNull($read->failure());
     }
 
+    public function testTheConvertedEventCarriesTheUpdateIdOfItsAcceptance(): void
+    {
+        $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));
+        $converter->convert($this->accepted(5, 'upd-a', 'approve'));
+        $converter->convert($this->accepted(6, '', 'reject'));
+
+        $withId = $converter->convert($this->completed(8, 'upd-a', 5, $this->success('A')));
+        $withoutId = $converter->convert($this->completed(9, '', 6, $this->success('B')));
+        $failed = (new TemporalEventConverter(ExecutionId::fromString('exec-1')));
+        $failed->convert($this->accepted(5, 'upd-f', 'approve'));
+        $failedRead = $failed->convert($this->completed(7, 'upd-f', 5, (new Outcome())->setFailure((new Failure())->setMessage('nope'))));
+
+        self::assertInstanceOf(WorkflowUpdateHandled::class, $withId);
+        self::assertSame('upd-a', $withId->updateId());
+        self::assertInstanceOf(WorkflowUpdateHandled::class, $withoutId);
+        self::assertNull($withoutId->updateId(), 'the server gave this update no id: the placeholder key is not one');
+        self::assertInstanceOf(WorkflowUpdateHandled::class, $failedRead);
+        self::assertSame('upd-f', $failedRead->updateId());
+    }
+
     public function testAFailedUpdateCarriesTheFailureAndNoResult(): void
     {
         $converter = new TemporalEventConverter(ExecutionId::fromString('exec-1'));

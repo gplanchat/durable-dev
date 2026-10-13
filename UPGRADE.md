@@ -1479,6 +1479,28 @@ so no journal needs a migration.
 3. Remove by hand each read of `$options->cancellationType` or `$activities->cancellationType`:
    the property no longer exists and the rule does not look for it.
 
+### An update's journal event carries the update id (#974)
+
+`WorkflowUpdateHandled` takes a nullable `$updateId` as its last constructor argument and exposes
+it as `updateId()`. The journal record gains an `updateId` key only when the id is set: a record
+written before this change reads back with a null id and is written back as it was, and no client
+matches it. The same optional argument is added, last, to `WorkflowCommandBufferInterface::recordUpdateHandled()`,
+`PendingUpdate::__construct()`, and the `$pendingUpdates` entries of `WorkflowResumeDispatcher::dispatchResume()`
+and `ResumeWorkflowMessage` (`updateId?: string|null`). `DeliverWorkflowUpdateHandler` passes the
+message's `updateId` on, and the Magento store reads and writes the key through the shared
+`EventDataMapper`: no column changes on any store.
+
+**Who is affected:** a class that implements `WorkflowCommandBufferInterface`, or a
+`WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries instead of passing them on.
+
+**What to do:**
+
+1. Run the Rector set (`vendor/bin/rector process src`). Its parameter rule adds
+   `?string $updateId = null` to every `recordUpdateHandled()` that implements the interface.
+2. Give that id to the `WorkflowUpdateHandled` you write, if you write one.
+3. In a `WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries, pass each entry on as
+   it is, `updateId` included. The rule does not look for that.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
