@@ -29,6 +29,7 @@ function rendezvous(string $directory, string $stage, int $workers): void
     touch($directory . '/' . $stage . '.' . getmypid());
     for ($until = microtime(true) + 60; \count(glob($directory . '/' . $stage . '.*') ?: []) < $workers; usleep(1_000)) {
         if (microtime(true) > $until) {
+            fwrite(\STDERR, sprintf("rendezvous '%s': %d of %d workers after 60 s\n", $stage, \count(glob($directory . '/' . $stage . '.*') ?: []), $workers));
             exit(1);
         }
     }
@@ -92,15 +93,24 @@ switch ($mode) {
             $connection->fetchOne('SELECT 1');
             rendezvous($argv[5], 'ready', (int) $argv[6]);
         }
-        while (null !== $message = $tableQueue->take($queue)) {
-            if ($barrier) {
-                // Nobody acknowledges before every worker holds a message: each one has taken at least one, whatever its speed.
-                rendezvous($argv[5], 'taken', (int) $argv[6]);
-                $barrier = false;
+        $message = $tableQueue->take($queue);
+        if ($barrier) {
+            // A take can answer empty while the other worker's transaction still holds the rows it scans: ask again for
+            // a moment. Whatever happens, write the marker, so the other worker never waits for one that is not coming.
+            for ($until = microtime(true) + 10; null === $message && microtime(true) < $until; usleep(10_000)) {
+                $message = $tableQueue->take($queue);
             }
+            if (null === $message) {
+                fwrite(\STDERR, "the first take answered empty for 10 s while 60 messages were due\n");
+            }
+            // Nobody acknowledges before every worker holds a message: each one has taken at least one, whatever its speed.
+            rendezvous($argv[5], 'taken', (int) $argv[6]);
+        }
+        while (null !== $message) {
             usleep(random_int(5_000, 30_000));
             $tableQueue->ack($message);
             say('ACKED', $message->id);
+            $message = $tableQueue->take($queue);
         }
         break;
 }
