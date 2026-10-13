@@ -345,6 +345,29 @@ Child workflows accept the same schedule through `ChildWorkflowOptions`.
 
 ---
 
+## Re-using a child's workflow id {#child-workflow-id-reuse}
+
+`ChildWorkflowOptions::$workflowIdReusePolicy` sets what happens when a child starts under an
+id that an earlier run already used. A policy applies to a finished run only: starting a child under
+an id whose run is still running throws `ChildWorkflowIdInUseException` under every policy.
+
+| Earlier run under the id | `AllowDuplicate` | `AllowDuplicateFailedOnly` | `RejectDuplicate` |
+|---|---|---|---|
+| Still running | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` |
+| Completed successfully | A new run starts | `ChildWorkflowIdCompletedException` | `ChildWorkflowIdAlreadyUsedException` |
+| Failed, cancelled or terminated | A new run starts | A new run starts | `ChildWorkflowIdAlreadyUsedException` |
+
+Each exception carries the id in its `childExecutionId` property and extends
+`\InvalidArgumentException`. On the journal backends (in-memory, DBAL, Illuminate, Magento
+Database) the call to the stub's method throws. On Temporal, a parent that
+re-uses an id inside its own history gets the same exceptions at the call, because the same
+execution context reads that history. An id that only an earlier parent used fails differently:
+the start fails on the server, and the parent gets `DurableChildWorkflowFailedException` when it
+awaits the child. The journal backends check the child's own stream across all parents, so they
+throw the named exceptions at the call in that case too.
+
+---
+
 ## A child's memo, summary and details {#child-memo-summary-and-details}
 
 `ChildWorkflowOptions` takes a memo, a one-line summary and longer details for the child.
