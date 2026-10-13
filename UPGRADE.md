@@ -1406,6 +1406,11 @@ mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds
 Illuminate and Magento stores use `EventDataMapper`, which does. A child scheduled before the
 upgrade has no deadline event and keeps running without a bound.
 
+A child that a parent ended (a timeout, or a parent that closed with the `Terminate` policy) is no
+longer run again by its next resume: before, it was replayed and could append `ExecutionCompleted`
+after its `WorkflowExecutionFailed`. The resume now marks its row completed and applies the
+parent-close policy to its own children.
+
 **What to do**: nothing, unless a child declares an execution timeout that your tests relied on
 being ignored.
 
