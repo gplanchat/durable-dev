@@ -1392,6 +1392,26 @@ in the process, and one with only a DSN keeps Temporal. Declaring both keys thro
 `bin/magento durable:setup` and `bin/magento durable:worker`. The
 [backends page](documentation/user/backends/_index.md) lists what the database backend supports.
 
+### Temporal: `max_activity_retries` now bounds the retries of every activity (#1051)
+
+The Temporal bridge reads `max_activity_retries`. When the workflow worker schedules an activity,
+it narrows the activity's own `RetryLimit` to the ceiling and writes the stricter of the two into
+`maximum_attempts` of the activity's retry policy. A ceiling of `N` allows `N + 1` attempts, the
+first one included; `0` caps nothing. An activity scheduled without options now carries a retry
+policy too, holding only that bound. Until now the bridge ignored the setting, and the cluster
+retried an activity without limit unless the activity set its own.
+
+**Who is affected:** a Temporal application that sets `max_activity_retries: N` (`durable.max_activity_retries`
+on Symfony, the same key in `config/durable.php` on Laravel, the `maxActivityRetries` argument of
+`RuntimeFactory` in `di.xml` on Magento). Its activities used to retry without limit on Temporal
+and now stop after `N + 1` attempts, then fail the workflow's call. Activities already scheduled
+when you deploy keep the retry policy they were scheduled with, because the cluster stores it with
+the activity. The journal backends apply the ceiling when the attempt fails, so they change at once.
+
+**What to do:** nothing if the ceiling is `0` or unset. Otherwise check that `N` is the bound you
+want on Temporal. To keep a longer retry for one activity, raise the ceiling; an activity's own
+`RetryLimit` can only be stricter than it. No Rector rule: no call changes.
+
 ### Changed: an activity without `startToClose` is bounded at 30 seconds on the journal backends (#1050)
 
 Temporal gives an attempt 30 seconds when the activity sets neither `startToClose` nor
@@ -1409,6 +1429,7 @@ determines what comes next.
 `ActivityTimeouts::attempt(Duration::minutes(5))`. No Rector rule covers this change, because the
 code does not show which activities run long. The
 [options page](documentation/user/options/_index.md) describes the bounds.
+
 
 ## 0.1.0-beta1
 

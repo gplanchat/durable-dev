@@ -52,8 +52,9 @@ final class TableQueueTest extends TestCase
         $again = array_values(array_filter($events, static fn(array $e): bool => 'TAKEN' === $e[0]))[0] ?? null;
         self::assertNotNull($again, 'the message never came back');
         self::assertSame($taken[2], $again[2], 'the same message');
+        // The database clock, read by each worker after its take: `$taken[4]` is the end of the lease the first worker holds.
+        self::assertGreaterThanOrEqual((float) $taken[4], (float) $again[3], 'delivered again while the lease held');
         $afterSeconds = (float) ((int) $again[1] - (int) $taken[1]) / 1e9;
-        self::assertGreaterThan(3.0, $afterSeconds, 'delivered again while the lease held');
         self::assertLessThan(5.5, $afterSeconds);
         self::assertSame('EMPTY', $events[0][0], 'the second worker saw the message while the lease held');
     }
@@ -79,7 +80,8 @@ final class TableQueueTest extends TestCase
             $this->pdo->exec(\sprintf("INSERT INTO durable_queue (queue_name, body, available_at) VALUES ('q', 'm%d', NOW())", $i));
         }
 
-        // A worker that starts a second early drains the 60 messages alone: both wait on a barrier, then take together.
+        // A worker that starts early drains the 60 messages alone. Both wait on a barrier before the first take, then
+        // on a second one until each holds a message: neither acknowledges before the other has taken, so both contend.
         $barrier = sys_get_temp_dir() . '/' . uniqid('durable-barrier-', true);
         mkdir($barrier);
         $workers = [new Harness(['drain', 'q', '60', '30', $barrier, '2']), new Harness(['drain', 'q', '60', '30', $barrier, '2'])];
@@ -90,7 +92,7 @@ final class TableQueueTest extends TestCase
             $counts[] = \count($mine);
             $ids = [...$ids, ...$mine];
         }
-        array_map('unlink', glob($barrier . '/ready.*') ?: []);
+        array_map('unlink', glob($barrier . '/*') ?: []);
         rmdir($barrier);
 
         self::assertCount(60, $ids);
