@@ -19,6 +19,7 @@ use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
+use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
@@ -33,8 +34,10 @@ use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
+use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\WorkflowStartOptions;
+use Gplanchat\Durable\WorkflowTimeouts;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -103,6 +106,21 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->catalog->recordOutcome($executionId, $outcome);
     }
 
+    protected function historyLengthOf(ExecutionId $executionId): int
+    {
+        return $this->events->countEventsInStream($executionId);
+    }
+
+    public static function refusedStartOptions(): iterable
+    {
+        yield 'cron' => [new WorkflowStartOptions(cronSchedule: CronSchedule::from('@every 5m')), ['cronSchedule']];
+        yield 'task queue' => [new WorkflowStartOptions(taskQueue: TaskQueue::named('other')), ['taskQueue']];
+        yield 'timeouts' => [new WorkflowStartOptions(timeouts: new WorkflowTimeouts(execution: Duration::seconds(5))), ['timeouts']];
+        yield 'id reuse policy' => [new WorkflowStartOptions(workflowIdReusePolicy: WorkflowIdReusePolicy::RejectDuplicate), ['workflowIdReusePolicy']];
+        yield 'search attributes' => [new WorkflowStartOptions(searchAttributes: SearchAttributes::none()->keyword('k', 'v')), ['searchAttributes']];
+        yield 'two at once' => [new WorkflowStartOptions(cronSchedule: CronSchedule::from('@every 5m'), taskQueue: TaskQueue::named('other')), ['cronSchedule', 'taskQueue']];
+    }
+
     protected function startedInputOf(ExecutionId $executionId): ?array
     {
         return $this->rows->get($executionId)['payload'] ?? null;
@@ -124,21 +142,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         }
     }
 
-    public function testEveryRefusedOptionIsNamedAndNothingIsWrittenBeforeTheCheck(): void
+    public function testARefusedStartNamesTheBackendAndWritesNoRowBeforeTheCheck(): void
     {
         $id = ExecutionId::fromString('exec-1');
-        $options = new WorkflowStartOptions(cronSchedule: CronSchedule::from('@every 5m'), taskQueue: TaskQueue::named('other'));
 
         try {
-            $this->client->start($id, ConformanceClientWorkflow::TYPE, [], $options);
-            self::fail('Refused options must fail the start.');
+            $this->client->start($id, ConformanceClientWorkflow::TYPE, [], new WorkflowStartOptions(taskQueue: TaskQueue::named('other')));
+            self::fail('A refused option must fail the start.');
         } catch (WorkflowStartOptionsRefused $e) {
             self::assertSame('in-memory', $e->backend);
-            self::assertSame(['cronSchedule', 'taskQueue'], $e->options);
         }
 
         self::assertNull($this->rows->get($id));
-        self::assertSame(0, $this->events->countEventsInStream($id));
     }
 
     #[DataProvider('operations')]
