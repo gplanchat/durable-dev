@@ -28,8 +28,10 @@ use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
+use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
@@ -242,6 +244,11 @@ final readonly class WorkflowClient implements WorkflowClientInterface
     public function cancel(ExecutionId $executionId, ?string $requestId = null): void
     {
         $workflowId = $this->workflowId($executionId);
+        // A server may accept a cancel on a closed run without an error: ask for its status first.
+        $status = $this->describedRun($workflowId)?->getStatus() ?? WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
+        if (!\in_array($status, [WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_UNSPECIFIED, WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING], true)) {
+            throw new WorkflowExecutionAlreadyEnded($executionId->toString());
+        }
         $req = new RequestCancelWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
@@ -450,12 +457,19 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      */
     private function describedExecutionId(string $workflowId): ?string
     {
+        $info = $this->describedRun($workflowId);
+
+        return null === $info ? null : (JournalExecutionIdResolver::fromMemo($info->getMemo()) ?? '');
+    }
+
+    private function describedRun(string $workflowId): ?WorkflowExecutionInfo
+    {
         $request = new DescribeWorkflowExecutionRequest();
         $request->setNamespace($this->settings->namespace->name());
         $request->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         try {
-            $info = $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
+            return $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
         } catch (\RuntimeException $failure) {
             if (self::GRPC_NOT_FOUND === $failure->getCode()) {
                 return null;
@@ -463,8 +477,6 @@ final readonly class WorkflowClient implements WorkflowClientInterface
 
             throw $failure;
         }
-
-        return JournalExecutionIdResolver::fromMemo($info?->getMemo()) ?? (null === $info ? null : '');
     }
 
     /** @param array<string, mixed> $payload */

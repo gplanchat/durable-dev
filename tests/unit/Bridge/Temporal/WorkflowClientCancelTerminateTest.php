@@ -15,6 +15,7 @@ use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Memo;
+use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
@@ -38,6 +39,8 @@ final class WorkflowClientCancelTerminateTest extends TestCase
 
     /** Whether the server still holds the execution once it has ended, as it does until retention. */
     private bool $described = false;
+
+    private int $status = WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING;
 
     public function testCancelRequestsCancellationOfTheWorkflowWithTheRequestIdOfTheCaller(): void
     {
@@ -97,6 +100,20 @@ final class WorkflowClientCancelTerminateTest extends TestCase
         }
     }
 
+    public function testCancellingAnExecutionTheServerReportsAsClosedFailsAsAlreadyEndedWithoutSendingTheRequest(): void
+    {
+        $this->described = true;
+        $this->status = WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_COMPLETED;
+
+        try {
+            $this->client()->cancel(ExecutionId::fromString('exec-1'));
+            self::fail('Expected WorkflowExecutionAlreadyEnded.');
+        } catch (WorkflowExecutionAlreadyEnded $failure) {
+            self::assertSame('exec-1', $failure->executionId);
+        }
+        self::assertSame([], $this->sent, 'A server that accepts a cancel on a closed run must not be asked.');
+    }
+
     public function testAnExecutionTheServerDoesNotHoldFailsAsNotFound(): void
     {
         $this->serverFailure = new \RuntimeException('workflow not found', 5);
@@ -145,7 +162,7 @@ final class WorkflowClientCancelTerminateTest extends TestCase
             return $this->serverFailure ? throw $this->serverFailure : new TerminateWorkflowExecutionResponse();
         });
         $grpc->method('DescribeWorkflowExecution')->willReturnCallback(fn() => $this->described
-            ? new DescribeWorkflowExecutionResponse(['workflow_execution_info' => new WorkflowExecutionInfo(['memo' => new Memo()])])
+            ? new DescribeWorkflowExecutionResponse(['workflow_execution_info' => new WorkflowExecutionInfo(['memo' => new Memo(), 'status' => $this->status])])
             : throw new \RuntimeException('workflow not found', 5));
         $connection = TemporalConnection::fromDsn('temporal://127.0.0.1:7233?namespace=default&tls=0');
 
