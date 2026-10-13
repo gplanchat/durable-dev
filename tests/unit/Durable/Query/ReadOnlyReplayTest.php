@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Query;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\WorkflowContinuedWithoutSuccessor;
+use Gplanchat\Durable\Exception\WorkflowExecutionNotFound;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -51,6 +52,20 @@ final class ReadOnlyReplayTest extends TestCase
 
         // The first run's journal alone would answer "paid": the answer comes from the latest run.
         self::assertSame('waiting', $this->replay->query($first, 'status'));
+    }
+
+    public function testASuccessorWithoutAStartRowFailsNamingTheIdTheCallerPassed(): void
+    {
+        $first = ExecutionId::fromString('run-1');
+        $this->rows->save($first, ConformanceClientWorkflow::TYPE, []);
+        $this->events->append(new WorkflowContinuedAsNew($first, ConformanceClientWorkflow::TYPE, [], [], ExecutionId::fromString('run-2')));
+
+        try {
+            $this->replay->query($first, 'status');
+            self::fail('A successor without a row must fail.');
+        } catch (WorkflowExecutionNotFound $e) {
+            self::assertSame('run-1', $e->executionId);
+        }
     }
 
     public function testARunThatContinuedAsNewWithoutNamingItsSuccessorFailsNamingTheRun(): void

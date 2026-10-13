@@ -111,7 +111,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
     protected function deliverSignal(ExecutionId $executionId, string $name): void
     {
-        // ponytail: the client delivers no signal until task 2.1; the journal path of the bus handler.
+        // Until task 2.1 the client delivers no signal: this takes the journal path of the bus handler.
         $this->events->append(new WorkflowSignalReceived($executionId, $name, []));
         ($this->resume)(new ResumeWorkflowMessage($executionId->toString()));
     }
