@@ -11,6 +11,7 @@ use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
+use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\UpdateFailureReason;
@@ -25,6 +26,7 @@ use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -88,8 +90,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
                 ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
             }
         };
+        $engine = new ExecutionEngine(
+            $this->events,
+            new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true),
+            workflowDefinitionLoader: new WorkflowDefinitionLoader(),
+        );
         $dispatcher->handler = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
+            $engine,
             $registry,
             $metadata,
             $dispatcher,
@@ -100,7 +107,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events, new ReadOnlyReplay($engine, $this->events, $metadata, $registry));
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -164,6 +171,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         }
     }
 
+    public function testASignalTheWorkflowHasNotRunOnYetIsInTheAnswerAndNothingIsWritten(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        // Journalled, not resumed: the live pass has not applied it, and has not journalled the timer after it.
+        $this->events->append(new WorkflowSignalReceived($id, 'pay', []));
+        $written = $this->events->countEventsInStream($id);
+
+        self::assertSame('paid', $this->client->query($id, 'status'));
+        self::assertSame($written, $this->events->countEventsInStream($id));
+    }
+
     public function testARefusedStartNamesTheBackendAndWritesNoRowBeforeTheCheck(): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -194,7 +213,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     public static function operationsStillToBuild(): iterable
     {
         foreach (self::operations() as $name => $case) {
-            if (!\in_array($case[0], ['signal', 'update', 'result'], true)) {
+            if (!\in_array($case[0], ['signal', 'update', 'result', 'query'], true)) {
                 yield $name => $case;
             }
         }
@@ -205,13 +224,9 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     {
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        if ('query' === $operation) {
-            $this->endRun($id, WorkflowRunStatus::Completed);
-        }
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'query' => $this->client->query($id, 'status'),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
