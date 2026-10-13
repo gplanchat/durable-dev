@@ -1394,19 +1394,20 @@ in the process, and one with only a DSN keeps Temporal. Declaring both keys thro
 
 ### Changed: an activity without `startToClose` is bounded at 30 seconds on the journal backends (#1050)
 
-Temporal already gave an attempt 30 seconds when the activity set no `startToClose` and no
+Temporal gives an attempt 30 seconds when the activity sets neither `startToClose` nor
 `scheduleToClose`. InMemory, DBAL, Illuminate and Magento Database now apply the same default, and
 check it after the attempt returns.
 
 **Who is affected**: applications on a journal backend with an activity whose attempt runs longer
-than 30 seconds and that sets neither `startToClose` nor `scheduleToClose`. Such an attempt now
-fails with `Activity start-to-close timeout exceeded.`, its result is discarded, and the retry
-policy decides what follows.
+than 30 seconds and that sets neither `startToClose` nor `scheduleToClose`, and activities that set
+only `scheduleToClose` whose single attempt outlasts it. Such an attempt now fails with
+`Activity start-to-close timeout exceeded.`, its result is discarded, and the retry policy
+determines what comes next.
 
 **What to do**: set the bound the activity needs, for example
 `#[Activities(ReportActivities::class, startToClose: 300.0)]` or
-`ActivityTimeouts::attempt(Duration::minutes(5))`. No Rector rule exists: whether an activity is
-long-running is not visible in the code. The
+`ActivityTimeouts::attempt(Duration::minutes(5))`. No Rector rule covers this change, because the
+code does not show which activities run long. The
 [options page](documentation/user/options/_index.md) describes the bounds.
 
 ## 0.1.0-beta1

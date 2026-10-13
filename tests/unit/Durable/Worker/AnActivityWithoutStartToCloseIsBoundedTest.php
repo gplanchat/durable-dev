@@ -50,6 +50,16 @@ final class AnActivityWithoutStartToCloseIsBoundedTest extends TestCase
         self::assertSame('Activity start-to-close timeout exceeded.', $this->lastFailure($options, sleepMicroseconds: 20_000));
     }
 
+    public function testAnAttemptPastScheduleToCloseAloneFails(): void
+    {
+        $options = new ActivityOptions(
+            retryLimit: RetryLimit::ofAttempts(1),
+            timeouts: new ActivityTimeouts(scheduleToClose: Duration::seconds(0.001)),
+        );
+
+        self::assertSame('Activity start-to-close timeout exceeded.', $this->lastFailure($options, sleepMicroseconds: 20_000));
+    }
+
     public function testAnAttemptWithoutOptionsInsideTheDefaultSucceeds(): void
     {
         self::assertNull($this->lastFailure(null, sleepMicroseconds: 0));

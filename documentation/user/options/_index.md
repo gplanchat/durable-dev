@@ -123,9 +123,10 @@ Database) throws `UnsupportedByBackendException` when you schedule an activity w
 An activity without `startToClose` is bounded at 30 seconds per attempt on every backend, as on
 Temporal; `scheduleToClose`, when set, replaces that default. Outside Temporal, the check runs after
 the attempt returns; nothing enforces it while the attempt runs. An attempt that overran fails with
-a timeout, its result is discarded, and the retry policy determines what comes next. Nothing interrupts an attempt that never returns. Stopping
-a hung worker is the job of whatever supervises the process. `messenger:consume --time-limit` only
-checks between two messages, so it cannot stop one.
+a timeout, its result is discarded, and the retry policy determines what comes next. Nothing
+interrupts an attempt that never returns. Stopping a hung worker is the job of whatever supervises
+the process. `messenger:consume --time-limit` only checks between two messages, so it cannot stop
+one.
 
 `scheduleToClose` is the budget for the whole activity, retries included. On Temporal and on the
 journal backends, a failed attempt whose backoff would end past it is not retried: the activity
