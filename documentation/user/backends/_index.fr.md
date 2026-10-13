@@ -461,8 +461,12 @@ connexion que nomme `resource/durable`, avec une file en table (une file de mess
 [glossaire](../glossary/)) que `bin/magento durable:worker` vide.
 
 > [!NOTE]
-> Les tests d'intégration du backend Magento Database ne tournent que sous `phpunit.magento.xml`, et
-> aucun job de CI n'exécute cette configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+> Le job de CI `magento-boot` exécute les tests d'intégration du backend Magento Database sous
+> `phpunit.magento.xml` (suite `tests/integration/DurableModule`, 19 tests,
+> [#1034](https://github.com/gplanchat/durable-dev/pull/1034)). Les classes de conformité sous
+> `magento/tests` (les cas communs des stores SQL de `src/Durable/Testing`, exécutés contre les
+> stores de l'adaptateur Magento) passent par `magento/phpunit.xml.dist`, et aucune étape de CI n'exécute cette
+> configuration ([#1062](https://github.com/gplanchat/durable-dev/issues/1062)).
 
 Dans le tableau, ✅ signifie que la capacité existe et ❌ qu'elle est absente. « pas encore » marque
 la seule capacité absente mais prévue : l'envoi d'un signal ou d'une mise à jour depuis l'application
@@ -539,19 +543,49 @@ configuré. Sur Temporal, l'échec reste aussi dans l'historique du cluster.
 
 ---
 
-## Les limites de réessais diffèrent sur un réglage {#les-réessais-ont-la-même-sémantique-partout}
+## Les limites de réessais sont identiques {#les-réessais-ont-la-même-sémantique-partout}
 
 Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends, c'est le
 défaut de Temporal.
 
-`max_activity_retries` fait exception. Sur le backend en mémoire, sur les backends à journal
-(DBAL, Illuminate) et sur le backend Magento Database, le worker resserre la `RetryLimit` de l'activité à ce plafond, et la plus
-stricte des deux s'applique ; à `0`, il ne plafonne rien. Sous Magento, le plafond est l'argument `maxActivityRetries` de
-`RuntimeFactory`. Sous Temporal, le cluster relance d'après
-la `RetryLimit` propre à l'activité et ne lit pas ce réglage : une activité que le plafond
-arrête sur les autres backends continue de réessayer sous Temporal.
+`max_activity_retries` borne chaque activité de la même façon sur tous les backends. Sur les backends en mémoire, à journal (DBAL, Illuminate) et Magento Database, le worker resserre la `RetryLimit` de l'activité à ce plafond. Sous Temporal, le worker de workflow la resserre quand il planifie l'activité et écrit le résultat dans le `maximum_attempts` de la politique de réessais de l'activité. La plus stricte des deux s'applique ; à `0`, le réglage ne plafonne rien. Sous Magento, le plafond est l'argument `maxActivityRetries` de `RuntimeFactory`.
 
 Voir [Échecs et réessais](../failures/) et [Options](../options/#retrylimit).
+
+---
+
+## Différences acceptées : identifiant après continueAsNew et divergence au rejeu {#accepted-journal-differences}
+
+Les deux différences ci-dessous, entre les backends à journal (en mémoire, DBAL, Illuminate et
+Magento Database) et Temporal, sont des exceptions acceptées à la règle selon laquelle l'application
+se comporte de la même façon sur tous les backends, comme Nexus et les autres que cette page
+nomme. Le projet ne prévoit de changer ni l'une ni l'autre.
+
+### L'identifiant d'exécution après `continueAsNew` {#continue-as-new-execution-id}
+
+Temporal conserve l'identifiant d'exécution Durable d'un `continueAsNew` à l'autre : l'identifiant
+passe de run en run dans le memo (les données clé-valeur attachées à une exécution Temporal), si
+bien que l'`ExecutionId` désigne toute la chaîne. Sur les backends à journal, chaque run a son
+propre journal, et le journal génère un nouvel `ExecutionId` pour le run que `continueAsNew`
+démarre. L'ancien identifiant désigne le run terminé : envoyez signaux et requêtes à l'identifiant
+de son événement `WorkflowContinuedAsNew`. Un signal envoyé à l'ancien identifiant est journalisé
+dans le run terminé, qu'aucun worker ne rejoue, et aucune erreur ne le signale
+(`DeliverWorkflowSignalHandler` ne vérifie rien avant d'ajouter).
+
+### Un run dont le code ne correspond plus à son journal {#replay-divergence}
+
+Le rejeu compare ce que le code du workflow demande à ce que le journal contient. Deux cas font
+échouer cette comparaison : un appel à `version()` hors de la plage prise en charge, et toute autre
+divergence, par exemple une activité appelée avec un autre payload que celui enregistré.
+
+- Sur Temporal, le worker répond `RespondWorkflowTaskFailed` et n'écrit rien. Le run reste ouvert,
+  en attente, et la tâche est réessayée dès que vous déployez un code compatible.
+- Sur les backends à journal, le run enregistre `WorkflowExecutionFailed` et se termine en échec.
+  Déployer ensuite un code compatible ne le rouvre pas.
+
+Le journal n'a pas d'état « tâche en échec » où mettre un run en attente, et aucun n'est ajouté.
+Sur un backend à journal, déployez la modification d'un workflow de façon que les runs en cours
+se rejouent encore (`version()` existe pour cela), ou laissez-les se terminer d'abord.
 
 ---
 

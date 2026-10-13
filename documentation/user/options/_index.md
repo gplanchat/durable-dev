@@ -208,10 +208,14 @@ A run bound longer than the execution bound is **rejected** at construction. The
 it and silently lowers the run bound to the execution bound, so the configuration you wrote is
 not the one that applies.
 
-`ContinueAsNewOptions` rejects any execution bound: the new run belongs to the current
-execution and inherits it. Use `withoutExecutionBound()` to reuse a `WorkflowTimeouts` there.
+`ContinueAsNewOptions` rejects any execution bound: the next run continues the current
+execution's chain and inherits its bound. Use `withoutExecutionBound()` to reuse a `WorkflowTimeouts` there.
 Its own copies are `withTimeouts()` and `withTaskQueue()`, which moves the next run to another
 task queue.
+
+The execution id differs between backends. On Temporal, the next run keeps the Durable execution
+id. On the journal backends, the journal generates a new `ExecutionId` for it. See
+[the execution id after `continueAsNew`](../backends/#continue-as-new-execution-id).
 
 ---
 
@@ -341,6 +345,29 @@ Child workflows accept the same schedule through `ChildWorkflowOptions`.
 
 ---
 
+## Re-using a child's workflow id {#child-workflow-id-reuse}
+
+`ChildWorkflowOptions::$workflowIdReusePolicy` sets what happens when a child starts under an
+id that an earlier run already used. A policy applies to a finished run only: starting a child under
+an id whose run is still running throws `ChildWorkflowIdInUseException` under every policy.
+
+| Earlier run under the id | `AllowDuplicate` | `AllowDuplicateFailedOnly` | `RejectDuplicate` |
+|---|---|---|---|
+| Still running | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` |
+| Completed successfully | A new run starts | `ChildWorkflowIdCompletedException` | `ChildWorkflowIdAlreadyUsedException` |
+| Failed, cancelled or terminated | A new run starts | A new run starts | `ChildWorkflowIdAlreadyUsedException` |
+
+Each exception carries the id in its `childExecutionId` property and extends
+`\InvalidArgumentException`. On the journal backends (in-memory, DBAL, Illuminate, Magento
+Database) the call to the stub's method throws. On Temporal, a parent that
+re-uses an id inside its own history gets the same exceptions at the call, because the same
+execution context reads that history. An id that only an earlier parent used fails differently:
+the start fails on the server, and the parent gets `DurableChildWorkflowFailedException` when it
+awaits the child. The journal backends check the child's own stream across all parents, so they
+throw the named exceptions at the call in that case too.
+
+---
+
 ## A child's memo, summary and details {#child-memo-summary-and-details}
 
 `ChildWorkflowOptions` takes a memo, a one-line summary and longer details for the child.
@@ -369,6 +396,14 @@ child's memo itself on Temporal. On every backend, `new ChildWorkflowOptions()` 
 fails at that line, during replay too (the workflow code running again from its first line to
 resume; see the [glossary](../glossary/)). Replay compares a child's type and input with the
 journal, not its memo, so a run in flight resumes once the code uses another key.
+
+---
+
+## Behaviour that differs between backends
+
+Two accepted differences touch the options of this page. The execution id after `continueAsNew` is
+covered above. A run whose code no longer matches its journal is parked on Temporal and ends failed
+on the journal backends; see [the backends page](../backends/#replay-divergence).
 
 ---
 
