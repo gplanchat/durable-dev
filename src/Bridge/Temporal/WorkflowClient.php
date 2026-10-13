@@ -14,7 +14,9 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyEnded;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
+use Gplanchat\Durable\Exception\WorkflowExecutionNotFound;
 use Gplanchat\Durable\Exception\WorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowTerminatedException;
@@ -231,53 +233,73 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * Requests the cancellation of a running workflow: it receives it where it waits, and can
      * compensate before it ends cancelled.
      *
-     * Provisional signature: it follows signal(), pending the design of #782. No run id is sent:
-     * the call acts on the current run of the chain. A retry with the same request id succeeds while
-     * the run is open and throws once it has ended.
+     * No run id is sent: the call acts on the current run of the chain. A retry with the same
+     * request id succeeds while the run is open and throws once it has ended.
      *
-     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     * @throws WorkflowExecutionAlreadyEnded when the execution has ended
+     * @throws WorkflowExecutionNotFound     when the server holds no such execution
      */
-    public function cancel(string $workflowId, ?string $requestId = null): void
+    public function cancel(ExecutionId $executionId, ?string $requestId = null): void
     {
+        $workflowId = $this->workflowId($executionId);
         $req = new RequestCancelWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setIdentity($this->settings->identity);
         $req->setRequestId($requestId ?? bin2hex(random_bytes(16)));
 
-        $this->endedOrNotFound($workflowId, fn() => $this->client->RequestCancelWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->refusing($executionId, fn() => $this->client->RequestCancelWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
     }
 
     /**
      * Ends a running workflow at once, without running more of its code.
      *
-     * Provisional signature, pending the design of #782. No run id is sent: the call acts on the
-     * current run of the chain. Terminating an ended run answers NotFound too, so a second call throws.
+     * No run id is sent: the call acts on the current run of the chain. Terminating an ended run
+     * answers NotFound too, so a second call throws.
      *
-     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     * @throws WorkflowExecutionAlreadyEnded when the execution has ended
+     * @throws WorkflowExecutionNotFound     when the server holds no such execution
      */
-    public function terminate(string $workflowId, string $reason = ''): void
+    public function terminate(ExecutionId $executionId, string $reason = ''): void
     {
+        $workflowId = $this->workflowId($executionId);
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setIdentity($this->settings->identity);
         $req->setReason($reason);
 
-        $this->endedOrNotFound($workflowId, fn() => $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->refusing($executionId, fn() => $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
     }
 
-    private function endedOrNotFound(string $workflowId, \Closure $call): void
+    /**
+     * Runs a call on an execution, and turns the server's NotFound into what it means: the
+     * execution has ended, or the server never held it.
+     */
+    private function refusing(ExecutionId $executionId, \Closure $call): void
     {
         try {
             $call();
         } catch (\RuntimeException $failure) {
-            if (self::GRPC_NOT_FOUND === $failure->getCode()) {
-                throw new \RuntimeException(\sprintf('Workflow "%s" has ended or does not exist.', $workflowId), self::GRPC_NOT_FOUND, $failure);
-            }
-
-            throw $failure;
+            throw $this->refusalOf($executionId, $failure);
         }
+    }
+
+    /**
+     * What a failed call on an execution means: NotFound (code 5) is {@see WorkflowExecutionAlreadyEnded}
+     * when a describe still finds the execution, {@see WorkflowExecutionNotFound} when it does not;
+     * any other failure comes back unchanged.
+     */
+    public function refusalOf(ExecutionId $executionId, \RuntimeException $failure): \RuntimeException
+    {
+        if (self::GRPC_NOT_FOUND !== $failure->getCode()) {
+            return $failure;
+        }
+        $id = $executionId->toString();
+
+        return null === $this->describedExecutionId($this->workflowId($executionId))
+            ? new WorkflowExecutionNotFound($id, $failure)
+            : new WorkflowExecutionAlreadyEnded($id, $failure);
     }
 
     /**
