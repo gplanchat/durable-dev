@@ -1430,28 +1430,23 @@ determines what comes next.
 code does not show which activities run long. The
 [options page](documentation/user/options/_index.md) describes the bounds.
 
-### A child workflow's execution timeout is enforced on the journal backends (#979)
+### A child workflow's execution timeout is enforced on a child that runs inline (#979)
 
-On the in-memory, DBAL, Illuminate and Magento Database backends, `ChildWorkflowOptions::$timeouts->execution`
-was journaled and never applied. Scheduling the child now also appends a `ChildWorkflowDeadline`
-event to the parent's journal, and a child that has no outcome when the deadline falls fails the
-parent's await with `DurableChildWorkflowFailedException` ("Child workflow <id> timed out."), the
-failure Temporal gives it. `timeouts->run` and `timeouts->task` are still journaled and not
-applied.
+`ChildWorkflowOptions::$timeouts->execution` was journaled and never applied. Scheduling a child
+with an execution timeout now also appends a `ChildWorkflowDeadline` event to the parent's journal.
+A child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`) and that has
+not ended by then fails the parent's await with `DurableChildWorkflowFailedException` ("Child
+workflow <id> timed out."), the failure Temporal gives it, with no failure kind. A child that runs
+on a worker (DBAL, Illuminate and Magento Database in asynchronous mode) gets the event and is not
+bound yet (#1069). `timeouts->run` and `timeouts->task` are still journaled and not applied.
 
 `ChildWorkflowDeadline` is a new stored event name. A backend that stores events through its own
 mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds). The DBAL,
 Illuminate and Magento stores use `EventDataMapper`, which does. A child scheduled before the
 upgrade has no deadline event and keeps running without a bound.
 
-A child that a parent ended (a timeout, or a parent that closed with the `Terminate` policy) is no
-longer run again by its next resume: before, it was replayed and could append `ExecutionCompleted`
-after its `WorkflowExecutionFailed`. The resume now marks its row completed and applies the
-parent-close policy to its own children.
-
-**What to do**: nothing, unless a child declares an execution timeout that your tests relied on
-being ignored, or a test expects a child of a closed parent to run on after the parent's `Terminate`
-policy ended it: it now stops.
+**What to do**: nothing, unless a test declares a child execution timeout that it relied on being
+ignored.
 
 ## 0.1.0-beta1
 
