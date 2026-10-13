@@ -353,8 +353,9 @@ Les workflows enfants acceptent la même planification par `ChildWorkflowOptions
 ## Réutiliser l'identifiant d'un workflow enfant {#child-workflow-id-reuse}
 
 `ChildWorkflowOptions::$workflowIdReusePolicy` fixe ce qui se passe quand un enfant démarre sous un
-identifiant qu'une exécution antérieure a déjà utilisé. Une politique ne juge qu'une exécution
-terminée : un identifiant dont l'exécution tourne encore est refusé sous toutes les politiques.
+identifiant qu'une exécution antérieure a déjà utilisé. Une politique ne s'applique qu'à une exécution
+terminée : démarrer un enfant sous un identifiant dont l'exécution tourne encore lève
+`ChildWorkflowIdInUseException` sous toutes les politiques.
 
 | Exécution antérieure sous l'identifiant | `AllowDuplicate` | `AllowDuplicateFailedOnly` | `RejectDuplicate` |
 |---|---|---|---|
@@ -364,9 +365,13 @@ terminée : un identifiant dont l'exécution tourne encore est refusé sous tout
 
 Chaque exception porte l'identifiant dans sa propriété `childExecutionId` et étend
 `\InvalidArgumentException`. Sur les backends à journal (mémoire, DBAL, Illuminate, Magento
-Database), l'appel de la méthode du stub lève l'exception. Sur Temporal, le serveur refuse
-le démarrage et le parent reçoit `DurableChildWorkflowFailedException` à l'`await` de l'enfant ; les
-trois exceptions nommées n'y sont pas encore levées.
+Database), l'appel de la méthode du stub lève l'exception. Sur Temporal, un parent qui
+réutilise un identifiant dans son propre historique reçoit les mêmes exceptions à l'appel, car le
+même contexte d'exécution lit cet historique. Un identifiant que seul un parent antérieur a utilisé
+échoue autrement : le démarrage échoue côté serveur et le parent reçoit
+`DurableChildWorkflowFailedException` à l'`await` de l'enfant. Les backends à journal vérifient le
+flux propre de l'enfant, tous parents confondus, et lèvent donc les exceptions nommées à l'appel
+dans ce cas aussi.
 
 ---
 
