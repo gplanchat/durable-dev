@@ -297,9 +297,17 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         }
         $id = $executionId->toString();
 
-        return null === $this->describedExecutionId($this->workflowId($executionId))
-            ? new WorkflowExecutionNotFound($id, $failure)
-            : new WorkflowExecutionAlreadyEnded($id, $failure);
+        return $this->hasExecution($executionId)
+            ? new WorkflowExecutionAlreadyEnded($id, $failure)
+            : new WorkflowExecutionNotFound($id, $failure);
+    }
+
+    /**
+     * Whether the server holds a run of this execution, open or ended.
+     */
+    public function hasExecution(ExecutionId $executionId): bool
+    {
+        return null !== $this->describedExecutionId($this->workflowId($executionId));
     }
 
     /**
