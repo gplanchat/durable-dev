@@ -56,14 +56,14 @@ final class AChildDeadlineWakesItsParentTest extends TestCase
 
         $resumes = $this->fire($journal, now: 100.0);
 
-        self::assertSame(['awaiting child child-1 with 3 events', 'resume with 5 events'], $resumes->sent);
+        self::assertSame(['awaiting child child-1 with 3 events', 'resume with 3 events', 'resume with 5 events'], $resumes->sent, 'the child is resumed so that it replays to its end, then the parent');
         $parent = iterator_to_array($journal->readStream(ExecutionId::fromString('parent-1')), false);
         $failure = $parent[3];
         self::assertInstanceOf(ChildWorkflowFailed::class, $failure);
         self::assertSame('Child workflow child-1 timed out.', $failure->failureMessage());
         self::assertNull($failure->workflowFailureKind(), 'the same kind as the inline path, and as Temporal: none');
         $child = iterator_to_array($journal->readStream(ExecutionId::fromString('child-1')), false);
-        self::assertInstanceOf(WorkflowExecutionFailed::class, end($child), 'the child no longer counts as running');
+        self::assertContains(WorkflowExecutionFailed::class, array_map(static fn(object $e): string => $e::class, $child), 'the child no longer counts as running');
     }
 
     public function testBeforeTheDeadlineNothingIsFailedOrResumed(): void

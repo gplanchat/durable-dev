@@ -1450,7 +1450,8 @@ after its `WorkflowExecutionFailed`. The resume now marks its row completed and 
 parent-close policy to its own children.
 
 **What to do**: nothing, unless a child declares an execution timeout that your tests relied on
-being ignored.
+being ignored, or a test expects a child of a closed parent to run on after the parent's `Terminate`
+policy ended it: it now stops.
 
 ## 0.1.0-beta1
 

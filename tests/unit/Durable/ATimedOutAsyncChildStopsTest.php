@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable;
 
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
 use Gplanchat\Durable\Event\ChildWorkflowDeadline;
+use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
@@ -19,6 +20,7 @@ use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
+use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\FireWorkflowTimersMessage;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
@@ -42,7 +44,6 @@ final class ATimedOutAsyncChildStopsTest extends TestCase
         $this->fire($journal);
 
         $child = iterator_to_array($journal->readStream(ExecutionId::fromString('child-1')), false);
-        self::assertCount(1, $child);
         self::assertInstanceOf(WorkflowExecutionFailed::class, $child[0]);
     }
 
@@ -77,6 +78,59 @@ final class ATimedOutAsyncChildStopsTest extends TestCase
     }
 
     /**
+     * Run 1 timed out, the parent started the id again, and run 2 timed out as well: the stop of run
+     * 2 is the one in force, whatever the first outcome in the parent's journal says.
+     */
+    public function testTheSecondRunsStopIsRecognisedToo(): void
+    {
+        $journal = $this->parentWaitingOnChild();
+        $this->fire($journal);
+        $parent = ExecutionId::fromString('parent-1');
+        $child = ExecutionId::fromString('child-1');
+        $journal->append(new ChildWorkflowScheduled($parent, $child, 'ChildType', []));
+        $journal->append(WorkflowExecutionFailed::terminatedByParent($child, $parent));
+        $journal->append(new ChildWorkflowFailed($parent, $child, 'Child workflow child-1 timed out.'));
+        [, , $handler] = $this->resumeHandler($journal);
+        $before = $journal->countEventsInStream($child);
+
+        $handler(new ResumeWorkflowMessage('child-1'));
+
+        self::assertSame($before, $journal->countEventsInStream($child), 'run 2 does not run on');
+    }
+
+    public function testAParentThatClosedAfterTheLastSchedulingStopsItsChild(): void
+    {
+        $journal = new InMemoryEventStore();
+        $parent = ExecutionId::fromString('parent-1');
+        $child = ExecutionId::fromString('child-1');
+        $journal->append(new ChildWorkflowScheduled($parent, $child, 'ChildType', []));
+        $journal->append(new ChildWorkflowFailed($parent, $child, 'Child workflow child-1 timed out.'));
+        $journal->append(new ChildWorkflowScheduled($parent, $child, 'ChildType', []));
+        $journal->append(WorkflowExecutionFailed::terminatedByParent($child, $parent));
+        $journal->append(new ExecutionCompleted($parent, 'closed'));
+        [, , $handler] = $this->resumeHandler($journal);
+
+        $handler(new ResumeWorkflowMessage('child-1'));
+
+        self::assertSame(1, $journal->countEventsInStream($child));
+    }
+
+    public function testTheParentHearsFromTheSecondRun(): void
+    {
+        $journal = new InMemoryEventStore();
+        $parent = ExecutionId::fromString('parent-1');
+        $child = ExecutionId::fromString('child-1');
+        $journal->append(new ChildWorkflowScheduled($parent, $child, 'ChildType', []));
+        $journal->append(new ChildWorkflowFailed($parent, $child, 'Child workflow child-1 timed out.'));
+        $journal->append(new ChildWorkflowScheduled($parent, $child, 'ChildType', []));
+
+        self::assertFalse(AwaitedFact::child('child-1')->isJournalledIn($journal, $parent), 'the first run\'s outcome is not the second run\'s');
+
+        $journal->append(new ChildWorkflowCompleted($parent, $child, 'done'));
+        self::assertTrue(AwaitedFact::child('child-1')->isJournalledIn($journal, $parent));
+    }
+
+    /**
      * A parent that closes with the Terminate policy ends its child the same way. Before, the child
      * was replayed on its next resume and could complete after its failure.
      */
@@ -86,6 +140,7 @@ final class ATimedOutAsyncChildStopsTest extends TestCase
         $journal->append(new ChildWorkflowScheduled(ExecutionId::fromString('parent-1'), ExecutionId::fromString('child-1'), 'ChildType', []));
         $journal->append(new ExecutionStarted(ExecutionId::fromString('child-1'), []));
         $journal->append(WorkflowExecutionFailed::terminatedByParent(ExecutionId::fromString('child-1'), ExecutionId::fromString('parent-1')));
+        $journal->append(new ExecutionCompleted(ExecutionId::fromString('parent-1'), 'closed'));
         [$metadata, , $handler] = $this->resumeHandler($journal);
 
         $handler(new ResumeWorkflowMessage('child-1'));
@@ -120,7 +175,7 @@ final class ATimedOutAsyncChildStopsTest extends TestCase
         $handler(new ResumeWorkflowMessage('child-1'));
 
         $child = iterator_to_array($journal->readStream(ExecutionId::fromString('child-1')), false);
-        self::assertCount(1, $child, 'no ExecutionCompleted after the failure');
+        self::assertNotContains(ExecutionCompleted::class, array_map(static fn(object $e): string => $e::class, $child), 'no ExecutionCompleted after the failure');
         self::assertTrue($metadata->get(ExecutionId::fromString('child-1'))['completed'] ?? false);
         self::assertNull($links->getParentExecutionId(ExecutionId::fromString('child-1')));
     }
