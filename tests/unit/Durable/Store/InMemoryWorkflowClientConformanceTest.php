@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Store;
 
+use Gplanchat\Durable\Attribute\AsUpdateMethod;
+use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
+use Gplanchat\Durable\Exception\UpdateFailureReason;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
 use Gplanchat\Durable\ExecutionEngine;
@@ -29,11 +34,13 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
 use Gplanchat\Durable\Testing\ConformanceOtherClientWorkflow;
+use Gplanchat\Durable\Testing\ConformanceUpdatableClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
 use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
+use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\WorkflowStartOptions;
@@ -60,6 +67,8 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $registry = new WorkflowRegistry();
         $registry->registerClass(ConformanceClientWorkflow::class);
         $registry->registerClass(ConformanceOtherClientWorkflow::class);
+        $registry->registerClass(ConformanceUpdatableClientWorkflow::class);
+        $registry->registerClass(SleepingUpdatableWorkflow::class);
 
         $dispatcher = new class implements WorkflowResumeDispatcher {
             public ?ResumeWorkflowHandler $handler = null;
@@ -88,7 +97,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events);
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -104,6 +113,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     protected function endRun(ExecutionId $executionId, WorkflowRunStatus $outcome): void
     {
         $this->catalog->recordOutcome($executionId, $outcome);
+    }
+
+    protected function journalOf(ExecutionId $executionId): array
+    {
+        return iterator_to_array($this->events->readStream($executionId), false);
     }
 
     protected function historyLengthOf(ExecutionId $executionId): int
@@ -156,7 +170,19 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
-    #[DataProvider('operations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operationsStillToBuild(): iterable
+    {
+        foreach (self::operations() as $name => $case) {
+            if (!\in_array($case[0], ['signal', 'update'], true)) {
+                yield $name => $case;
+            }
+        }
+    }
+
+    #[DataProvider('operationsStillToBuild')]
     public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -167,15 +193,17 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'signal' => $this->client->signal($id, 'pay'),
             'query' => $this->client->query($id, 'status'),
-            'update' => $this->client->update($id, 'change'),
             'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
     }
 
+    /**
+     * Until task 1.7 follows the chain, an operation on a run that continued as new is refused
+     * rather than delivered to a journal nobody reads any more.
+     */
     #[DataProvider('actingOperations')]
     public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
     {
@@ -183,12 +211,74 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
         $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
 
-        $this->expectException(UnsupportedByBackendException::class);
-        match ($operation) {
-            'signal' => $this->client->signal($id, 'pay'),
-            'update' => $this->client->update($id, 'change'),
-            'cancel' => $this->client->cancel($id),
-            default => $this->client->terminate($id),
-        };
+        try {
+            match ($operation) {
+                'signal' => $this->client->signal($id, 'pay'),
+                'update' => $this->client->update($id, 'change'),
+                'cancel' => $this->client->cancel($id),
+                default => $this->client->terminate($id),
+            };
+            self::fail('A run that continued as new is refused.');
+        } catch (UnsupportedByBackendException $e) {
+            self::assertStringContainsString($operation . '()', $e->getMessage());
+        }
+    }
+
+    /**
+     * Known gap of this backend, which Temporal does not have: a pass applies a pending update
+     * only inside a condition await, so an update sent while the workflow sleeps is applied by no
+     * pass. Temporal runs update handlers at any point.
+     */
+    public function testAnUpdateSentWhileTheWorkflowSleepsIsNotHandled(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, SleepingUpdatableWorkflow::TYPE);
+
+        try {
+            $this->client->update($id, 'change');
+            self::fail('A pass applies updates only inside a condition await.');
+        } catch (DurableUpdateFailedException $e) {
+            self::assertSame(UpdateFailureReason::NotHandled, $e->reason);
+        }
+    }
+
+    /**
+     * Temporal rejects such an update (#1078 tracks the bridge); here no pass applies it.
+     */
+    public function testAnUpdateTheWorkflowDoesNotDeclareFailsAtOnce(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceUpdatableClientWorkflow::TYPE);
+
+        try {
+            $this->client->update($id, 'nobody-declares-this');
+            self::fail('An update nothing handles must throw.');
+        } catch (DurableUpdateFailedException $e) {
+            self::assertSame('nobody-declares-this', $e->updateName());
+            self::assertSame(UpdateFailureReason::NotHandled, $e->reason);
+        }
+    }
+}
+
+#[AsWorkflow(SleepingUpdatableWorkflow::TYPE)]
+final class SleepingUpdatableWorkflow
+{
+    public const TYPE = 'test.sleeping.updatable';
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    #[AsUpdateMethod('change')]
+    public function change(array $payload): int
+    {
+        return 1;
+    }
+
+    #[AsWorkflowMethod]
+    public function run(WorkflowEnvironment $env): string
+    {
+        $env->sleep(3600);
+
+        return 'done';
     }
 }
