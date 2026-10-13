@@ -56,8 +56,9 @@ final readonly class TemporalWorkflowClientPort implements WorkflowClientPort
             throw new WorkflowExecutionNotFound($executionId->toString());
         }
         $unbounded = null === $timeout || $timeout->isInfinite();
-        $interval = $unbounded ? self::POLL_INTERVAL_MS : max(10, min(self::POLL_INTERVAL_MS, (int) ceil($timeout->toSeconds() * 1000)));
-        $polls = $unbounded ? \PHP_INT_MAX : (int) ceil($timeout->toSeconds() * 1000 / $interval) + 1;
+        $ms = $unbounded ? 0 : (int) ceil($timeout->toSeconds() * 1000.0);
+        $interval = $unbounded ? self::POLL_INTERVAL_MS : max(10, min(self::POLL_INTERVAL_MS, $ms));
+        $polls = $unbounded ? \PHP_INT_MAX : intdiv($ms + $interval - 1, $interval) + 1;
 
         try {
             return $this->client->pollForCompletion($executionId->toString(), $interval, $polls);

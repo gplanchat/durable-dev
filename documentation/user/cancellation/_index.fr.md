@@ -102,9 +102,9 @@ chaque rejeu.
   demander l'annulation, ou `WorkflowClient::terminate($executionId, $reason)` pour terminer
   l'exécution aussitôt, sans exécuter une ligne de plus du workflow. Les deux prennent l'`ExecutionId`
   avec lequel l'exécution a démarré. Sur une exécution terminée, elles lèvent
-  `WorkflowExecutionAlreadyEnded`. Sur une exécution que le serveur ne connaît pas, elles lèvent
-  `WorkflowExecutionNotFound`. Les deux nomment l'identifiant et gardent l'échec du serveur comme
-  exception précédente. Rien n'est modifié. Terminer deux fois une exécution lève donc une exception
+  `WorkflowExecutionAlreadyEnded`. Sur une exécution absente du serveur, elles lèvent
+  `WorkflowExecutionNotFound`. Les deux portent l'identifiant dans `executionId` et l'échec du
+  serveur dans `getPrevious()`. Rien n'est modifié. Terminer deux fois une exécution lève donc une exception
   au second appel. Ces méthodes n'existent que sur Temporal. Les backends à journal (InMemory, DBAL,
   Illuminate, Magento) ne les ont pas encore.
 - **De l'extérieur, sur les autres backends.** L'application n'a aucun point d'entrée pour demander

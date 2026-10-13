@@ -101,8 +101,8 @@ awaitable at the same place. The workflow therefore takes the same branch on eve
   cancellation, or `WorkflowClient::terminate($executionId, $reason)` to end the execution at once
   without running more of its code. Both take the `ExecutionId` the execution was started with. On an
   execution that has ended, they throw `WorkflowExecutionAlreadyEnded`. On one the server does not
-  hold, they throw `WorkflowExecutionNotFound`. Both name the id and keep the server failure as
-  previous. Nothing is changed. Terminating an execution twice therefore throws the second time.
+  hold, they throw `WorkflowExecutionNotFound`. Both carry the id in `executionId` and the server
+  failure in `getPrevious()`. Nothing is changed. Terminating an execution twice therefore throws the second time.
   These methods exist on Temporal only. The journal backends (InMemory, DBAL, Illuminate, Magento)
   do not have them yet.
 - **From outside, on the other backends.** The application has no entry point to request a

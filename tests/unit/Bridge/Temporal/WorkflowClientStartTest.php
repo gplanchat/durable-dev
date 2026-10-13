@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal;
 
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
@@ -14,6 +15,12 @@ use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Temporal\Api\Common\V1\Payloads;
+use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\History\V1\History;
+use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\WorkflowExecutionCompletedEventAttributes;
+use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
 
@@ -27,6 +34,8 @@ use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
 final class WorkflowClientStartTest extends TestCase
 {
     private ?\RuntimeException $serverFailure = null;
+
+    private ?GetWorkflowExecutionHistoryResponse $history = null;
 
     /** @return iterable<string, array{\RuntimeException}> */
     public static function alreadyStartedAnswers(): iterable
@@ -43,6 +52,19 @@ final class WorkflowClientStartTest extends TestCase
         $returned = $this->client()->startAsync('order', [], ExecutionId::fromString('exec-1'));
 
         self::assertSame('exec-1', $returned->toString());
+    }
+
+    #[DataProvider('alreadyStartedAnswers')]
+    public function testStartSyncStillWaitsForTheRunningExecutionWhenTheWorkflowIsAlreadyStarted(\RuntimeException $answer): void
+    {
+        $this->serverFailure = $answer;
+        $completed = new HistoryEvent(['event_id' => 5, 'event_type' => EventType::EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED]);
+        $completed->setWorkflowExecutionCompletedEventAttributes(new WorkflowExecutionCompletedEventAttributes([
+            'result' => new Payloads(['payloads' => [JsonPlainPayload::encode('done')]]),
+        ]));
+        $this->history = new GetWorkflowExecutionHistoryResponse(['history' => new History(['events' => [$completed]])]);
+
+        self::assertSame('done', $this->client()->startSync('order', [], ExecutionId::fromString('exec-1')));
     }
 
     #[DataProvider('alreadyStartedAnswers')]
@@ -86,6 +108,7 @@ final class WorkflowClientStartTest extends TestCase
 
             return $this->serverFailure ? throw $this->serverFailure : new StartWorkflowExecutionResponse();
         });
+        $grpc->method('GetWorkflowExecutionHistory')->willReturnCallback(fn() => $this->history ?? new GetWorkflowExecutionHistoryResponse());
         $connection = TemporalConnection::fromDsn('temporal://127.0.0.1:7233?namespace=default&tls=0');
 
         return new WorkflowClient($grpc, $connection, new TemporalHistoryCursor($grpc, $connection), new WorkflowServiceExecutionRpc($grpc));

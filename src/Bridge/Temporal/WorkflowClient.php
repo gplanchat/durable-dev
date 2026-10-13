@@ -82,16 +82,16 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * first execution is unchanged. This is the start of {@see \Gplanchat\Durable\Port\WorkflowClientPort};
      * {@see startAsync()} and {@see startSync()} carry on instead.
      *
-     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $input
      *
      * @throws WorkflowExecutionAlreadyStarted
      */
-    public function start(ExecutionId $executionId, string $workflowType, array $payload = [], ?WorkflowStartOptions $options = null): ExecutionId
+    public function start(ExecutionId $executionId, string $workflowType, array $input = [], ?WorkflowStartOptions $options = null): ExecutionId
     {
         $id = $executionId->toString();
 
         try {
-            $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $payload, $id, $options);
+            $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $input, $id, $options);
         } catch (\RuntimeException $e) {
             throw self::isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage()) ? new WorkflowExecutionAlreadyStarted($id, $e) : $e;
         }
@@ -289,6 +289,8 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * What a failed call on an execution means: NotFound (code 5) is {@see WorkflowExecutionAlreadyEnded}
      * when a describe still finds the execution, {@see WorkflowExecutionNotFound} when it does not;
      * any other failure comes back unchanged.
+     *
+     * @internal for the client port, which reports the same answers for signal and update
      */
     public function refusalOf(ExecutionId $executionId, \RuntimeException $failure): \RuntimeException
     {
@@ -304,6 +306,8 @@ final readonly class WorkflowClient implements WorkflowClientInterface
 
     /**
      * Whether the server holds a run of this execution, open or ended.
+     *
+     * @internal for the client port
      */
     public function hasExecution(ExecutionId $executionId): bool
     {

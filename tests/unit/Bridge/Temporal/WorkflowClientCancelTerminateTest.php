@@ -110,6 +110,19 @@ final class WorkflowClientCancelTerminateTest extends TestCase
         }
     }
 
+    public function testTerminatingAnExecutionTheServerDoesNotHoldFailsAsNotFound(): void
+    {
+        $this->serverFailure = new \RuntimeException('workflow not found', 5);
+
+        try {
+            $this->client()->terminate(ExecutionId::fromString('exec-1'));
+            self::fail('Expected WorkflowExecutionNotFound.');
+        } catch (WorkflowExecutionNotFound $failure) {
+            self::assertSame('exec-1', $failure->executionId);
+            self::assertSame($this->serverFailure, $failure->getPrevious());
+        }
+    }
+
     public function testOtherServerFailuresPropagateUnchanged(): void
     {
         $this->serverFailure = new \RuntimeException('unavailable', 14);
