@@ -450,6 +450,8 @@ final class TemporalEventConverter
                     return null;
                 }
                 $accepted = $this->acceptedUpdates[$updateId];
+                // The key is the id the client sent, or a placeholder when the server recorded none.
+                $journalledId = str_starts_with($updateId, '#') ? null : $updateId;
                 unset($this->acceptedUpdates[$updateId]);
 
                 $failure = $outcome->getFailure();
@@ -459,11 +461,11 @@ final class TemporalEventConverter
                     return new WorkflowUpdateHandled($this->id, $accepted['name'], $accepted['arguments'], null, new FailureEnvelope(
                         \is_string($type) && '' !== $type ? $type : DurableUpdateFailedException::class,
                         $failure->getMessage(),
-                    ));
+                    ), $journalledId);
                 }
                 $payloads = $outcome->getSuccess()?->getPayloads();
 
-                return new WorkflowUpdateHandled($this->id, $accepted['name'], $accepted['arguments'], null !== $payloads && $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null);
+                return new WorkflowUpdateHandled($this->id, $accepted['name'], $accepted['arguments'], null !== $payloads && $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null, null, $journalledId);
 
             case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
