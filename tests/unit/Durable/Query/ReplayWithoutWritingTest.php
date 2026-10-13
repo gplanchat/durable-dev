@@ -33,6 +33,7 @@ final class WaitsOnAnActivity
         try {
             $this->state = 'waiting';
             $env->await($env->activityStub(ConformanceActivities::class)->quote(['a']));
+            $this->state = 'done';
         } catch (\Throwable) {
             $this->state = 'compensated';
         }
@@ -56,9 +57,31 @@ final class WaitsOnAChild
         try {
             $this->state = 'waiting';
             $env->await($env->childWorkflowStub(ConformanceChildWorkflow::class)->run('x'));
+            $this->state = 'done';
         } catch (\Throwable) {
             $this->state = 'compensated';
         }
+    }
+
+    #[AsQueryMethod('state')]
+    public function state(): string
+    {
+        return $this->state;
+    }
+}
+
+#[AsWorkflow('test.query.side_effect')]
+final class RunsASideEffect
+{
+    public static int $runs = 0;
+
+    private string $state = 'started';
+
+    #[AsWorkflowMethod]
+    public function run(WorkflowEnvironment $env): void
+    {
+        $env->sideEffect(static fn(): int => ++self::$runs);
+        $this->state = 'after';
     }
 
     #[AsQueryMethod('state')]
@@ -94,6 +117,24 @@ final class ReplayWithoutWritingTest extends TestCase
         self::assertNull($transport->nextDueAt(), 'The pass queued an activity.');
     }
 
+    public function testASideEffectTheJournalDoesNotHoldIsNotRunByTheQueryAndRunsOnceInTheLivePass(): void
+    {
+        RunsASideEffect::$runs = 0;
+        $events = new InMemoryEventStore();
+        $engine = $this->engine($events, new InMemoryActivityTransport(), true);
+        $id = ExecutionId::fromString('exec-1');
+        $handler = $this->registry()->getHandler('test.query.side_effect', []);
+
+        $context = $engine->replayWithoutWriting($id, $handler);
+
+        self::assertSame('started', $context->queryHandlers()->call('state'));
+        self::assertSame(0, RunsASideEffect::$runs, 'The query ran the closure.');
+
+        $engine->start($id, $this->registry()->getHandler('test.query.side_effect', []));
+
+        self::assertSame(1, RunsASideEffect::$runs);
+    }
+
     public function testARuntimeThatRunsWorkItselfIsRefused(): void
     {
         $engine = $this->engine(new InMemoryEventStore(), new InMemoryActivityTransport(), false);
@@ -107,6 +148,7 @@ final class ReplayWithoutWritingTest extends TestCase
         $registry = new WorkflowRegistry();
         $registry->registerClass(WaitsOnAnActivity::class);
         $registry->registerClass(WaitsOnAChild::class);
+        $registry->registerClass(RunsASideEffect::class);
         $registry->registerClass(ConformanceChildWorkflow::class);
 
         return $registry;
