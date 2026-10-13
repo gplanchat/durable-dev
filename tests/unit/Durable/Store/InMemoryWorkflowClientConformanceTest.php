@@ -187,7 +187,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
             'query' => $this->client->query($id, 'status'),
-            'update' => $this->client->update($id, 'change'),
             'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
@@ -195,18 +194,10 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     }
 
     /**
-     * @return iterable<string, array{string}>
+     * Until task 1.7 follows the chain, an operation on a run that continued as new is refused
+     * rather than delivered to a journal nobody reads any more.
      */
-    public static function actingOperationsStillToBuild(): iterable
-    {
-        foreach (self::actingOperations() as $name => $case) {
-            if (!\in_array($case[0], ['signal', 'update'], true)) {
-                yield $name => $case;
-            }
-        }
-    }
-
-    #[DataProvider('actingOperationsStillToBuild')]
+    #[DataProvider('actingOperations')]
     public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -215,6 +206,8 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
+            'signal' => $this->client->signal($id, 'pay'),
+            'update' => $this->client->update($id, 'change'),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
