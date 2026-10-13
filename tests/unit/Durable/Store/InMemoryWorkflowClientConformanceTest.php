@@ -138,6 +138,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     protected function endRun(ExecutionId $executionId, WorkflowRunStatus $outcome): void
     {
         $this->catalog->recordOutcome($executionId, $outcome);
+        $this->rows->markCompleted($executionId);
     }
 
     protected function appendEnding(Event $ending): void
