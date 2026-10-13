@@ -74,7 +74,7 @@ switch ($mode) {
                 say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
                 exit;
             }
-            say('EMPTY');
+            say('EMPTY', $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
         }
         say('TIMEOUT');
         break;
