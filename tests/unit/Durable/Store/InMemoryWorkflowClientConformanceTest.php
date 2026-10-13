@@ -9,6 +9,7 @@ use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -25,6 +26,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
@@ -106,6 +108,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->catalog->recordOutcome($executionId, $outcome);
     }
 
+    protected function appendEnding(Event $ending): void
+    {
+        (new ProjectingEventStore($this->events, $this->catalog))->append($ending);
+    }
+
     protected function historyLengthOf(ExecutionId $executionId): int
     {
         return $this->events->countEventsInStream($executionId);
@@ -156,12 +163,24 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
-    #[DataProvider('operations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operationsStillToBuild(): iterable
+    {
+        foreach (self::operations() as $operation => $arguments) {
+            if ('result' !== $operation) {
+                yield $operation => $arguments;
+            }
+        }
+    }
+
+    #[DataProvider('operationsStillToBuild')]
     public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        if (\in_array($operation, ['query', 'result'], true)) {
+        if ('query' === $operation) {
             $this->endRun($id, WorkflowRunStatus::Completed);
         }
 
@@ -170,7 +189,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             'signal' => $this->client->signal($id, 'pay'),
             'query' => $this->client->query($id, 'status'),
             'update' => $this->client->update($id, 'change'),
-            'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
