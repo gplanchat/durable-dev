@@ -325,11 +325,11 @@ durable:
     max_activity_retries: 3
 ```
 
-Ceiling on automatic retries, applied to every activity on the `in_memory`, `dbal`, `temporal` and Magento Database backends: an activity's own `RetryLimit` can only be stricter. A negative value is a configuration error. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit). On the `temporal` backend the workflow worker writes the stricter limit into the activity's retry policy.
+Ceiling on automatic retries, applied to every activity on the `in_memory`, `dbal`, `illuminate` (Laravel), `temporal` and Magento Database backends: an activity's own `RetryLimit` can only be stricter. A negative value is a configuration error. `0` means **no ceiling**, and since an activity with no `RetryLimit` retries indefinitely (Temporal's default), leaving both unset means a failing activity never fails the workflow. Set a bound per activity with `RetryLimit::ofAttempts()` or `RetryLimit::once()`; see [Options and value objects](../options/#retrylimit). On the `temporal` backend the workflow worker writes the stricter limit into the activity's retry policy.
 
 On Laravel, the same key in `config/durable.php`; on Magento, the `maxActivityRetries` argument of
-`RuntimeFactory` in `di.xml`, which `MagentoRuntime::run()` reads without a DSN and the Magento Database backend reads in its
-activity and journal workers and passes to its Temporal workflow worker (see [the host table](#host-table)).
+`RuntimeFactory` in `di.xml`, which `MagentoRuntime::run()` reads without a DSN, the Magento Database backend's
+activity and journal workers read, and `RuntimeFactory` passes to the Temporal workflow worker (see [the host table](#host-table)).
 
 ---
 

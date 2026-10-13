@@ -367,8 +367,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowDefinitionLoader::class),
             $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
-            // Validated where the resume path reads it (bindResumePath).
-            max(0, (int) ($config['max_activity_retries'] ?? 0)),
+            self::maxActivityRetries($config),
         ));
         $assembly = static fn($app): TemporalRuntimeAssembly => $app->make(TemporalRuntimeAssembly::class);
         // One sender for the activity worker, which binds each task's token onto it, and for the
@@ -514,6 +513,21 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
+     * The `max_activity_retries` ceiling, refused by name when it is not an integer of 0 or more.
+     *
+     * @param array<string, mixed> $config
+     */
+    private static function maxActivityRetries(array $config): int
+    {
+        $value = $config['max_activity_retries'] ?? 0;
+        if (!\is_int($value) || $value < 0) {
+            throw new \InvalidArgumentException(\sprintf('durable.max_activity_retries must be an integer of 0 or more, %s given.', var_export($value, true)));
+        }
+
+        return $value;
+    }
+
+    /**
      * What replays an execution, and it is the core that does it.
      *
      * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
@@ -528,14 +542,7 @@ final class DurableServiceProvider extends ServiceProvider
         /** @var array<string, mixed> $queue */
         $queue = $config['queue'] ?? [];
         // Read on first use, like every other binding: a bad value fails where it is used, by name.
-        $maxActivityRetries = static function () use ($config): int {
-            $value = $config['max_activity_retries'] ?? 0;
-            if (!\is_int($value) || $value < 0) {
-                throw new \InvalidArgumentException(\sprintf('durable.max_activity_retries must be an integer of 0 or more, %s given.', var_export($value, true)));
-            }
-
-            return $value;
-        };
+        $maxActivityRetries = static fn(): int => self::maxActivityRetries($config);
 
         /** @var list<string> $activityHandlers */
         $activityHandlers = $config['activity_handlers'] ?? [];

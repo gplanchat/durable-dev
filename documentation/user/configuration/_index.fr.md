@@ -328,7 +328,7 @@ durable:
     max_activity_retries: 3
 ```
 
-Plafond sur les réessais automatiques, appliqué à chaque activité sur les backends `in_memory`, `dbal`, `temporal` et Magento Database : la `RetryLimit` propre à une
+Plafond sur les réessais automatiques, appliqué à chaque activité sur les backends `in_memory`, `dbal`, `illuminate` (Laravel), `temporal` et Magento Database : la `RetryLimit` propre à une
 activité ne peut qu'être plus stricte. Une valeur négative est une erreur de configuration. `0` signifie **aucun plafond**, et comme une activité sans
 `RetryLimit` réessaie indéfiniment (le défaut de Temporal), laisser les deux non définis revient à
 ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une borne par activité avec
@@ -336,7 +336,7 @@ ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une bo
 
 Sous Laravel, la même clé dans `config/durable.php` ; sous Magento, l'argument `maxActivityRetries`
 de `RuntimeFactory` dans `di.xml`, que `MagentoRuntime::run()` lit sans DSN et que les workers du
-backend Magento Database lisent et qu'il transmet à son worker de workflow Temporal (voir [le tableau des hôtes](#host-table)).
+backend Magento Database lisent et que `RuntimeFactory` transmet au worker de workflow Temporal (voir [le tableau des hôtes](#host-table)).
 
 ---
 
