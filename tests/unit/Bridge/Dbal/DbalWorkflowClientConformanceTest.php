@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Dbal;
 
+use Doctrine\DBAL\Connection;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalChildWorkflowParentLinkStore;
 use Gplanchat\Bridge\Dbal\Store\DbalEventStore;
@@ -56,12 +57,13 @@ final class DbalWorkflowClientConformanceTest extends WorkflowClientPortConforma
     private DbalWorkflowMetadataStore $rows;
     private DbalWorkflowRunProjection $projection;
     private DbalWorkflowRunCatalog $catalog;
+    private Connection $connection;
     private InMemoryWorkflowClient $client;
     private FlakyResumeDispatcher $dispatcher;
 
     protected function setUp(): void
     {
-        $connection = SqlTestDatabase::dbal();
+        $this->connection = $connection = SqlTestDatabase::dbal();
         $schema = new DurableSchema($connection);
         $this->events = new DbalEventStore($connection, $schema);
         $this->rows = new DbalWorkflowMetadataStore($connection, $schema);
@@ -104,6 +106,12 @@ final class DbalWorkflowClientConformanceTest extends WorkflowClientPortConforma
             new LinkedChildFinalizer($journal, $dispatcher, $links),
             new ParentChildWorkflowCoordinator($journal, $dispatcher),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        // A server database allows a bounded number of connections: one per test would exhaust it.
+        $this->connection->close();
     }
 
     protected function clientUnderTest(): WorkflowClientPort
