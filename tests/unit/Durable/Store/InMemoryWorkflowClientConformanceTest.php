@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Durable\Store;
 
+use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
+use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -20,6 +22,7 @@ use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
+use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
 use Gplanchat\Durable\Testing\ConformanceOtherClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
@@ -28,6 +31,7 @@ use Gplanchat\Durable\Transport\InMemoryActivityTransport;
 use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowRegistry;
+use Gplanchat\Durable\WorkflowStartOptions;
 
 /**
  * The in-memory client on a stack that runs the first pass of a workflow in the caller's process,
@@ -109,5 +113,22 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         } catch (WorkflowExecutionAlreadyStarted) {
             self::assertSame($written, $this->events->countEventsInStream($id));
         }
+    }
+
+    public function testEveryRefusedOptionIsNamedAndNothingIsWrittenBeforeTheCheck(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $options = new WorkflowStartOptions(cronSchedule: CronSchedule::from('@every 5m'), taskQueue: TaskQueue::named('other'));
+
+        try {
+            $this->client->start($id, ConformanceClientWorkflow::TYPE, [], $options);
+            self::fail('Refused options must fail the start.');
+        } catch (WorkflowStartOptionsRefused $e) {
+            self::assertSame('in-memory', $e->backend);
+            self::assertSame(['cronSchedule', 'taskQueue'], $e->options);
+        }
+
+        self::assertNull($this->rows->get($id));
+        self::assertSame(0, $this->events->countEventsInStream($id));
     }
 }
