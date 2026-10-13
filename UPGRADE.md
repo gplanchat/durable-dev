@@ -1392,6 +1392,28 @@ in the process, and one with only a DSN keeps Temporal. Declaring both keys thro
 `bin/magento durable:setup` and `bin/magento durable:worker`. The
 [backends page](documentation/user/backends/_index.md) lists what the database backend supports.
 
+### The `cancellationType` activity option is removed (#1052)
+
+`ActivityOptions`, `ActivityOptions::of()` and `#[Activities]` no longer take `cancellationType`,
+and the enum `Gplanchat\Durable\Activity\ActivityCancellationType` is deleted. No backend read
+the option, Temporal included: cancelling an activity stays a request that the attempt in flight
+may outlive, whatever the value. `ActivityOptions::toMetadata()` stops writing the
+`cancellation_type` key, and `fromMetadata()` ignores it in a history written before this change,
+so no journal needs a migration.
+
+**Who is affected:** code that passes `cancellationType:` (or the tenth argument of `of()`, or the
+ninth of the constructor) to one of these three, or imports `ActivityCancellationType`. A call
+that still passes it fails with an unknown named parameter error, or with a class-not-found error
+for the enum.
+
+**What to do:**
+
+1. Run the Rector set (`vendor/bin/rector process src`). It removes the named argument from `new
+   ActivityOptions()`, `ActivityOptions::of()` and `#[Activities]`, and the positional one from
+   the first two.
+2. Delete by hand the `use Gplanchat\Durable\Activity\ActivityCancellationType;` line it leaves,
+   and any positional value in `#[Activities]`, which the rule does not touch.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

@@ -405,6 +405,7 @@ immédiatement, avec une erreur.
 | `namespace: 'billing'` | `namespace: WorkflowNamespace::named('billing')` |
 | `cronSchedule: '0 9 * * *'` | `cronSchedule: CronSchedule::parse('0 9 * * *')` |
 | `searchAttributes: ['OrderId' => 'x']` | `SearchAttributes::none()->keyword('OrderId', 'x')` |
+| `cancellationType: ActivityCancellationType::Abandon` | supprimé : aucun backend ne le lit, retirez l'argument (Rector le fait) |
 
 > [!CAUTION]
 > **Le comportement change en plus des signatures.** `maxAttempts: 0` voulait dire *aucun
