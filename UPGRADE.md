@@ -1479,7 +1479,7 @@ so no journal needs a migration.
 3. Remove by hand each read of `$options->cancellationType` or `$activities->cancellationType`:
    the property no longer exists and the rule does not look for it.
 
-### An update's journal event carries the update id
+### An update's journal event carries the update id (#974)
 
 `WorkflowUpdateHandled` takes a nullable `$updateId` as its last constructor argument and exposes
 it as `updateId()`. The journal record gains an `updateId` key only when the id is set: a record
@@ -1495,10 +1495,11 @@ message's `updateId` on, and the Magento store reads and writes the key through 
 
 **What to do:**
 
-1. Add `?string $updateId = null` as the last parameter of your `recordUpdateHandled()`, and give it
-   to the `WorkflowUpdateHandled` you write, if you write one.
-2. Pass each `$pendingUpdates` entry on as it is, `updateId` included. No Rector rule: the change is
-   one parameter per implementation, and a script would not find a dispatcher that rebuilds entries.
+1. Run the Rector set (`vendor/bin/rector process src`). Its parameter rule adds
+   `?string $updateId = null` to every `recordUpdateHandled()` that implements the interface.
+2. Give that id to the `WorkflowUpdateHandled` you write, if you write one.
+3. In a `WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries, pass each entry on as
+   it is, `updateId` included. The rule does not look for that.
 
 ## 0.1.0-beta1
 

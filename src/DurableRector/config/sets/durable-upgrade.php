@@ -103,6 +103,8 @@ return RectorConfig::configure()
     // id, so that a redelivered call reaches the cluster as the same one (#333). An implementation
     // missing them is a fatal error at load time; this rule adds them, `?string ... = null`, to every
     // class whose parent or interface declares more parameters than it does.
+    // Unreleased: `WorkflowCommandBufferInterface::recordUpdateHandled()` takes an update id; the
+    // same rule adds `?string $updateId = null` to every implementation (#974).
     // Unreleased — the ports take an `ExecutionId` rather than a string (#638). This rule wraps the
     // string arguments it can prove; a class that implements a port, and code that reads an id a
     // port now returns, are migrated by hand (UPGRADE.md).
