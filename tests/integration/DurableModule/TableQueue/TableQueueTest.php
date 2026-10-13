@@ -87,17 +87,20 @@ final class TableQueueTest extends TestCase
         $workers = [new Harness(['drain', 'q', '60', '30', $barrier, '2']), new Harness(['drain', 'q', '60', '30', $barrier, '2'])];
         $ids = [];
         $counts = [];
-        foreach ($workers as $worker) {
+        $report = [];
+        foreach ($workers as $number => $worker) {
             $mine = array_column($worker->events(), 2);
             $counts[] = \count($mine);
+            $report[] = \sprintf('worker %d acknowledged %d, %s', $number, \count($mine), $worker->describe());
             $ids = [...$ids, ...$mine];
         }
         array_map('unlink', glob($barrier . '/*') ?: []);
         rmdir($barrier);
 
-        self::assertCount(60, $ids);
-        self::assertCount(60, array_unique($ids), 'a message was taken twice');
-        self::assertGreaterThan(0, min($counts), 'one worker took everything: the take never contended');
+        $report = implode("\n", $report);
+        self::assertCount(60, $ids, $report);
+        self::assertCount(60, array_unique($ids), "a message was taken twice\n" . $report);
+        self::assertGreaterThan(0, min($counts), "one worker took everything: the take never contended\n" . $report);
     }
 
     #[Test]
