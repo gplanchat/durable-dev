@@ -19,6 +19,7 @@ use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\SearchAttributes;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
@@ -78,8 +79,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
                 ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
             }
         };
+        $engine = new ExecutionEngine(
+            $this->events,
+            new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true),
+            workflowDefinitionLoader: new WorkflowDefinitionLoader(),
+        );
         $dispatcher->handler = $this->resume = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
+            $engine,
             $registry,
             $metadata,
             $dispatcher,
@@ -90,7 +96,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, new ReadOnlyReplay($engine, $this->events, $metadata, $registry));
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -149,6 +155,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         } catch (WorkflowExecutionAlreadyStarted) {
             self::assertSame($written, $this->events->countEventsInStream($id));
         }
+    }
+
+    public function testASignalTheWorkflowHasNotRunOnYetIsInTheAnswerAndNothingIsWritten(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        // Journalled, not resumed: the live pass has not applied it, and has not journalled the timer after it.
+        $this->events->append(new WorkflowSignalReceived($id, 'pay', []));
+        $written = $this->events->countEventsInStream($id);
+
+        self::assertSame('paid', $this->client->query($id, 'status'));
+        self::assertSame($written, $this->events->countEventsInStream($id));
     }
 
     public function testARefusedStartNamesTheBackendAndWritesNoRowBeforeTheCheck(): void
