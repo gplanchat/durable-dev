@@ -435,8 +435,12 @@ It runs the core's journal, activity and workflow handlers on tables of the conn
 [glossary](../glossary/)) that `bin/magento durable:worker` drains.
 
 > [!NOTE]
-> Integration tests of the Magento Database backend run only under `phpunit.magento.xml`, and no CI
-> job runs that configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+> The CI job `magento-boot` runs the integration tests of the Magento Database backend under
+> `phpunit.magento.xml` (suite `tests/integration/DurableModule`, 19 tests,
+> [#1034](https://github.com/gplanchat/durable-dev/pull/1034)). The conformance classes under
+> `magento/tests` (the shared SQL store cases of `src/Durable/Testing`, run against the Magento
+> adapter's stores) run through `magento/phpunit.xml.dist`, and no CI step runs that configuration
+> ([#1062](https://github.com/gplanchat/durable-dev/issues/1062)).
 
 In the table, ✅ means the capability exists and ❌ means it is absent. "not yet" marks the one
 capability that is absent but planned: sending a signal or an update from the application on the
@@ -506,18 +510,47 @@ the failure also stays in the cluster history.
 
 ---
 
-## Retry limits differ on one setting {#retry-semantics-are-identical}
+## Retry limits are identical {#retry-semantics-are-identical}
 
 An activity with no attempt bound retries **indefinitely** on every backend, which is the Temporal default.
 
-`max_activity_retries` is the exception. On the in-memory and journal backends (DBAL, Illuminate) and on the Magento Database backend,
-the worker narrows the activity's own `RetryLimit` to that ceiling, and the stricter of the two
-applies; at `0` it caps nothing. On Magento, the ceiling is the `maxActivityRetries` argument of
-`RuntimeFactory`. On Temporal, the cluster retries from the activity's own
-`RetryLimit` and the setting is not read: an activity that the ceiling stops on the other backends
-keeps retrying on Temporal.
+`max_activity_retries` bounds every activity the same way on every backend. On the in-memory, journal (DBAL, Illuminate) and Magento Database backends, the worker narrows the activity's own `RetryLimit` to that ceiling. On Temporal, the workflow worker narrows it when it schedules the activity and writes the result into the `maximum_attempts` of the activity's retry policy. The stricter of the two applies; at `0` it caps nothing. On Magento, the ceiling is the `maxActivityRetries` argument of `RuntimeFactory`.
 
 See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
+
+---
+
+## Accepted differences: continueAsNew id and replay divergence {#accepted-journal-differences}
+
+The two differences below, between the journal backends (In-Memory, DBAL, Illuminate and
+Magento Database) and Temporal, are accepted exceptions to the rule that the application behaves
+the same on every backend, like Nexus and the others this page names. The project plans to change
+neither.
+
+### The execution id after `continueAsNew` {#continue-as-new-execution-id}
+
+Temporal keeps the Durable execution id across `continueAsNew`: the id travels from run to run in
+the memo (the key-value data attached to a Temporal execution), so `ExecutionId` identifies the
+whole chain. On the journal backends, each run has its own journal, and the journal generates a
+new `ExecutionId` for the run that `continueAsNew` starts. The old id names the run that ended:
+send signals and queries to the id in its `WorkflowContinuedAsNew` event. A signal sent to the old
+id is journaled in the ended run, which no worker replays, and no error reports it
+(`DeliverWorkflowSignalHandler` checks nothing before it appends).
+
+### A run whose code no longer matches its journal {#replay-divergence}
+
+Replay compares what the workflow code asks for with what the journal holds. Two cases fail that
+comparison: a `version()` call outside the supported range, and any other divergence, such as an
+activity called with another payload than the one recorded.
+
+- On Temporal, the worker answers `RespondWorkflowTaskFailed` and writes nothing. The run stays
+  open, parked, and the task retries once you deploy compatible code.
+- On the journal backends, the run records `WorkflowExecutionFailed` and ends failed. Deploying
+  compatible code afterwards does not reopen it.
+
+The journal has no "task failed" state to park a run in, and none is added. On a journal backend,
+deploy a change to a workflow so that runs in flight still replay (`version()` exists for this),
+or let them finish first.
 
 ---
 

@@ -19,15 +19,23 @@ final class Harness
     /** @var resource */
     private $stdout;
 
+    /** @var resource */
+    private $stderr;
+
+    private int $exitCode = -1;
+
+    private string $errors = '';
+
     /** @param list<string> $arguments */
     public function __construct(array $arguments)
     {
         $this->process = proc_open(
             [\PHP_BINARY, '-d', 'memory_limit=256M', __DIR__ . '/Fixture/worker.php', ...$arguments],
-            [1 => ['pipe', 'w'], 2 => ['file', 'php://stderr', 'w']],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
         ) ?: throw new \RuntimeException('cannot start a worker');
         $this->stdout = $pipes[1];
+        $this->stderr = $pipes[2];
     }
 
     public static function unavailable(): ?string
@@ -68,16 +76,30 @@ final class Harness
         while (false !== ($line = fgets($this->stdout))) {
             $events[] = explode(' ', trim($line));
         }
-        proc_close($this->process);
+        // Read once the worker closed its output: a worker writes a line or two to stderr, far under the pipe's buffer.
+        $this->errors = (string) stream_get_contents($this->stderr);
+        $this->exitCode = proc_close($this->process);
 
         return $events;
+    }
+
+    /** What the worker said and how it ended, for a failure message; call after {@see events()}. */
+    public function describe(): string
+    {
+        return \sprintf('exit code %d, stderr: %s', $this->exitCode, '' === $this->errors ? '(empty)' : trim($this->errors));
     }
 
     /** @return list<string>|null the first TAKEN event, as soon as it is printed */
     public function waitForTaken(): ?array
     {
+        return $this->waitForEvent('TAKEN');
+    }
+
+    /** @return list<string>|null the first event of that name, as soon as it is printed */
+    public function waitForEvent(string $name): ?array
+    {
         while (false !== ($line = fgets($this->stdout))) {
-            if (str_starts_with($line, 'TAKEN')) {
+            if (str_starts_with($line, $name)) {
                 return explode(' ', trim($line));
             }
         }
