@@ -461,8 +461,11 @@ connexion que nomme `resource/durable`, avec une file en table (une file de mess
 [glossaire](../glossary/)) que `bin/magento durable:worker` vide.
 
 > [!NOTE]
-> Les tests d'intégration du backend Magento Database ne tournent que sous `phpunit.magento.xml`, et
-> aucun job de CI n'exécute cette configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+> Le job de CI `magento-boot` exécute les tests d'intégration du backend Magento Database sous
+> `phpunit.magento.xml` (suite `tests/integration/DurableModule`, 19 tests,
+> [#1034](https://github.com/gplanchat/durable-dev/issues/1034)). Les classes de conformité sous
+> `magento/tests` passent par `magento/phpunit.xml.dist`, et aucune étape de CI n'exécute cette
+> configuration ([#1036](https://github.com/gplanchat/durable-dev/issues/1036)).
 
 Dans le tableau, ✅ signifie que la capacité existe et ❌ qu'elle est absente. « pas encore » marque
 la seule capacité absente mais prévue : l'envoi d'un signal ou d'une mise à jour depuis l'application
