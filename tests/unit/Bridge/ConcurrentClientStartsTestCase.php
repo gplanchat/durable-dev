@@ -6,13 +6,11 @@ namespace unit\Bridge;
 
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\ExecutionId;
-use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
-use Gplanchat\Durable\Store\ReopensCompletedWorkflowMetadata;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\AwaitedFact;
 use PHPUnit\Framework\TestCase;
@@ -28,7 +26,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
     /**
      * Two store objects over one database.
      *
-     * @return array{WorkflowMetadataStore&ReopensCompletedWorkflowMetadata, WorkflowMetadataStore&ReopensCompletedWorkflowMetadata}
+     * @return array{WorkflowMetadataStore, WorkflowMetadataStore}
      */
     abstract protected function twoStoresOverOneDatabase(): array;
 
@@ -58,28 +56,7 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
         self::assertCount(1, $this->dispatched, 'the loser dispatched no run');
     }
 
-    public function testOfTwoRestartsAfterAFailedExecutionTheConditionalUpdateLetsOneWin(): void
-    {
-        [$first, $second] = $this->twoStoresOverOneDatabase();
-        $id = ExecutionId::fromString('exec-1');
-        $this->client($first)->start($id, 'App\\Old', ['v' => 'old']);
-        $this->dispatched->exchangeArray([]);
-        $first->markCompleted($id);
-        $winner = $this->client($second, true);
-        $loser = $this->client($this->before($first, static fn() => $winner->start($id, 'App\\Winner', ['v' => 'winner'])), true);
-
-        try {
-            $loser->start($id, 'App\\Loser', ['v' => 'loser']);
-            self::fail('The restart that updates second must fail.');
-        } catch (WorkflowExecutionAlreadyStarted $e) {
-            self::assertSame('exec-1', $e->executionId);
-        }
-
-        self::assertSame(['workflowType' => 'App\\Winner', 'payload' => ['v' => 'winner'], 'completed' => false], $first->get($id));
-        self::assertCount(1, $this->dispatched, 'the loser dispatched no run');
-    }
-
-    private function client(WorkflowMetadataStore&ReopensCompletedWorkflowMetadata $store, bool $failed = false): InMemoryWorkflowClient
+    private function client(WorkflowMetadataStore $store): InMemoryWorkflowClient
     {
         $catalog = new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
         $projecting = new ProjectingWorkflowMetadataStore($store, $catalog);
@@ -97,25 +74,19 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
             }
         };
 
-        // A restart: both clients judge the execution failed, so the store is the arbiter.
-        if ($failed) {
-            $catalog->recordStart(ExecutionId::fromString('exec-1'), 'App\\Old');
-            $catalog->recordOutcome(ExecutionId::fromString('exec-1'), WorkflowRunStatus::Failed);
-        }
-
         return new InMemoryWorkflowClient($projecting, $dispatcher, $catalog);
     }
 
     /**
      * The store, with `$competitor` run once just before its first write.
      *
-     * @return WorkflowMetadataStore&ReopensCompletedWorkflowMetadata
+     * @return WorkflowMetadataStore
      */
-    private function before(WorkflowMetadataStore&ReopensCompletedWorkflowMetadata $inner, \Closure $competitor): WorkflowMetadataStore&ReopensCompletedWorkflowMetadata
+    private function before(WorkflowMetadataStore $inner, \Closure $competitor): WorkflowMetadataStore
     {
-        return new class ($inner, $competitor) implements WorkflowMetadataStore, ReopensCompletedWorkflowMetadata {
+        return new class ($inner, $competitor) implements WorkflowMetadataStore {
             public function __construct(
-                private readonly WorkflowMetadataStore&ReopensCompletedWorkflowMetadata $inner,
+                private readonly WorkflowMetadataStore $inner,
                 private ?\Closure $competitor,
             ) {}
 
@@ -136,13 +107,6 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
                 $this->compete();
 
                 return $this->inner->insertIfAbsent($executionId, $workflowType, $payload);
-            }
-
-            public function reopenIfCompleted(ExecutionId $executionId, string $workflowType, array $payload): bool
-            {
-                $this->compete();
-
-                return $this->inner->reopenIfCompleted($executionId, $workflowType, $payload);
             }
 
             public function markCompleted(ExecutionId $executionId): void
