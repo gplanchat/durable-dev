@@ -161,14 +161,9 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         };
     }
 
-    #[DataProvider('operations')]
+    #[DataProvider('actingOperations')]
     public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
     {
-        if (!\in_array($operation, ['signal', 'update', 'cancel', 'terminate'], true)) {
-            $this->addToAssertionCount(1);
-
-            return;
-        }
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
         $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
