@@ -15,6 +15,7 @@ use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowClientPort;
@@ -53,7 +54,7 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
 
     protected function setUp(): void
     {
-        $this->connection = self::freshNamespaceConnection();
+        $this->connection = self::freshNamespaceConnection(false);
         $this->grpc = WorkflowServiceClientFactory::create($this->connection);
         $cursor = new TemporalHistoryCursor($this->grpc, $this->connection);
         $this->workflowClient = new WorkflowClient($this->grpc, $this->connection, $cursor, new WorkflowServiceExecutionRpc($this->grpc));
@@ -107,6 +108,15 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
         }
 
         return 0 === $payloads->count() ? [] : JsonPlainPayload::decode($payloads[0]);
+    }
+
+    /**
+     * A journal event has no direct form on Temporal, and the cases that read one run the
+     * workflow's code, which this suite does not (see {@see runsWorkflowCode()}).
+     */
+    protected function journalOf(ExecutionId $executionId): array
+    {
+        throw UnsupportedByBackendException::forMethod('Temporal', 'journalOf', 'read the history through the Temporal client');
     }
 
     protected function runsWorkflowCode(): bool
