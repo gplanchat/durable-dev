@@ -9,6 +9,8 @@ use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\Event;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\UpdateFailureReason;
@@ -30,6 +32,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
@@ -115,6 +118,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->catalog->recordOutcome($executionId, $outcome);
     }
 
+    protected function appendEnding(Event $ending): void
+    {
+        (new ProjectingEventStore($this->events, $this->catalog))->append($ending);
+    }
+
     protected function journalOf(ExecutionId $executionId): array
     {
         return iterator_to_array($this->events->readStream($executionId), false);
@@ -170,13 +178,23 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
+    public function testAResultOnARunThatContinuedAsNewWithoutAnIdIsRefusedByName(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        $this->appendEnding(new WorkflowContinuedAsNew($id, ConformanceClientWorkflow::TYPE, []));
+
+        $this->expectException(UnsupportedByBackendException::class);
+        $this->client->result($id, Duration::seconds(1));
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
     public static function operationsStillToBuild(): iterable
     {
         foreach (self::operations() as $name => $case) {
-            if (!\in_array($case[0], ['signal', 'update'], true)) {
+            if (!\in_array($case[0], ['signal', 'update', 'result'], true)) {
                 yield $name => $case;
             }
         }
@@ -187,14 +205,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     {
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        if (\in_array($operation, ['query', 'result'], true)) {
+        if ('query' === $operation) {
             $this->endRun($id, WorkflowRunStatus::Completed);
         }
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
             'query' => $this->client->query($id, 'status'),
-            'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
