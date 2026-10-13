@@ -6,10 +6,10 @@ namespace unit\Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
-use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -90,7 +90,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events);
     }
 
     protected function clientUnderTest(): WorkflowClientPort
