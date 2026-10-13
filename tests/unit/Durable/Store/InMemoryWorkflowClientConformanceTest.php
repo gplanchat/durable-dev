@@ -8,11 +8,13 @@ use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
+use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\SupersededPassException;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyEnded;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
 use Gplanchat\Durable\ExecutionEngine;
@@ -29,11 +31,13 @@ use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\SearchAttributes;
+use Gplanchat\Durable\Store\FencedEventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\PassFence;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
@@ -41,9 +45,7 @@ use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
 use Gplanchat\Durable\Testing\ConformanceCompensatingClientWorkflow;
 use Gplanchat\Durable\Testing\ConformanceOtherClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
-use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
-use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\Workflow\WorkflowDefinitionLoader;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowRegistry;
@@ -63,6 +65,9 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     private InMemoryWorkflowClient $client;
     private WorkflowResumeDispatcher $dispatcher;
     private InMemoryChildWorkflowParentLinkStore $links;
+    private ProjectingEventStore $journal;
+    private ProjectingWorkflowMetadataStore $metadata;
+    private \unit\Durable\Store\FlakyResumeDispatcher $flaky;
 
     protected function setUp(): void
     {
@@ -71,27 +76,14 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->catalog = new InMemoryWorkflowRunCatalog($this->events);
         $metadata = new ProjectingWorkflowMetadataStore($this->rows, $this->catalog);
         // As the memory backend wires it: the endings an append carries reach the catalogue.
-        $journal = new ProjectingEventStore($this->events, $this->catalog);
+        $this->journal = $journal = new ProjectingEventStore($this->events, $this->catalog);
+        $this->metadata = $metadata;
         $registry = new WorkflowRegistry();
         $registry->registerClass(ConformanceClientWorkflow::class);
         $registry->registerClass(ConformanceOtherClientWorkflow::class);
         $registry->registerClass(ConformanceCompensatingClientWorkflow::class);
 
-        $this->dispatcher = $dispatcher = new class implements WorkflowResumeDispatcher {
-            public ?ResumeWorkflowHandler $handler = null;
-
-            public function dispatchResume(ExecutionId $executionId, array $pendingUpdates = []): void
-            {
-                ($this->handler)(new ResumeWorkflowMessage($executionId->toString(), $pendingUpdates));
-            }
-
-            public function dispatchResumeAwaiting(ExecutionId $executionId, AwaitedFact $fact): void {}
-
-            public function dispatchNewWorkflowRun(ExecutionId $executionId, string $workflowType, array $payload): void
-            {
-                ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
-            }
-        };
+        $this->flaky = $this->dispatcher = $dispatcher = new \unit\Durable\Store\FlakyResumeDispatcher();
         $dispatcher->handler = new ResumeWorkflowHandler(
             new ExecutionEngine($journal, new ExecutionRuntime($journal, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
             $registry,
@@ -294,7 +286,10 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             static fn(object $event): bool => $event instanceof ChildWorkflowFailed,
         ));
         self::assertCount(1, $failed, 'The parent waits for its child forever.');
-        self::assertSame(WorkflowExecutionFailed::KIND_TERMINATED, $failed[0]->workflowFailureKind());
+        // What Temporal gives the parent of a terminated child: the text, no kind, no class.
+        self::assertSame('Child workflow child-1 was terminated.', $failed[0]->payload()['failureMessage']);
+        self::assertNull($failed[0]->workflowFailureKind());
+        self::assertNull($failed[0]->payload()['workflowFailureClass'] ?? null);
         self::assertNull($this->links->getParentExecutionId($child));
     }
 
@@ -323,5 +318,88 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(SupersededPassException::class);
         $this->events->appendFenced(new ExecutionCompleted($id, 'late'), $running);
+    }
+
+    public function testARetriedTerminationFinishesWhatAFailedDispatchLeftUndone(): void
+    {
+        $parent = ExecutionId::fromString('parent-1');
+        $child = ExecutionId::fromString('child-1');
+        $this->client->start($parent, ConformanceClientWorkflow::TYPE);
+        $this->client->start($child, ConformanceClientWorkflow::TYPE);
+        $this->events->append(new ChildWorkflowScheduled($parent, $child, ConformanceClientWorkflow::TYPE, []));
+        $this->links->link($child, $parent);
+        $this->flaky->failOnce = new class ('the queue is down') extends \RuntimeException {};
+
+        try {
+            $this->client->terminate($child, 'stop');
+            self::fail('The dispatch failure must reach the caller.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('the queue is down', $e->getMessage());
+        }
+        self::assertNotTrue($this->rows->get($child)['completed'] ?? false, 'The row is marked completed last.');
+
+        $this->client->terminate($child, 'stop');
+
+        self::assertCount(1, array_filter(
+            iterator_to_array($this->events->readStream($parent), false),
+            static fn(object $event): bool => $event instanceof ChildWorkflowFailed,
+        ));
+        self::assertTrue($this->rows->get($child)['completed'] ?? false);
+        $this->expectException(WorkflowExecutionAlreadyEnded::class);
+        $this->client->terminate($child, 'stop');
+    }
+
+    public function testARunThatCompletesBetweenTheCheckAndTheClaimIsNotTerminated(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        $racing = new class ($this->journal) implements FencedEventStoreInterface {
+            public function __construct(private readonly ProjectingEventStore $inner) {}
+
+            public function append(Event $event): void
+            {
+                $this->inner->append($event);
+            }
+
+            public function readStream(ExecutionId $executionId): iterable
+            {
+                return $this->inner->readStream($executionId);
+            }
+
+            public function readStreamWithRecordedAt(ExecutionId $executionId): iterable
+            {
+                return $this->inner->readStreamWithRecordedAt($executionId);
+            }
+
+            public function countEventsInStream(ExecutionId $executionId): int
+            {
+                return $this->inner->countEventsInStream($executionId);
+            }
+
+            public function claimPass(ExecutionId $executionId): PassFence
+            {
+                // The pass that was running ends before the claim.
+                $this->inner->append(new ExecutionCompleted($executionId, 'done'));
+
+                return $this->inner->claimPass($executionId);
+            }
+
+            public function appendFenced(Event $event, PassFence $fence): void
+            {
+                $this->inner->appendFenced($event, $fence);
+            }
+        };
+        $client = new InMemoryWorkflowClient($this->metadata, $this->dispatcher, $this->catalog, $racing, new LinkedChildFinalizer($racing, $this->dispatcher, $this->links));
+
+        try {
+            $client->terminate($id);
+            self::fail('A run that completed cannot be terminated.');
+        } catch (WorkflowExecutionAlreadyEnded) {
+            self::assertSame(WorkflowRunStatus::Completed, $this->catalog->findRun($id)?->status);
+        }
+        self::assertSame([], array_filter(
+            iterator_to_array($this->events->readStream($id), false),
+            static fn(object $event): bool => $event instanceof WorkflowExecutionFailed,
+        ));
     }
 }
