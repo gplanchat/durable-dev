@@ -122,8 +122,10 @@ battement manqué, et la borne de battement ne s'appliquerait donc jamais.
 La borne de battement n'existe que sur Temporal. Un backend à journal (InMemory, DBAL, Illuminate,
 Magento Database) lève `UnsupportedByBackendException` quand vous planifiez une activité avec une borne de battement.
 
-Hors Temporal, `startToClose` est vérifié quand la tentative se termine ; rien ne l'impose pendant
-qu'elle tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
+Une activité sans `startToClose` est bornée à 30 secondes par tentative sur tous les backends,
+comme sur Temporal ; `scheduleToClose`, s'il est défini, remplace cette valeur par défaut. Hors
+Temporal, la vérification a lieu après le retour de la tentative ; rien ne l'impose pendant qu'elle
+tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
 et la politique de reprise détermine la suite. Rien n'interrompt une tentative qui ne rend jamais
 la main. Arrêter un worker bloqué revient à ce qui supervise le processus.
 `messenger:consume --time-limit` ne vérifie qu'entre deux messages, il ne peut donc pas l'arrêter.
@@ -211,8 +213,8 @@ Une borne de run plus longue que la borne d'exécution est **rejetée** à la co
 serveur l'accepte et rabaisse silencieusement la borne de run à la borne d'exécution, si bien que la
 configuration que vous avez écrite n'est pas celle qui s'applique.
 
-`ContinueAsNewOptions` rejette toute borne d'exécution : le nouveau run
-appartient à l'exécution courante et en hérite. Employez `withoutExecutionBound()` pour y réutiliser
+`ContinueAsNewOptions` rejette toute borne d'exécution : le run suivant
+prolonge la chaîne de l'exécution courante et en hérite la borne. Employez `withoutExecutionBound()` pour y réutiliser
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
 
@@ -226,6 +228,11 @@ Sur les backends en mémoire, DBAL, Illuminate et Magento Database, un enfant d�
 | `execution` | Appliquée. Un enfant qui ne s'est pas terminé à l'échéance fait échouer l'attente de son parent avec `DurableChildWorkflowFailedException` (« Child workflow `<id>` timed out. »). |
 | `run` | Enregistrée, non appliquée. Elle ne diffère de `execution` qu'au travers d'un continue-as-new, où l'échéance doit repartir à chaque run. |
 | `task` | Enregistrée, non appliquée. Elle borne un aller-retour du worker, que le journal n'a pas. |
+
+L'identifiant d'exécution diffère selon le backend. Sur Temporal, le run suivant garde
+l'identifiant d'exécution Durable. Sur les backends à journal, le journal génère un nouvel
+`ExecutionId` pour lui. Voir
+[l'identifiant d'exécution après `continueAsNew`](../backends/#continue-as-new-execution-id).
 
 ---
 
@@ -361,6 +368,31 @@ Les workflows enfants acceptent la même planification par `ChildWorkflowOptions
 
 ---
 
+## Réutiliser l'identifiant d'un workflow enfant {#child-workflow-id-reuse}
+
+`ChildWorkflowOptions::$workflowIdReusePolicy` fixe ce qui se passe quand un enfant démarre sous un
+identifiant qu'une exécution antérieure a déjà utilisé. Une politique ne s'applique qu'à une exécution
+terminée : démarrer un enfant sous un identifiant dont l'exécution tourne encore lève
+`ChildWorkflowIdInUseException` sous toutes les politiques.
+
+| Exécution antérieure sous l'identifiant | `AllowDuplicate` | `AllowDuplicateFailedOnly` | `RejectDuplicate` |
+|---|---|---|---|
+| Encore en cours | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` | `ChildWorkflowIdInUseException` |
+| Terminée avec succès | Une nouvelle exécution démarre | `ChildWorkflowIdCompletedException` | `ChildWorkflowIdAlreadyUsedException` |
+| Échouée, annulée ou terminée de force | Une nouvelle exécution démarre | Une nouvelle exécution démarre | `ChildWorkflowIdAlreadyUsedException` |
+
+Chaque exception porte l'identifiant dans sa propriété `childExecutionId` et étend
+`\InvalidArgumentException`. Sur les backends à journal (mémoire, DBAL, Illuminate, Magento
+Database), l'appel de la méthode du stub lève l'exception. Sur Temporal, un parent qui
+réutilise un identifiant dans son propre historique reçoit les mêmes exceptions à l'appel, car le
+même contexte d'exécution lit cet historique. Un identifiant que seul un parent antérieur a utilisé
+échoue autrement : le démarrage échoue côté serveur et le parent reçoit
+`DurableChildWorkflowFailedException` à l'`await` de l'enfant. Les backends à journal vérifient le
+flux propre de l'enfant, tous parents confondus, et lèvent donc les exceptions nommées à l'appel
+dans ce cas aussi.
+
+---
+
 ## Mémo, résumé et détails d'un enfant {#child-memo-summary-and-details}
 
 `ChildWorkflowOptions` prend un mémo, un résumé d'une ligne et des détails plus longs pour l'enfant.
@@ -392,6 +424,15 @@ de telles options échoue à cette ligne, y compris pendant le rejeu (le code du
 à nouveau depuis sa première ligne pour reprendre ; voir le [glossaire](../glossary/)). Le rejeu
 compare le type et l'entrée d'un enfant avec le journal, pas son mémo : une exécution en cours
 reprend dès que le code utilise une autre clé.
+
+---
+
+## Comportements qui diffèrent selon le backend
+
+Deux différences acceptées touchent les options de cette page. L'identifiant d'exécution après
+`continueAsNew` est décrit plus haut. Un run dont le code ne correspond plus à son journal est mis
+en attente sur Temporal et se termine en échec sur les backends à journal ; voir
+[la page des backends](../backends/#replay-divergence).
 
 ---
 

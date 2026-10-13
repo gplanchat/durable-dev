@@ -45,6 +45,7 @@ final readonly class WorkflowTaskRunner
         private readonly WorkflowRegistry $registry,
         private readonly TemporalConnection $connection,
         private readonly ?WorkflowDefinitionLoader $workflowDefinitionLoader = null,
+        private readonly int $maxActivityRetries = 0,
     ) {
         $this->runtime = new ExecutionRuntime(
             new NoLocalJournalEventStore('Temporal'),
@@ -94,7 +95,7 @@ final readonly class WorkflowTaskRunner
 
         $workflowTypeName = $this->resolveWorkflowTypeName($poll);
 
-        $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId, $history);
+        $commandBuffer = new TemporalWorkflowCommandBuffer($this->connection, $executionId, $history, $this->maxActivityRetries);
 
         // Updates arrive alongside the journal, on the task: they are handed to the execution
         // for this pass, and the journal order takes over again as soon as they are accepted in it.
