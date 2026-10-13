@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
@@ -50,6 +51,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     private InMemoryWorkflowMetadataStore $rows;
     private InMemoryWorkflowRunCatalog $catalog;
     private InMemoryWorkflowClient $client;
+    private ResumeWorkflowHandler $resume;
 
     protected function setUp(): void
     {
@@ -76,7 +78,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
                 ($this->handler)(new ResumeWorkflowMessage($executionId->toString()));
             }
         };
-        $dispatcher->handler = new ResumeWorkflowHandler(
+        $dispatcher->handler = $this->resume = new ResumeWorkflowHandler(
             new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
             $registry,
             $metadata,
@@ -99,6 +101,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     protected function catalogUnderTest(): WorkflowRunCatalogInterface
     {
         return $this->catalog;
+    }
+
+    protected function deliverSignal(ExecutionId $executionId, string $name): void
+    {
+        // ponytail: the client delivers no signal until task 2.1; the journal path of the bus handler.
+        $this->events->append(new WorkflowSignalReceived($executionId, $name, []));
+        ($this->resume)(new ResumeWorkflowMessage($executionId->toString()));
     }
 
     protected function endRun(ExecutionId $executionId, WorkflowRunStatus $outcome): void
@@ -156,19 +165,30 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
-    #[DataProvider('operations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operationsStillToBuild(): iterable
+    {
+        foreach (self::operations() as $name => $case) {
+            if ('query' !== $name) {
+                yield $name => $case;
+            }
+        }
+    }
+
+    #[DataProvider('operationsStillToBuild')]
     public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
         $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        if (\in_array($operation, ['query', 'result'], true)) {
+        if ('result' === $operation) {
             $this->endRun($id, WorkflowRunStatus::Completed);
         }
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
             'signal' => $this->client->signal($id, 'pay'),
-            'query' => $this->client->query($id, 'status'),
             'update' => $this->client->update($id, 'change'),
             'result' => $this->client->result($id, Duration::seconds(0.1)),
             'cancel' => $this->client->cancel($id),
