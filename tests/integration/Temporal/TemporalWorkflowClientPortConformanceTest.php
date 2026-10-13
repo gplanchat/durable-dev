@@ -13,12 +13,17 @@ use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientFactory;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\CronSchedule;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\TaskQueue as StartTaskQueue;
+use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
 use Gplanchat\Durable\WorkflowStartOptions;
+use Gplanchat\Durable\WorkflowTimeouts;
 use Temporal\Api\Command\V1\CancelWorkflowExecutionCommandAttributes;
 use Temporal\Api\Command\V1\Command;
 use Temporal\Api\Command\V1\CompleteWorkflowExecutionCommandAttributes;
@@ -36,7 +41,7 @@ use Temporal\Api\Workflowservice\V1\RespondWorkflowTaskCompletedRequest;
  * and task queue per test; the hooks play the worker by hand, as the catalog suite does: ending a
  * run answers its first workflow task with the command that closes it that way.
  *
- * Not run in the repository's own checks, which have no server: it needs DURABLE_TEMPORAL_ADDRESS.
+ * Needs DURABLE_TEMPORAL_ADDRESS; the CI job that runs the `temporal` suite provides a dev server.
  */
 final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPortConformanceTestCase
 {
@@ -71,12 +76,26 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
     }
 
     /**
-     * PHPUnit rejects an empty data provider, and this backend has no option to refuse: the case
-     * the suite checks does not exist here.
+     * Overrides the shared refusal case, which PHPUnit cannot run on an empty provider: Temporal has
+     * no option to refuse, so the case checked here is the opposite one. A start that sets the cron
+     * schedule, the task queue and the execution timeout succeeds, and the server records all three.
      */
     public function testAnOptionTheBackendCannotHonourFailsTheStartAndStartsNothing(?WorkflowStartOptions $options = null, array $names = []): void
     {
-        self::markTestSkipped('Temporal honours every start option, so it refuses none.');
+        $id = ExecutionId::fromString('exec-1');
+        $options = new WorkflowStartOptions(
+            cronSchedule: CronSchedule::from('@every 5m'),
+            taskQueue: StartTaskQueue::named('other-queue'),
+            timeouts: new WorkflowTimeouts(execution: Duration::seconds(3600)),
+        );
+
+        $this->clientUnderTest()->start($id, ConformanceClientWorkflow::TYPE, [], $options);
+
+        $started = $this->history($id)[0]->getWorkflowExecutionStartedEventAttributes();
+        self::assertNotNull($started);
+        self::assertSame('@every 5m', $started->getCronSchedule());
+        self::assertSame('other-queue', $started->getTaskQueue()?->getName());
+        self::assertSame(3600, $started->getWorkflowExecutionTimeout()?->getSeconds());
     }
 
     protected function startedInputOf(ExecutionId $executionId): ?array
@@ -88,6 +107,11 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
         }
 
         return 0 === $payloads->count() ? [] : JsonPlainPayload::decode($payloads[0]);
+    }
+
+    protected function runsWorkflowCode(): bool
+    {
+        return false;
     }
 
     protected function historyLengthOf(ExecutionId $executionId): int
