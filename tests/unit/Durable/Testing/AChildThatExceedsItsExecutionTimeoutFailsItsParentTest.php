@@ -86,9 +86,12 @@ final class AChildThatExceedsItsExecutionTimeoutFailsItsParentTest extends TestC
         $store = $env->getEventStore();
         $first = iterator_to_array($store->readStream(ExecutionId::fromString('chain-child')), false);
         $continued = array_values(array_filter($first, static fn(Event $e): bool => $e instanceof WorkflowContinuedAsNew))[0];
-        self::assertNotContains(WorkflowExecutionFailed::class, array_map(static fn(Event $e): string => $e::class, $first), 'the first run ended by continuing as new');
-        $last = iterator_to_array($store->readStream($continued->newExecutionId()), false);
-        self::assertContains(WorkflowExecutionFailed::class, array_map(static fn(Event $e): string => $e::class, $last), 'the run that was stopped ends');
+        $messages = static fn(array $events): array => array_map(
+            static fn(WorkflowExecutionFailed $e): string => $e->failureMessage(),
+            array_values(array_filter($events, static fn(Event $e): bool => $e instanceof WorkflowExecutionFailed)),
+        );
+        self::assertNotContains('Child workflow chain-child timed out.', $messages($first), 'the timeout is not written on the run that continued as new');
+        self::assertContains('Child workflow chain-child timed out.', $messages(iterator_to_array($store->readStream($continued->newExecutionId()), false)), 'the run that was stopped ends');
     }
 
     public function testAChildThatEndsInTimeCompletesItsParent(): void
