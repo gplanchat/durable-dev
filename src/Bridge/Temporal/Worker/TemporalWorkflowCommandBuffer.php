@@ -56,9 +56,6 @@ use Temporal\Api\Taskqueue\V1\TaskQueue;
  */
 final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterface
 {
-    /** Execution bound set when the activity fixes none; the server demands one. */
-    private const DEFAULT_EXECUTION_BOUND_SECONDS = 30.0;
-
     /** @var list<Command> */
     private array $commands = [];
 
@@ -108,7 +105,7 @@ final class TemporalWorkflowCommandBuffer implements WorkflowCommandBufferInterf
         // domain side rather than hidden inside a `?: 30.0`.
         $timeouts = null !== $options ? $options->timeouts : ActivityTimeouts::none();
         $attrs->setStartToCloseTimeout($this->durationSeconds(
-            $timeouts->executionBoundOr(DurableDuration::seconds(self::DEFAULT_EXECUTION_BOUND_SECONDS))->toSeconds(),
+            $timeouts->attemptBound()->toSeconds(),
         ));
 
         if (null !== $options) {

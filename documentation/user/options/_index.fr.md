@@ -122,8 +122,10 @@ battement manqué, et la borne de battement ne s'appliquerait donc jamais.
 La borne de battement n'existe que sur Temporal. Un backend à journal (InMemory, DBAL, Illuminate,
 Magento Database) lève `UnsupportedByBackendException` quand vous planifiez une activité avec une borne de battement.
 
-Hors Temporal, `startToClose` est vérifié quand la tentative se termine ; rien ne l'impose pendant
-qu'elle tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
+Une activité sans `startToClose` est bornée à 30 secondes par tentative sur tous les backends,
+comme sur Temporal ; `scheduleToClose`, s'il est défini, remplace cette valeur par défaut. Hors
+Temporal, la vérification a lieu après le retour de la tentative ; rien ne l'impose pendant qu'elle
+tourne. Une tentative qui a dépassé échoue sur un délai dépassé, son résultat est écarté,
 et la politique de reprise détermine la suite. Rien n'interrompt une tentative qui ne rend jamais
 la main. Arrêter un worker bloqué revient à ce qui supervise le processus.
 `messenger:consume --time-limit` ne vérifie qu'entre deux messages, il ne peut donc pas l'arrêter.

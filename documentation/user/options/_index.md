@@ -120,9 +120,10 @@ heartbeat, so the heartbeat bound would never apply.
 The heartbeat bound is Temporal only. A journal backend (InMemory, DBAL, Illuminate, Magento
 Database) throws `UnsupportedByBackendException` when you schedule an activity with a heartbeat bound.
 
-Outside Temporal, `startToClose` is checked when the attempt returns; nothing enforces it while
-the attempt runs. An attempt that overran fails with a timeout, its result is discarded, and the
-retry policy determines what comes next. Nothing interrupts an attempt that never returns. Stopping
+An activity without `startToClose` is bounded at 30 seconds per attempt on every backend, as on
+Temporal; `scheduleToClose`, when set, replaces that default. Outside Temporal, the check runs after
+the attempt returns; nothing enforces it while the attempt runs. An attempt that overran fails with
+a timeout, its result is discarded, and the retry policy determines what comes next. Nothing interrupts an attempt that never returns. Stopping
 a hung worker is the job of whatever supervises the process. `messenger:consume --time-limit` only
 checks between two messages, so it cannot stop one.
 
