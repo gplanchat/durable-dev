@@ -218,6 +218,17 @@ prolonge la chaîne de l'exécution courante et en hérite la borne. Employez `w
 un `WorkflowTimeouts`. Ses propres copies sont `withTimeouts()` et `withTaskQueue()`, qui fait
 passer le run suivant sur une autre file de tâches.
 
+### Les bornes qu'un workflow enfant reçoit sur les backends à journal
+
+Sur les backends en mémoire, DBAL, Illuminate et Magento Database, un enfant démarré avec
+`ChildWorkflowOptions::$timeouts` reçoit les bornes suivantes. Temporal applique les trois.
+
+| Borne | Backends à journal |
+|-------|--------------------|
+| `execution` | Appliquée à un enfant que le moteur exécute en ligne (le runner en mémoire, `WorkflowTestEnvironment`) : un enfant dont le prochain minuteur tombe après l'échéance fait échouer l'attente de son parent avec `DurableChildWorkflowFailedException` (« Child workflow `<id>` timed out. »). L'échéance est vérifiée quand l'horloge de l'enfant saute à un minuteur : le temps passé dans les activités et dans un petit-enfant exécuté en ligne n'est pas compté. Enregistrée dans un événement `ChildWorkflowDeadline`, pas encore appliquée, pour un enfant qui s'exécute sur un worker (ticket #1069). |
+| `run` | Enregistrée, non appliquée. Elle ne diffère de `execution` qu'au travers d'un continue-as-new, où l'échéance doit repartir à chaque run. |
+| `task` | Enregistrée, non appliquée. Elle borne un aller-retour du worker, que le journal n'a pas. |
+
 L'identifiant d'exécution diffère selon le backend. Sur Temporal, le run suivant garde
 l'identifiant d'exécution Durable. Sur les backends à journal, le journal génère un nouvel
 `ExecutionId` pour lui. Voir
