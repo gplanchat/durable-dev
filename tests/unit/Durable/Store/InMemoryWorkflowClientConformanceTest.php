@@ -6,6 +6,7 @@ namespace unit\Gplanchat\Durable\Store;
 
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
+use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
@@ -25,6 +26,7 @@ use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
+use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
@@ -50,6 +52,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     private InMemoryWorkflowMetadataStore $rows;
     private InMemoryWorkflowRunCatalog $catalog;
     private InMemoryWorkflowClient $client;
+    private WorkflowResumeDispatcher $dispatcher;
 
     protected function setUp(): void
     {
@@ -57,11 +60,13 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->rows = new InMemoryWorkflowMetadataStore();
         $this->catalog = new InMemoryWorkflowRunCatalog($this->events);
         $metadata = new ProjectingWorkflowMetadataStore($this->rows, $this->catalog);
+        // As the memory backend wires it: the endings an append carries reach the catalogue.
+        $journal = new ProjectingEventStore($this->events, $this->catalog);
         $registry = new WorkflowRegistry();
         $registry->registerClass(ConformanceClientWorkflow::class);
         $registry->registerClass(ConformanceOtherClientWorkflow::class);
 
-        $dispatcher = new class implements WorkflowResumeDispatcher {
+        $this->dispatcher = $dispatcher = new class implements WorkflowResumeDispatcher {
             public ?ResumeWorkflowHandler $handler = null;
 
             public function dispatchResume(ExecutionId $executionId, array $pendingUpdates = []): void
@@ -77,18 +82,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             }
         };
         $dispatcher->handler = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->events, new ExecutionRuntime($this->events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
+            new ExecutionEngine($journal, new ExecutionRuntime($journal, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true)),
             $registry,
             $metadata,
             $dispatcher,
-            $this->events,
+            $journal,
             new InMemoryChildWorkflowParentLinkStore(),
             new class implements WorkflowTimerDispatcher {
                 public function dispatchTimerFire(ExecutionId $executionId, int $delayMs = 0): void {}
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $journal);
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -126,6 +131,26 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         return $this->rows->get($executionId)['payload'] ?? null;
     }
 
+    protected function assertTerminationWasRecorded(ExecutionId $executionId, string $reason): void
+    {
+        $failures = array_values(array_filter(
+            iterator_to_array($this->events->readStream($executionId), false),
+            static fn(object $event): bool => $event instanceof WorkflowExecutionFailed,
+        ));
+        self::assertCount(1, $failures);
+        self::assertSame(WorkflowExecutionFailed::KIND_TERMINATED, $failures[0]->kind());
+        self::assertSame($reason, $failures[0]->failureMessage());
+
+        $written = $this->events->countEventsInStream($executionId);
+        $this->resumeAgain($executionId);
+        self::assertSame($written, $this->events->countEventsInStream($executionId), 'A resume after the termination ran workflow code.');
+    }
+
+    private function resumeAgain(ExecutionId $executionId): void
+    {
+        $this->dispatcher->dispatchResume($executionId);
+    }
+
     public function testAStartRunsTheWorkflowsFirstPassAndASecondStartRunsNothing(): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -156,7 +181,26 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
-    #[DataProvider('operations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operationsStillToBuild(): iterable
+    {
+        foreach (['signal', 'query', 'update', 'result'] as $operation) {
+            yield $operation => [$operation];
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function signalAndUpdate(): iterable
+    {
+        yield 'signal' => ['signal'];
+        yield 'update' => ['update'];
+    }
+
+    #[DataProvider('operationsStillToBuild')]
     public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -170,13 +214,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             'signal' => $this->client->signal($id, 'pay'),
             'query' => $this->client->query($id, 'status'),
             'update' => $this->client->update($id, 'change'),
-            'result' => $this->client->result($id, Duration::seconds(0.1)),
-            'cancel' => $this->client->cancel($id),
-            default => $this->client->terminate($id),
+            default => $this->client->result($id, Duration::seconds(0.1)),
         };
     }
 
-    #[DataProvider('actingOperations')]
+    #[DataProvider('signalAndUpdate')]
     public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -186,9 +228,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
             'signal' => $this->client->signal($id, 'pay'),
-            'update' => $this->client->update($id, 'change'),
-            'cancel' => $this->client->cancel($id),
-            default => $this->client->terminate($id),
+            default => $this->client->update($id, 'change'),
         };
     }
 }

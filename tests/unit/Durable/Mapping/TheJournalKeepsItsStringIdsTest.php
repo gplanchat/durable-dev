@@ -120,6 +120,18 @@ final class TheJournalKeepsItsStringIdsTest extends TestCase
         self::assertStringContainsString('"parentExecutionId":"parent-1"', json_encode(EventDataMapper::fromDomainEvent($event), \JSON_THROW_ON_ERROR));
     }
 
+    public function testATerminationKeepsItsStoredShape(): void
+    {
+        $event = WorkflowExecutionFailed::terminated(ExecutionId::fromString('exec-1'), 'stop');
+        $record = EventDataMapper::fromDomainEvent($event);
+
+        self::assertSame(
+            '{"kind":"terminated","failureClass":"Gplanchat\\\\Durable\\\\Exception\\\\WorkflowTerminatedException","failureMessage":"stop","failureCode":0,"context":[]}',
+            json_encode($record['payload'], \JSON_THROW_ON_ERROR),
+        );
+        self::assertSame($event->payload(), $this->readBack($event));
+    }
+
     /**
      * A stored child or next id names an execution: an empty one is refused on read (#682).
      *

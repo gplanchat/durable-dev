@@ -104,12 +104,20 @@ chaque rejeu.
   que renvoie `WorkflowClient::workflowId()`. Sur une exécution terminée, ou qui n'existe pas, le
   serveur répond NotFound et les deux méthodes lèvent une `\RuntimeException` de code 5, qui nomme
   l'identifiant et garde l'échec du serveur comme exception précédente. Rien n'est modifié. Terminer
-  deux fois une exécution lève donc une exception au second appel. Ces méthodes n'existent que sur
-  Temporal. Les backends à journal (InMemory, DBAL, Illuminate, Magento) ne les ont pas encore.
-- **De l'extérieur, sur les autres backends.** L'application n'a aucun point d'entrée pour demander
-  une annulation en mémoire, sur DBAL, sur Illuminate ou sur Magento ; la
+  deux fois une exécution lève donc une exception au second appel.
+- **Depuis votre application, sur le backend en mémoire.** Appelez `cancel($executionId)` ou
+  `terminate($executionId, $reason)` sur `WorkflowClientPort`. `cancel()` ajoute
+  `WorkflowCancellationRequested` et reprend l'exécution : le workflow reçoit l'annulation là où il
+  attend et compense dans son propre code. `terminate()` termine l'exécution par un
+  `WorkflowExecutionFailed` de genre `terminated` (voir les
+  [genres d'échec](../failures/events/#kind-de-workflowexecutionfailed)) et n'exécute plus de code
+  du workflow. Sur une exécution terminée, les deux lèvent `WorkflowExecutionAlreadyEnded` ; sur un
+  identifiant qu'aucune exécution ne porte, `WorkflowExecutionNotFound`. DBAL, Illuminate et Magento
+  n'ont pas encore ces méthodes.
+- **De l'extérieur, sur les autres backends à journal.** L'application n'a aucun point d'entrée pour
+  demander une annulation sur DBAL, sur Illuminate ou sur Magento ; la
   [matrice de capacités](../backends/#capability-matrix) classe la ligne comme non prise en charge
-  dans les quatre colonnes hors Temporal.
+  dans ces colonnes.
 
 ---
 
