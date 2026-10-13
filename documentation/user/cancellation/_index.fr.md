@@ -98,13 +98,14 @@ chaque rejeu.
 - **De l'extérieur, sur Temporal.** Lancez `temporal workflow cancel`, ou appelez
   `RequestCancelWorkflowExecution` depuis n'importe quel client. Le serveur enregistre la demande et
   replanifie une tâche de workflow, que le worker traite ensuite.
-- **Depuis votre application, sur Temporal.** Appelez `WorkflowClient::cancel($workflowId)` pour
-  demander l'annulation, ou `WorkflowClient::terminate($workflowId, $reason)` pour terminer
-  l'exécution aussitôt, sans exécuter une ligne de plus du workflow. Les deux prennent l'identifiant
-  que renvoie `WorkflowClient::workflowId()`. Sur une exécution terminée, ou qui n'existe pas, le
-  serveur répond NotFound et les deux méthodes lèvent une `\RuntimeException` de code 5, qui nomme
-  l'identifiant et garde l'échec du serveur comme exception précédente. Rien n'est modifié. Terminer
-  deux fois une exécution lève donc une exception au second appel.
+- **Depuis votre application, sur Temporal.** Appelez `WorkflowClient::cancel($executionId)` pour
+  demander l'annulation, ou `WorkflowClient::terminate($executionId, $reason)` pour terminer
+  l'exécution aussitôt, sans exécuter une ligne de plus du workflow. Les deux prennent l'`ExecutionId`
+  avec lequel l'exécution a démarré. Sur une exécution terminée, elles lèvent
+  `WorkflowExecutionAlreadyEnded`. Sur une exécution absente du serveur, elles lèvent
+  `WorkflowExecutionNotFound`. Les deux portent l'identifiant dans `executionId` et l'échec du
+  serveur dans `getPrevious()`. Rien n'est modifié. Terminer deux fois une exécution lève donc une exception
+  au second appel.
 - **Depuis votre application, sur le backend en mémoire.** Appelez `cancel($executionId)` ou
   `terminate($executionId, $reason)` sur `WorkflowClientPort`. `cancel()` ajoute
   `WorkflowCancellationRequested` et reprend l'exécution : le workflow reçoit l'annulation là où il

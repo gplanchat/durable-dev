@@ -97,13 +97,12 @@ awaitable at the same place. The workflow therefore takes the same branch on eve
 - **From outside, on Temporal.** Run `temporal workflow cancel`, or call
   `RequestCancelWorkflowExecution` from any client. The server records the request and reschedules a
   workflow task, which the worker then processes.
-- **From your application, on Temporal.** Call `WorkflowClient::cancel($workflowId)` to request the
-  cancellation, or `WorkflowClient::terminate($workflowId, $reason)` to end the execution at once
-  without running more of its code. Both take the workflow id that `WorkflowClient::workflowId()`
-  returns. On an execution that has ended, or that does not exist, the server answers NotFound, and
-  both methods throw a `\RuntimeException` with code 5 that names the workflow id and keeps the server
-  failure as previous. Nothing is changed. Terminating an execution twice therefore throws the second
-  time.
+- **From your application, on Temporal.** Call `WorkflowClient::cancel($executionId)` to request the
+  cancellation, or `WorkflowClient::terminate($executionId, $reason)` to end the execution at once
+  without running more of its code. Both take the `ExecutionId` the execution was started with. On an
+  execution that has ended, they throw `WorkflowExecutionAlreadyEnded`. On one the server does not
+  hold, they throw `WorkflowExecutionNotFound`. Both carry the id in `executionId` and the server
+  failure in `getPrevious()`. Nothing is changed. Terminating an execution twice therefore throws the second time.
 - **From your application, on the in-memory backend.** Call `cancel($executionId)` or
   `terminate($executionId, $reason)` on `WorkflowClientPort`. `cancel()` appends
   `WorkflowCancellationRequested` and resumes the execution, so the workflow receives the

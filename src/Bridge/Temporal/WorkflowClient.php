@@ -14,6 +14,9 @@ use Gplanchat\Bridge\Temporal\Worker\TemporalPolicyMapper;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\WorkflowCancelledException;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyEnded;
+use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
+use Gplanchat\Durable\Exception\WorkflowExecutionNotFound;
 use Gplanchat\Durable\Exception\WorkflowFailedException;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
 use Gplanchat\Durable\Exception\WorkflowTerminatedException;
@@ -25,8 +28,10 @@ use Temporal\Api\Common\V1\Memo;
 use Temporal\Api\Common\V1\WorkflowExecution;
 use Temporal\Api\Common\V1\WorkflowType;
 use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\Enums\V1\WorkflowExecutionStatus;
 use Temporal\Api\History\V1\HistoryEvent;
 use Temporal\Api\Taskqueue\V1\TaskQueue;
+use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\RequestCancelWorkflowExecutionRequest;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionRequest;
@@ -65,8 +70,33 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         ExecutionId $executionId,
         ?WorkflowStartOptions $options = null,
     ): ExecutionId {
+        try {
+            $this->start($executionId, $workflowType, $payload, $options);
+        } catch (WorkflowExecutionAlreadyStarted) {
+            // The engine's start must stay harmless on a redelivery.
+        }
+
+        return $executionId;
+    }
+
+    /**
+     * Starts a workflow and fails when the server reports the workflow id as already started: the
+     * first execution is unchanged. This is the start of {@see \Gplanchat\Durable\Port\WorkflowClientPort};
+     * {@see startAsync()} and {@see startSync()} carry on instead.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @throws WorkflowExecutionAlreadyStarted
+     */
+    public function start(ExecutionId $executionId, string $workflowType, array $input = [], ?WorkflowStartOptions $options = null): ExecutionId
+    {
         $id = $executionId->toString();
-        $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $payload, $id, $options);
+
+        try {
+            $this->doStartWorkflow(self::workflowIdOf($id), $workflowType, $input, $id, $options);
+        } catch (\RuntimeException $e) {
+            throw self::isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage()) ? new WorkflowExecutionAlreadyStarted($id, $e) : $e;
+        }
 
         return $executionId;
     }
@@ -104,7 +134,12 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         ?WorkflowStartOptions $options = null,
     ): mixed {
         $workflowId = self::workflowIdOf($executionId->toString());
-        $this->doStartWorkflow($workflowId, $workflowType, $payload, $executionId->toString(), $options);
+
+        try {
+            $this->start($executionId, $workflowType, $payload, $options);
+        } catch (WorkflowExecutionAlreadyStarted) {
+            // Waits for the execution that is running.
+        }
 
         return $this->waitForCompletion($workflowId);
     }
@@ -200,53 +235,90 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      * Requests the cancellation of a running workflow: it receives it where it waits, and can
      * compensate before it ends cancelled.
      *
-     * Provisional signature: it follows signal(), pending the design of #782. No run id is sent:
-     * the call acts on the current run of the chain. A retry with the same request id succeeds while
-     * the run is open and throws once it has ended.
+     * No run id is sent: the call acts on the current run of the chain. A retry with the same
+     * request id succeeds while the run is open and throws once it has ended.
      *
-     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     * @throws WorkflowExecutionAlreadyEnded when the execution has ended
+     * @throws WorkflowExecutionNotFound     when the server holds no such execution
      */
-    public function cancel(string $workflowId, ?string $requestId = null): void
+    public function cancel(ExecutionId $executionId, ?string $requestId = null): void
     {
+        $workflowId = $this->workflowId($executionId);
+        // A server may accept a cancel on a closed run without an error: ask for its status first.
+        $status = $this->describedRun($workflowId)?->getStatus() ?? WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
+        if (!\in_array($status, [WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_UNSPECIFIED, WorkflowExecutionStatus::WORKFLOW_EXECUTION_STATUS_RUNNING], true)) {
+            throw new WorkflowExecutionAlreadyEnded($executionId->toString());
+        }
         $req = new RequestCancelWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setIdentity($this->settings->identity);
         $req->setRequestId($requestId ?? bin2hex(random_bytes(16)));
 
-        $this->endedOrNotFound($workflowId, fn() => $this->client->RequestCancelWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->refusing($executionId, fn() => $this->client->RequestCancelWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
     }
 
     /**
      * Ends a running workflow at once, without running more of its code.
      *
-     * Provisional signature, pending the design of #782. No run id is sent: the call acts on the
-     * current run of the chain. Terminating an ended run answers NotFound too, so a second call throws.
+     * No run id is sent: the call acts on the current run of the chain. Terminating an ended run
+     * answers NotFound too, so a second call throws.
      *
-     * @throws \RuntimeException with code 5 (NotFound) when the execution has ended or does not exist
+     * @throws WorkflowExecutionAlreadyEnded when the execution has ended
+     * @throws WorkflowExecutionNotFound     when the server holds no such execution
      */
-    public function terminate(string $workflowId, string $reason = ''): void
+    public function terminate(ExecutionId $executionId, string $reason = ''): void
     {
+        $workflowId = $this->workflowId($executionId);
         $req = new TerminateWorkflowExecutionRequest();
         $req->setNamespace($this->settings->namespace->name());
         $req->setWorkflowExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
         $req->setIdentity($this->settings->identity);
         $req->setReason($reason);
 
-        $this->endedOrNotFound($workflowId, fn() => $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
+        $this->refusing($executionId, fn() => $this->client->TerminateWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]));
     }
 
-    private function endedOrNotFound(string $workflowId, \Closure $call): void
+    /**
+     * Runs a call on an execution, and turns the server's NotFound into what it means: the
+     * execution has ended, or the server never held it.
+     */
+    private function refusing(ExecutionId $executionId, \Closure $call): void
     {
         try {
             $call();
         } catch (\RuntimeException $failure) {
-            if (self::GRPC_NOT_FOUND === $failure->getCode()) {
-                throw new \RuntimeException(\sprintf('Workflow "%s" has ended or does not exist.', $workflowId), self::GRPC_NOT_FOUND, $failure);
-            }
-
-            throw $failure;
+            throw $this->refusalOf($executionId, $failure);
         }
+    }
+
+    /**
+     * What a failed call on an execution means: NotFound (code 5) is {@see WorkflowExecutionAlreadyEnded}
+     * when a describe still finds the execution, {@see WorkflowExecutionNotFound} when it does not;
+     * any other failure comes back unchanged.
+     *
+     * @internal for the client port, which reports the same answers for signal and update
+     */
+    public function refusalOf(ExecutionId $executionId, \RuntimeException $failure): \RuntimeException
+    {
+        if (self::GRPC_NOT_FOUND !== $failure->getCode()) {
+            return $failure;
+        }
+        $id = $executionId->toString();
+
+        return $this->hasExecution($executionId)
+            ? new WorkflowExecutionAlreadyEnded($id, $failure)
+            : new WorkflowExecutionNotFound($id, $failure);
+    }
+
+    /**
+     * Whether the server holds a run of this execution, open or ended.
+     *
+     * @internal for the client port
+     */
+    public function hasExecution(ExecutionId $executionId): bool
+    {
+        return null !== $this->describedExecutionId($this->workflowId($executionId));
     }
 
     /**
@@ -385,12 +457,19 @@ final readonly class WorkflowClient implements WorkflowClientInterface
      */
     private function describedExecutionId(string $workflowId): ?string
     {
+        $info = $this->describedRun($workflowId);
+
+        return null === $info ? null : (JournalExecutionIdResolver::fromMemo($info->getMemo()) ?? '');
+    }
+
+    private function describedRun(string $workflowId): ?WorkflowExecutionInfo
+    {
         $request = new DescribeWorkflowExecutionRequest();
         $request->setNamespace($this->settings->namespace->name());
         $request->setExecution(new WorkflowExecution(['workflow_id' => $workflowId]));
 
         try {
-            $info = $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
+            return $this->client->DescribeWorkflowExecution($request, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US])->getWorkflowExecutionInfo();
         } catch (\RuntimeException $failure) {
             if (self::GRPC_NOT_FOUND === $failure->getCode()) {
                 return null;
@@ -398,8 +477,6 @@ final readonly class WorkflowClient implements WorkflowClientInterface
 
             throw $failure;
         }
-
-        return JournalExecutionIdResolver::fromMemo($info?->getMemo()) ?? (null === $info ? null : '');
     }
 
     /** @param array<string, mixed> $payload */
@@ -436,15 +513,7 @@ final readonly class WorkflowClient implements WorkflowClientInterface
         $memo->getFields()[JournalExecutionIdResolver::MEMO_KEY_DURABLE_EXECUTION_ID] = JsonPlainPayload::encode($executionId);
         $req->setMemo($memo);
 
-        try {
-            $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
-        } catch (\RuntimeException $e) {
-            if ($this->isWorkflowAlreadyStartedGrpcError($e->getCode(), $e->getMessage())) {
-                return;
-            }
-
-            throw $e;
-        }
+        $this->client->StartWorkflowExecution($req, [], ['timeout' => TemporalGrpcTimeouts::SHORT_US]);
     }
 
     private function decodeCompletedResult(HistoryEvent $event): mixed
