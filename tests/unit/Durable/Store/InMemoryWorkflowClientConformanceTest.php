@@ -29,6 +29,7 @@ use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Testing\ConformanceClientWorkflow;
 use Gplanchat\Durable\Testing\ConformanceOtherClientWorkflow;
+use Gplanchat\Durable\Testing\ConformanceUpdatableClientWorkflow;
 use Gplanchat\Durable\Testing\WorkflowClientPortConformanceTestCase;
 use Gplanchat\Durable\Transport\AwaitedFact;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
@@ -60,6 +61,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         $registry = new WorkflowRegistry();
         $registry->registerClass(ConformanceClientWorkflow::class);
         $registry->registerClass(ConformanceOtherClientWorkflow::class);
+        $registry->registerClass(ConformanceUpdatableClientWorkflow::class);
 
         $dispatcher = new class implements WorkflowResumeDispatcher {
             public ?ResumeWorkflowHandler $handler = null;
@@ -88,7 +90,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             },
             new WorkflowDefinitionLoader(),
         );
-        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog);
+        $this->client = new InMemoryWorkflowClient($metadata, $dispatcher, $this->catalog, $this->events);
     }
 
     protected function clientUnderTest(): WorkflowClientPort
@@ -104,6 +106,11 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     protected function endRun(ExecutionId $executionId, WorkflowRunStatus $outcome): void
     {
         $this->catalog->recordOutcome($executionId, $outcome);
+    }
+
+    protected function journalOf(ExecutionId $executionId): array
+    {
+        return iterator_to_array($this->events->readStream($executionId), false);
     }
 
     protected function historyLengthOf(ExecutionId $executionId): int
@@ -156,7 +163,19 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
-    #[DataProvider('operations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function operationsStillToBuild(): iterable
+    {
+        foreach (self::operations() as $name => $case) {
+            if ('signal' !== $case[0]) {
+                yield $name => $case;
+            }
+        }
+    }
+
+    #[DataProvider('operationsStillToBuild')]
     public function testEveryOperationStillToBuildThrowsOnAKnownExecution(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -167,7 +186,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'signal' => $this->client->signal($id, 'pay'),
             'query' => $this->client->query($id, 'status'),
             'update' => $this->client->update($id, 'change'),
             'result' => $this->client->result($id, Duration::seconds(0.1)),
@@ -176,7 +194,19 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         };
     }
 
-    #[DataProvider('actingOperations')]
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function actingOperationsStillToBuild(): iterable
+    {
+        foreach (self::actingOperations() as $name => $case) {
+            if ('signal' !== $case[0]) {
+                yield $name => $case;
+            }
+        }
+    }
+
+    #[DataProvider('actingOperationsStillToBuild')]
     public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
     {
         $id = ExecutionId::fromString('exec-1');
@@ -185,7 +215,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'signal' => $this->client->signal($id, 'pay'),
             'update' => $this->client->update($id, 'change'),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
