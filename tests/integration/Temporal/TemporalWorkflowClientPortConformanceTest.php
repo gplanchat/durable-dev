@@ -123,7 +123,8 @@ final class TemporalWorkflowClientPortConformanceTest extends WorkflowClientPort
     protected function assertTerminationWasRecorded(ExecutionId $executionId, string $reason): void
     {
         $history = $this->history($executionId);
-        $closing = $history[\count($history) - 1];
+        $closing = end($history);
+        self::assertNotFalse($closing, 'The server holds no history for the execution.');
 
         self::assertSame(EventType::EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED, $closing->getEventType(), 'The history must end with the termination.');
         self::assertSame($reason, $closing->getWorkflowExecutionTerminatedEventAttributes()?->getReason());
