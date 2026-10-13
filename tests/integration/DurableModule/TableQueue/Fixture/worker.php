@@ -51,8 +51,10 @@ if ('setup' === $mode) {
 
 $queue = $argv[2];
 if ('enqueue' === $mode) {
+    // The database clock before and after the insert: `available_at` is NOW(3) plus the delay, set between the two.
+    $before = $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))');
     (new TableQueue($connection, 2, 1))->enqueue($queue, $argv[3], (float) $argv[4]);
-    say('ENQUEUED');
+    say('ENQUEUED', $before, $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
     exit;
 }
 
@@ -72,7 +74,7 @@ switch ($mode) {
                 say('TAKEN', $message->id, $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
                 exit;
             }
-            say('EMPTY');
+            say('EMPTY', $connection->fetchOne('SELECT UNIX_TIMESTAMP(NOW(3))'));
         }
         say('TIMEOUT');
         break;

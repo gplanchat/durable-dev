@@ -92,8 +92,14 @@ final class Harness
     /** @return list<string>|null the first TAKEN event, as soon as it is printed */
     public function waitForTaken(): ?array
     {
+        return $this->waitForEvent('TAKEN');
+    }
+
+    /** @return list<string>|null the first event of that name, as soon as it is printed */
+    public function waitForEvent(string $name): ?array
+    {
         while (false !== ($line = fgets($this->stdout))) {
-            if (str_starts_with($line, 'TAKEN')) {
+            if (str_starts_with($line, $name)) {
                 return explode(' ', trim($line));
             }
         }
