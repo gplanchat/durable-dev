@@ -169,7 +169,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     public static function operationsStillToBuild(): iterable
     {
         foreach (self::operations() as $name => $case) {
-            if ('signal' !== $case[0]) {
+            if (!\in_array($case[0], ['signal', 'update'], true)) {
                 yield $name => $case;
             }
         }
@@ -200,7 +200,7 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
     public static function actingOperationsStillToBuild(): iterable
     {
         foreach (self::actingOperations() as $name => $case) {
-            if ('signal' !== $case[0]) {
+            if (!\in_array($case[0], ['signal', 'update'], true)) {
                 yield $name => $case;
             }
         }
@@ -215,7 +215,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
 
         $this->expectException(UnsupportedByBackendException::class);
         match ($operation) {
-            'update' => $this->client->update($id, 'change'),
             'cancel' => $this->client->cancel($id),
             default => $this->client->terminate($id),
         };
