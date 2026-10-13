@@ -521,18 +521,22 @@ See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
 
 ---
 
-## Two more accepted differences {#accepted-journal-differences}
+## Accepted differences: continueAsNew id and replay divergence {#accepted-journal-differences}
 
-Beside Nexus, two differences between the journal backends (In-Memory, DBAL, Illuminate and
-Magento Database) and Temporal are accepted exceptions to the rule that the application behaves
-the same on every backend. Neither is planned to change.
+The two differences below, between the journal backends (In-Memory, DBAL, Illuminate and
+Magento Database) and Temporal, are accepted exceptions to the rule that the application behaves
+the same on every backend, like Nexus and the others this page names. The project plans to change
+neither.
 
 ### The execution id after `continueAsNew` {#continue-as-new-execution-id}
 
 Temporal keeps the Durable execution id across `continueAsNew`: the id travels from run to run in
 the memo (the key-value data attached to a Temporal execution), so `ExecutionId` identifies the
 whole chain. On the journal backends, each run has its own journal, and the journal generates a
-new `ExecutionId` for the run that `continueAsNew` starts.
+new `ExecutionId` for the run that `continueAsNew` starts. The old id names the run that ended:
+send signals and queries to the id in its `WorkflowContinuedAsNew` event. A signal sent to the old
+id is journaled in the ended run, which no worker replays, and no error reports it
+(`DeliverWorkflowSignalHandler` checks nothing before it appends).
 
 ### A run whose code no longer matches its journal {#replay-divergence}
 

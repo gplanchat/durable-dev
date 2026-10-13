@@ -555,11 +555,12 @@ Voir [Échecs et réessais](../failures/) et [Options](../options/#retrylimit).
 
 ---
 
-## Deux autres différences acceptées {#accepted-journal-differences}
+## Différences acceptées : identifiant après continueAsNew et divergence au rejeu {#accepted-journal-differences}
 
-Comme Nexus, deux différences entre les backends à journal (en mémoire, DBAL, Illuminate et
-Magento Database) et Temporal sont des exceptions acceptées à la règle selon laquelle l'application
-se comporte de la même façon sur tous les backends. Aucune n'est prévue pour changer.
+Les deux différences ci-dessous, entre les backends à journal (en mémoire, DBAL, Illuminate et
+Magento Database) et Temporal, sont des exceptions acceptées à la règle selon laquelle l'application
+se comporte de la même façon sur tous les backends, comme Nexus et les autres que cette page
+nomme. Le projet ne prévoit de changer ni l'une ni l'autre.
 
 ### L'identifiant d'exécution après `continueAsNew` {#continue-as-new-execution-id}
 
@@ -567,7 +568,10 @@ Temporal conserve l'identifiant d'exécution Durable d'un `continueAsNew` à l'a
 passe de run en run dans le memo (les données clé-valeur attachées à une exécution Temporal), si
 bien que l'`ExecutionId` désigne toute la chaîne. Sur les backends à journal, chaque run a son
 propre journal, et le journal génère un nouvel `ExecutionId` pour le run que `continueAsNew`
-démarre.
+démarre. L'ancien identifiant désigne le run terminé : envoyez signaux et requêtes à l'identifiant
+de son événement `WorkflowContinuedAsNew`. Un signal envoyé à l'ancien identifiant est journalisé
+dans le run terminé, qu'aucun worker ne rejoue, et aucune erreur ne le signale
+(`DeliverWorkflowSignalHandler` ne vérifie rien avant d'ajouter).
 
 ### Un run dont le code ne correspond plus à son journal {#replay-divergence}
 
