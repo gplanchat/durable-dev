@@ -111,7 +111,8 @@ awaitable at the same place. The workflow therefore takes the same branch on eve
   a `WorkflowExecutionFailed` of kind `terminated` (see the
   [failure kinds](../failures/events/#kind-of-workflowexecutionfailed)) and runs no more workflow
   code. On an execution that has ended, both throw `WorkflowExecutionAlreadyEnded`; on an id no
-  execution holds, `WorkflowExecutionNotFound`. A second `cancel()` on an execution whose cancellation is already requested changes nothing.
+  execution holds, `WorkflowExecutionNotFound`. A second `cancel()` on an execution whose cancellation is already
+  requested changes nothing.
   `WorkflowClientPort` is not bound by any host yet, so an application cannot inject it today.
   DBAL, Illuminate and Magento do not have these methods yet.
 - **From outside, on the other journal backends.** The application has no entry point to request a

@@ -112,9 +112,10 @@ chaque rejeu.
   `WorkflowExecutionFailed` de genre `terminated` (voir les
   [genres d'échec](../failures/events/#kind-de-workflowexecutionfailed)) et n'exécute plus de code
   du workflow. Sur une exécution terminée, les deux lèvent `WorkflowExecutionAlreadyEnded` ; sur un
-  identifiant qu'aucune exécution ne porte, `WorkflowExecutionNotFound`. Un second `cancel()` sur une exécution dont l'annulation est déjà demandée ne change rien.
-  Aucun hôte ne lie encore `WorkflowClientPort` : une application ne peut pas l'injecter pour
-  l'instant. DBAL, Illuminate et Magento n'ont pas encore ces méthodes.
+  identifiant qu'aucune exécution ne porte, `WorkflowExecutionNotFound`. Un second `cancel()` sur
+  une exécution dont l'annulation est déjà demandée ne change rien. Aucun hôte ne lie encore
+  `WorkflowClientPort` : une application ne peut pas l'injecter pour l'instant. DBAL, Illuminate et
+  Magento n'ont pas encore ces méthodes.
 - **De l'extérieur, sur les autres backends à journal.** L'application n'a aucun point d'entrée pour
   demander une annulation sur DBAL, sur Illuminate ou sur Magento ; la
   [matrice de capacités](../backends/#capability-matrix) classe la ligne comme non prise en charge
