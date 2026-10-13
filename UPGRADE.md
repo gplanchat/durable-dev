@@ -1412,6 +1412,25 @@ the activity. The journal backends apply the ceiling when the attempt fails, so 
 want on Temporal. To keep a longer retry for one activity, raise the ceiling; an activity's own
 `RetryLimit` can only be stricter than it. No Rector rule: no call changes.
 
+### Changed: an activity without `startToClose` is bounded at 30 seconds on the journal backends (#1050)
+
+Temporal gives an attempt 30 seconds when the activity sets neither `startToClose` nor
+`scheduleToClose`. InMemory, DBAL, Illuminate and Magento Database now apply the same default, and
+check it after the attempt returns.
+
+**Who is affected**: applications on a journal backend with an activity whose attempt runs longer
+than 30 seconds and that sets neither `startToClose` nor `scheduleToClose`, and activities that set
+only `scheduleToClose` whose single attempt outlasts it. Such an attempt now fails with
+`Activity start-to-close timeout exceeded.`, its result is discarded, and the retry policy
+determines what comes next.
+
+**What to do**: set the bound the activity needs, for example
+`#[Activities(ReportActivities::class, startToClose: 300.0)]` or
+`ActivityTimeouts::attempt(Duration::minutes(5))`. No Rector rule covers this change, because the
+code does not show which activities run long. The
+[options page](documentation/user/options/_index.md) describes the bounds.
+
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
