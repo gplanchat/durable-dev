@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace unit\Bridge;
 
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
+use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
+use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Gplanchat\Durable\Transport\AwaitedFact;
+use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -58,7 +64,8 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
 
     private function client(WorkflowMetadataStore $store): InMemoryWorkflowClient
     {
-        $catalog = new InMemoryWorkflowRunCatalog(new InMemoryEventStore());
+        $events = new InMemoryEventStore();
+        $catalog = new InMemoryWorkflowRunCatalog($events);
         $projecting = new ProjectingWorkflowMetadataStore($store, $catalog);
         $dispatcher = new class ($this->dispatched) implements WorkflowResumeDispatcher {
             /** @param \ArrayObject<int, ExecutionId> $dispatched */
@@ -74,7 +81,10 @@ abstract class ConcurrentClientStartsTestCase extends TestCase
             }
         };
 
-        return new InMemoryWorkflowClient($projecting, $dispatcher, $catalog);
+        // A start never replays: the query side is built, not used.
+        $engine = new ExecutionEngine($events, new ExecutionRuntime($events, new InMemoryActivityTransport(), new RegistryActivityExecutor(), 0, null, true));
+
+        return new InMemoryWorkflowClient($projecting, $dispatcher, $catalog, $events, new ReadOnlyReplay($engine, $events, $projecting, new WorkflowRegistry()));
     }
 
     /**
