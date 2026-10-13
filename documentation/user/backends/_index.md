@@ -510,16 +510,11 @@ the failure also stays in the cluster history.
 
 ---
 
-## Retry limits differ on one setting {#retry-semantics-are-identical}
+## Retry limits are identical {#retry-semantics-are-identical}
 
 An activity with no attempt bound retries **indefinitely** on every backend, which is the Temporal default.
 
-`max_activity_retries` is the exception. On the in-memory and journal backends (DBAL, Illuminate) and on the Magento Database backend,
-the worker narrows the activity's own `RetryLimit` to that ceiling, and the stricter of the two
-applies; at `0` it caps nothing. On Magento, the ceiling is the `maxActivityRetries` argument of
-`RuntimeFactory`. On Temporal, the cluster retries from the activity's own
-`RetryLimit` and the setting is not read: an activity that the ceiling stops on the other backends
-keeps retrying on Temporal.
+`max_activity_retries` bounds every activity the same way on every backend. On the in-memory, journal (DBAL, Illuminate) and Magento Database backends, the worker narrows the activity's own `RetryLimit` to that ceiling. On Temporal, the workflow worker narrows it when it schedules the activity and writes the result into the `maximum_attempts` of the activity's retry policy. The stricter of the two applies; at `0` it caps nothing. On Magento, the ceiling is the `maxActivityRetries` argument of `RuntimeFactory`.
 
 See [Failures and retries](../failures/) and [Options](../options/#retrylimit).
 

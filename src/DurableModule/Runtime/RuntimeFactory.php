@@ -595,7 +595,7 @@ class RuntimeFactory
             foreach ($this->workflowClasses as $workflowClass) {
                 $registry->registerClass($workflowClass);
             }
-            $this->assembly = new TemporalRuntimeAssembly($this->client($settings), $settings, $registry, new WorkflowDefinitionLoader(), $this->logger);
+            $this->assembly = new TemporalRuntimeAssembly($this->client($settings), $settings, $registry, new WorkflowDefinitionLoader(), $this->logger, $this->maxActivityRetries);
         }
 
         return $this->assembly;

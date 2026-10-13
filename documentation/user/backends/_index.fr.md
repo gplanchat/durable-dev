@@ -543,17 +543,12 @@ configuré. Sur Temporal, l'échec reste aussi dans l'historique du cluster.
 
 ---
 
-## Les limites de réessais diffèrent sur un réglage {#les-réessais-ont-la-même-sémantique-partout}
+## Les limites de réessais sont identiques {#les-réessais-ont-la-même-sémantique-partout}
 
 Une activité sans borne de tentatives réessaie **indéfiniment** sur tous les backends, c'est le
 défaut de Temporal.
 
-`max_activity_retries` fait exception. Sur le backend en mémoire, sur les backends à journal
-(DBAL, Illuminate) et sur le backend Magento Database, le worker resserre la `RetryLimit` de l'activité à ce plafond, et la plus
-stricte des deux s'applique ; à `0`, il ne plafonne rien. Sous Magento, le plafond est l'argument `maxActivityRetries` de
-`RuntimeFactory`. Sous Temporal, le cluster relance d'après
-la `RetryLimit` propre à l'activité et ne lit pas ce réglage : une activité que le plafond
-arrête sur les autres backends continue de réessayer sous Temporal.
+`max_activity_retries` borne chaque activité de la même façon sur tous les backends. Sur les backends en mémoire, à journal (DBAL, Illuminate) et Magento Database, le worker resserre la `RetryLimit` de l'activité à ce plafond. Sous Temporal, le worker de workflow la resserre quand il planifie l'activité et écrit le résultat dans le `maximum_attempts` de la politique de réessais de l'activité. La plus stricte des deux s'applique ; à `0`, le réglage ne plafonne rien. Sous Magento, le plafond est l'argument `maxActivityRetries` de `RuntimeFactory`.
 
 Voir [Échecs et réessais](../failures/) et [Options](../options/#retrylimit).
 

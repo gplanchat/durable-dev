@@ -39,6 +39,25 @@ final class TemporalBackendTest extends TestCase
     private const DSN = 'temporal://127.0.0.1:7233?namespace=durable-test'
         . '&journal_task_queue=durable-journal&activity_task_queue=durable-activities';
 
+    /** @return iterable<string, array{mixed}> */
+    public static function badCeilings(): iterable
+    {
+        yield 'negative' => [-1];
+        yield 'string' => ['3'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('badCeilings')]
+    public function testABadMaxActivityRetriesIsRefusedByNameOnTemporalToo(mixed $value): void
+    {
+        $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN], 'max_activity_retries' => $value]);
+        (new DurableServiceProvider($app))->register();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('durable.max_activity_retries');
+
+        $app->make(TemporalRuntimeAssembly::class);
+    }
+
     public function testTemporalIsOneOfTheBackendsThePackageServes(): void
     {
         $app = $this->container(['backend' => 'temporal', 'temporal' => ['dsn' => self::DSN]]);

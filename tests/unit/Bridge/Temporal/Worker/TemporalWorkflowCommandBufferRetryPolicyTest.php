@@ -23,9 +23,9 @@ use Temporal\Api\Command\V1\ScheduleActivityTaskCommandAttributes;
  */
 final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
 {
-    private function buffer(): TemporalWorkflowCommandBuffer
+    private function buffer(int $maxActivityRetries = 0): TemporalWorkflowCommandBuffer
     {
-        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'));
+        return new TemporalWorkflowCommandBuffer(new TemporalConnection('localhost:7233', 'test'), ExecutionId::fromString('exec-1'), null, $maxActivityRetries);
     }
 
     private function scheduledAttrs(TemporalWorkflowCommandBuffer $buffer): ScheduleActivityTaskCommandAttributes
@@ -74,6 +74,34 @@ final class TemporalWorkflowCommandBufferRetryPolicyTest extends TestCase
         $policy = $this->scheduledAttrs($buffer)->getRetryPolicy();
         self::assertNotNull($policy);
         self::assertSame(0, $policy->getMaximumAttempts());
+    }
+
+    public function testTheCeilingBoundsAnActivityThatSetsNoLimit(): void
+    {
+        // max_activity_retries counts retries: 3 retries are 4 attempts.
+        $buffer = $this->buffer(3);
+        $buffer->scheduleActivity('act-1', 'delete_user', [], new ActivityOptions());
+
+        self::assertSame(4, $this->scheduledAttrs($buffer)->getRetryPolicy()?->getMaximumAttempts());
+    }
+
+    public function testTheCeilingBoundsAnActivityScheduledWithoutOptions(): void
+    {
+        $buffer = $this->buffer(3);
+        $buffer->scheduleActivity('act-1', 'delete_user', [], null);
+
+        self::assertSame(4, $this->scheduledAttrs($buffer)->getRetryPolicy()?->getMaximumAttempts());
+    }
+
+    public function testTheStricterOfTheCeilingAndTheActivityLimitApplies(): void
+    {
+        $stricterOwn = $this->buffer(9);
+        $stricterOwn->scheduleActivity('act-1', 'a', [], new ActivityOptions(RetryLimit::ofAttempts(2)));
+        $stricterCeiling = $this->buffer(1);
+        $stricterCeiling->scheduleActivity('act-2', 'b', [], new ActivityOptions(RetryLimit::ofAttempts(5)));
+
+        self::assertSame(2, $this->scheduledAttrs($stricterOwn)->getRetryPolicy()?->getMaximumAttempts());
+        self::assertSame(2, $this->scheduledAttrs($stricterCeiling)->getRetryPolicy()?->getMaximumAttempts());
     }
 
     public function testNoOptionsMeansNoRetryPolicy(): void
