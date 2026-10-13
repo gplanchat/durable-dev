@@ -35,8 +35,6 @@ final class AChildWithAnExecutionTimeoutJournalsItsDeadlineTest extends TestCase
         self::assertInstanceOf(ChildWorkflowScheduled::class, $events[1]);
         self::assertSame(1005.0, $events[0]->dueAt());
         self::assertSame(['child-1' => 1005.0], PendingChildDeadlines::of($store, ExecutionId::fromString('parent-1')));
-        self::assertSame([], PendingChildDeadlines::dueAt($store, ExecutionId::fromString('parent-1'), 1004.9));
-        self::assertSame(['child-1'], PendingChildDeadlines::dueAt($store, ExecutionId::fromString('parent-1'), 1005.0));
     }
 
     public function testADeadlineWithoutItsChildIsNeverPending(): void

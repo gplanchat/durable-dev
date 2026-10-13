@@ -1434,11 +1434,12 @@ code does not show which activities run long. The
 
 `ChildWorkflowOptions::$timeouts->execution` was journaled and never applied. Scheduling a child
 with an execution timeout now also appends a `ChildWorkflowDeadline` event to the parent's journal.
-A child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`) and that has
-not ended by then fails the parent's await with `DurableChildWorkflowFailedException` ("Child
+A child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`) and whose
+next timer falls after the deadline fails the parent's await with `DurableChildWorkflowFailedException` ("Child
 workflow <id> timed out."), the failure Temporal gives it, with no failure kind. A child that runs
 on a worker (DBAL, Illuminate and Magento Database in asynchronous mode) gets the event and is not
-bound yet (#1069). `timeouts->run` and `timeouts->task` are still journaled and not applied.
+bound yet (#1069). The inline check happens when the child's virtual clock jumps to a timer, so
+activity time and time inside an inline grandchild are not counted. `timeouts->run` and `timeouts->task` are still journaled and not applied.
 
 `ChildWorkflowDeadline` is a new stored event name. A backend that stores events through its own
 mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds). The DBAL,

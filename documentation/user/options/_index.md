@@ -222,7 +222,7 @@ On the in-memory, DBAL, Illuminate and Magento Database backends, a child starte
 
 | Bound | Journal backends |
 |-------|------------------|
-| `execution` | Applied to a child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`): a child that has not ended by the deadline fails its parent's await with `DurableChildWorkflowFailedException` ("Child workflow `<id>` timed out."). Recorded as a `ChildWorkflowDeadline` event, not yet applied, for a child that runs on a worker (issue #1069). |
+| `execution` | Applied to a child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`): a child whose next timer falls after the deadline fails its parent's await with `DurableChildWorkflowFailedException` ("Child workflow `<id>` timed out."). The deadline is checked when the child's clock jumps to a timer: time spent in activities and in an inline grandchild is not counted. Recorded as a `ChildWorkflowDeadline` event, not yet applied, for a child that runs on a worker (issue #1069). |
 | `run` | Recorded, not applied. It differs from `execution` only across continue-as-new, where the deadline must restart with each run. |
 | `task` | Recorded, not applied. It bounds a worker round trip, which the journal does not have. |
 

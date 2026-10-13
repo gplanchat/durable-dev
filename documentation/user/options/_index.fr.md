@@ -225,7 +225,7 @@ Sur les backends en mémoire, DBAL, Illuminate et Magento Database, un enfant d�
 
 | Borne | Backends à journal |
 |-------|--------------------|
-| `execution` | Appliquée à un enfant que le moteur exécute en ligne (le runner en mémoire, `WorkflowTestEnvironment`) : un enfant qui ne s'est pas terminé à l'échéance fait échouer l'attente de son parent avec `DurableChildWorkflowFailedException` (« Child workflow `<id>` timed out. »). Enregistrée dans un événement `ChildWorkflowDeadline`, pas encore appliquée, pour un enfant qui s'exécute sur un worker (ticket #1069). |
+| `execution` | Appliquée à un enfant que le moteur exécute en ligne (le runner en mémoire, `WorkflowTestEnvironment`) : un enfant dont le prochain minuteur tombe après l'échéance fait échouer l'attente de son parent avec `DurableChildWorkflowFailedException` (« Child workflow `<id>` timed out. »). L'échéance est vérifiée quand l'horloge de l'enfant saute à un minuteur : le temps passé dans les activités et dans un petit-enfant exécuté en ligne n'est pas compté. Enregistrée dans un événement `ChildWorkflowDeadline`, pas encore appliquée, pour un enfant qui s'exécute sur un worker (ticket #1069). |
 | `run` | Enregistrée, non appliquée. Elle ne diffère de `execution` qu'au travers d'un continue-as-new, où l'échéance doit repartir à chaque run. |
 | `task` | Enregistrée, non appliquée. Elle borne un aller-retour du worker, que le journal n'a pas. |
 
