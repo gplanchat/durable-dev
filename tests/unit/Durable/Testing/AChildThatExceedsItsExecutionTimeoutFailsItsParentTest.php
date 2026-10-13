@@ -51,7 +51,9 @@ final class AChildThatExceedsItsExecutionTimeoutFailsItsParentTest extends TestC
                 ChildThatOutlivesItsTimeout::class,
                 new ChildWorkflowOptions(workflowId: 'slow-child', timeouts: new WorkflowTimeouts(execution: Duration::seconds(5))),
             )->run()), 'parent-journal');
-        } catch (DurableChildWorkflowFailedException) {
+        } catch (DurableChildWorkflowFailedException $e) {
+            self::assertNull($e->workflowFailureKind(), 'Temporal leaves the kind empty, and so does the journal');
+            self::assertNull($e->workflowFailureClass());
         }
 
         $store = $env->getEventStore();
@@ -59,6 +61,8 @@ final class AChildThatExceedsItsExecutionTimeoutFailsItsParentTest extends TestC
         $parent = array_map(static fn(Event $e): string => $e::class, iterator_to_array($store->readStream(ExecutionId::fromString('parent-journal')), false));
         self::assertContains(ChildWorkflowDeadline::class, $parent);
         self::assertContains(ChildWorkflowFailed::class, $parent);
+        $failure = array_values(array_filter(iterator_to_array($store->readStream(ExecutionId::fromString('parent-journal')), false), static fn(Event $e): bool => $e instanceof ChildWorkflowFailed))[0];
+        self::assertNull($failure->workflowFailureKind());
     }
 
     public function testAChildThatEndsInTimeCompletesItsParent(): void

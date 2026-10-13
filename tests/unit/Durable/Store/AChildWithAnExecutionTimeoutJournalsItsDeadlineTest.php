@@ -31,12 +31,20 @@ final class AChildWithAnExecutionTimeoutJournalsItsDeadlineTest extends TestCase
         $buffer->scheduleChildWorkflow(ExecutionId::fromString('child-1'), 'ChildType', [], new ChildWorkflowOptions(timeouts: new WorkflowTimeouts(execution: Duration::seconds(5))));
 
         $events = iterator_to_array($store->readStream(ExecutionId::fromString('parent-1')), false);
-        self::assertInstanceOf(ChildWorkflowScheduled::class, $events[0]);
-        self::assertInstanceOf(ChildWorkflowDeadline::class, $events[1]);
-        self::assertSame(1005.0, $events[1]->dueAt());
+        self::assertInstanceOf(ChildWorkflowDeadline::class, $events[0], 'written first: a crash between the two leaves no unbounded child');
+        self::assertInstanceOf(ChildWorkflowScheduled::class, $events[1]);
+        self::assertSame(1005.0, $events[0]->dueAt());
         self::assertSame(['child-1' => 1005.0], PendingChildDeadlines::of($store, ExecutionId::fromString('parent-1')));
         self::assertSame([], PendingChildDeadlines::dueAt($store, ExecutionId::fromString('parent-1'), 1004.9));
         self::assertSame(['child-1'], PendingChildDeadlines::dueAt($store, ExecutionId::fromString('parent-1'), 1005.0));
+    }
+
+    public function testADeadlineWithoutItsChildIsNeverPending(): void
+    {
+        $store = new InMemoryEventStore();
+        $store->append(new ChildWorkflowDeadline(ExecutionId::fromString('parent-1'), ExecutionId::fromString('child-1'), 1005.0));
+
+        self::assertSame([], PendingChildDeadlines::of($store, ExecutionId::fromString('parent-1')));
     }
 
     public function testAChildWithoutAnExecutionTimeoutJournalsNoDeadline(): void

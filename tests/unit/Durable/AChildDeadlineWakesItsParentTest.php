@@ -61,6 +61,7 @@ final class AChildDeadlineWakesItsParentTest extends TestCase
         $failure = $parent[3];
         self::assertInstanceOf(ChildWorkflowFailed::class, $failure);
         self::assertSame('Child workflow child-1 timed out.', $failure->failureMessage());
+        self::assertNull($failure->workflowFailureKind(), 'the same kind as the inline path, and as Temporal: none');
         $child = iterator_to_array($journal->readStream(ExecutionId::fromString('child-1')), false);
         self::assertInstanceOf(WorkflowExecutionFailed::class, end($child), 'the child no longer counts as running');
     }
@@ -78,8 +79,8 @@ final class AChildDeadlineWakesItsParentTest extends TestCase
         $journal = new InMemoryEventStore();
         $parent = ExecutionId::fromString('parent-1');
         $journal->append(new ExecutionStarted($parent, []));
-        $journal->append(new ChildWorkflowScheduled($parent, ExecutionId::fromString('child-1'), 'ChildType', []));
         $journal->append(new ChildWorkflowDeadline($parent, ExecutionId::fromString('child-1'), $dueAt));
+        $journal->append(new ChildWorkflowScheduled($parent, ExecutionId::fromString('child-1'), 'ChildType', []));
         $journal->append(new ExecutionStarted(ExecutionId::fromString('child-1'), []));
 
         return $journal;
