@@ -7,7 +7,10 @@ namespace unit\Gplanchat\Durable\Query;
 use Gplanchat\Durable\Attribute\AsQueryMethod;
 use Gplanchat\Durable\Attribute\AsWorkflow;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
+use Gplanchat\Durable\Event\ActivityScheduled;
+use Gplanchat\Durable\Event\WorkflowCancellationRequested;
 use Gplanchat\Durable\Exception\ReadOnlyPassNeedsDistributedRuntime;
+use Gplanchat\Durable\Exception\WorkflowTaskFailure;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\ExecutionRuntime;
@@ -91,6 +94,27 @@ final class RunsASideEffect
     }
 }
 
+#[AsWorkflow('test.query.activity_then_fail')]
+final class AwaitsAnActivityThenFails
+{
+    private string $state = 'started';
+
+    #[AsWorkflowMethod]
+    public function run(WorkflowEnvironment $env): void
+    {
+        $this->state = 'waiting';
+        $env->await($env->activityStub(ConformanceActivities::class)->quote(['a']));
+
+        throw new \RuntimeException('the workflow fails on its own');
+    }
+
+    #[AsQueryMethod('state')]
+    public function state(): string
+    {
+        return $this->state;
+    }
+}
+
 final class ReplayWithoutWritingTest extends TestCase
 {
     /**
@@ -135,6 +159,43 @@ final class ReplayWithoutWritingTest extends TestCase
         self::assertSame(1, RunsASideEffect::$runs);
     }
 
+    public function testACancellationTheJournalHoldsIsDeliveredLikeAJournalledSignal(): void
+    {
+        $events = new InMemoryEventStore();
+        $id = ExecutionId::fromString('exec-1');
+        $events->append(new WorkflowCancellationRequested($id, 'requested'));
+
+        $context = $this->engine($events, new InMemoryActivityTransport(), true)
+            ->replayWithoutWriting($id, $this->registry()->getHandler('test.query.activity', []));
+
+        self::assertSame('compensated', $context->queryHandlers()->call('state'));
+        self::assertSame(1, $events->countEventsInStream($id));
+    }
+
+    public function testAReplayThatDivergesFromTheJournalFailsTheQuery(): void
+    {
+        $events = new InMemoryEventStore();
+        $id = ExecutionId::fromString('exec-1');
+        $events->append(new ActivityScheduled($id, 'activity-1', 'another.activity', []));
+
+        $this->expectException(WorkflowTaskFailure::class);
+        $this->engine($events, new InMemoryActivityTransport(), true)
+            ->replayWithoutWriting($id, $this->registry()->getHandler('test.query.activity_then_fail', []));
+    }
+
+    public function testAWorkflowThatFailsOnItsOwnStillAnswersTheQuery(): void
+    {
+        $events = new InMemoryEventStore();
+        $id = ExecutionId::fromString('exec-1');
+        $events->append(new ActivityScheduled($id, 'activity-1', 'durable.conformance.quote', ['lines' => ['a']]));
+        $events->append(new \Gplanchat\Durable\Event\ActivityCompleted($id, 'activity-1', 'ok'));
+
+        $context = $this->engine($events, new InMemoryActivityTransport(), true)
+            ->replayWithoutWriting($id, $this->registry()->getHandler('test.query.activity_then_fail', []));
+
+        self::assertSame('waiting', $context->queryHandlers()->call('state'));
+    }
+
     public function testARuntimeThatRunsWorkItselfIsRefused(): void
     {
         $engine = $this->engine(new InMemoryEventStore(), new InMemoryActivityTransport(), false);
@@ -149,6 +210,7 @@ final class ReplayWithoutWritingTest extends TestCase
         $registry->registerClass(WaitsOnAnActivity::class);
         $registry->registerClass(WaitsOnAChild::class);
         $registry->registerClass(RunsASideEffect::class);
+        $registry->registerClass(AwaitsAnActivityThenFails::class);
         $registry->registerClass(ConformanceChildWorkflow::class);
 
         return $registry;
