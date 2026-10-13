@@ -328,17 +328,15 @@ durable:
     max_activity_retries: 3
 ```
 
-Plafond sur les réessais automatiques, appliqué à chaque activité sur les backends `in_memory` et `dbal` : la `RetryLimit` propre à une
+Plafond sur les réessais automatiques, appliqué à chaque activité sur les backends `in_memory`, `dbal`, `temporal` et Magento Database : la `RetryLimit` propre à une
 activité ne peut qu'être plus stricte. Une valeur négative est une erreur de configuration. `0` signifie **aucun plafond**, et comme une activité sans
 `RetryLimit` réessaie indéfiniment (le défaut de Temporal), laisser les deux non définis revient à
 ce qu'une activité en échec ne fasse jamais échouer le workflow. Posez une borne par activité avec
-`RetryLimit::ofAttempts()` ou `RetryLimit::once()` ; voir [Options et objets valeur](../options/#retrylimit). Sur le backend `temporal`, aucun hôte ne le lit : le cluster relance d'après la
-`RetryLimit` propre à chaque activité.
+`RetryLimit::ofAttempts()` ou `RetryLimit::once()` ; voir [Options et objets valeur](../options/#retrylimit). Sur le backend `temporal`, le worker de workflow écrit la limite la plus stricte dans la politique de réessais de l'activité.
 
 Sous Laravel, la même clé dans `config/durable.php` ; sous Magento, l'argument `maxActivityRetries`
 de `RuntimeFactory` dans `di.xml`, que `MagentoRuntime::run()` lit sans DSN et que les workers du
-backend Magento Database lisent (voir [le tableau des hôtes](#host-table)). Les workers Magento
-sous Temporal laissent les tentatives au cluster.
+backend Magento Database lisent et qu'il transmet à son worker de workflow Temporal (voir [le tableau des hôtes](#host-table)).
 
 ---
 
@@ -430,7 +428,7 @@ de données. Les lignes DBAL et Illuminate ne s'y appliquent pas.
 | `activity_transport.type`, `activity_transport.transport_name` | `queue.connection`, `queue.name` | aucun (les activités tournent dans le processus, ou sur la file de tâches de Temporal) | propre à l'hôte : la file de chaque hôte |
 | `messenger.buses` | aucun | aucun | propre à l'hôte : Messenger seulement |
 | `profiler.enabled` | aucun | aucun | propre à l'hôte : le profileur web de Symfony |
-| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN et par les workers du backend Magento Database ; les workers Temporal l'ignorent | identique sous Symfony et Laravel ; propre à l'hôte sous Magento, dont les workers Temporal laissent les tentatives au cluster. Sous Temporal, aucun hôte ne le lit |
+| `max_activity_retries` | `max_activity_retries` | argument `maxActivityRetries`, lu par `MagentoRuntime::run()` sans DSN, par les workers du backend Magento Database et par le worker de workflow Temporal | identique sous Symfony et Laravel ; sous Magento, l'argument de `RuntimeFactory` |
 | aucun | aucun | argument `budgetSeconds` | propre à l'hôte : borne `MagentoRuntime::run()`, l'exécution dans le processus sans DSN et l'attente du résultat du cluster avec un DSN |
 | aucun | aucun | argument `maxContinuations` (10 par défaut) | propre à l'hôte : plafonne la chaîne de continue-as-new que suit `MagentoRuntime::run()` sans DSN ; au-delà, l'appel lève `ContinuationCapReachedException` |
 | `activity_contracts.cache`, `activity_contracts.contracts` | aucun | aucun | à ajouter sous Laravel et Magento |

@@ -367,6 +367,8 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowDefinitionLoader::class),
             $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
+            // Validated where the resume path reads it (bindResumePath).
+            max(0, (int) ($config['max_activity_retries'] ?? 0)),
         ));
         $assembly = static fn($app): TemporalRuntimeAssembly => $app->make(TemporalRuntimeAssembly::class);
         // One sender for the activity worker, which binds each task's token onto it, and for the
