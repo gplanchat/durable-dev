@@ -435,8 +435,12 @@ It runs the core's journal, activity and workflow handlers on tables of the conn
 [glossary](../glossary/)) that `bin/magento durable:worker` drains.
 
 > [!NOTE]
-> Integration tests of the Magento Database backend run only under `phpunit.magento.xml`, and no CI
-> job runs that configuration ([#738](https://github.com/gplanchat/durable-dev/issues/738)).
+> The CI job `magento-boot` runs the integration tests of the Magento Database backend under
+> `phpunit.magento.xml` (suite `tests/integration/DurableModule`, 19 tests,
+> [#1034](https://github.com/gplanchat/durable-dev/pull/1034)). The conformance classes under
+> `magento/tests` (the shared SQL store cases of `src/Durable/Testing`, run against the Magento
+> adapter's stores) run through `magento/phpunit.xml.dist`, and no CI step runs that configuration
+> ([#1062](https://github.com/gplanchat/durable-dev/issues/1062)).
 
 In the table, ✅ means the capability exists and ❌ means it is absent. "not yet" marks the one
 capability that is absent but planned: sending a signal or an update from the application on the
