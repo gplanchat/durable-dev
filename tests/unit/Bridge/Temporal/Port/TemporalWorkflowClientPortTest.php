@@ -4,22 +4,31 @@ declare(strict_types=1);
 
 namespace unit\Gplanchat\Bridge\Temporal\Port;
 
+use Gplanchat\Bridge\Temporal\Codec\JsonPlainPayload;
 use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowClientPort;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\WorkflowClient;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyEnded;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowExecutionNotFound;
+use Gplanchat\Durable\Exception\WorkflowResultTimeout;
 use Gplanchat\Durable\ExecutionId;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Temporal\Api\Common\V1\Memo;
+use Temporal\Api\Enums\V1\EventType;
+use Temporal\Api\History\V1\History;
+use Temporal\Api\History\V1\HistoryEvent;
+use Temporal\Api\History\V1\WorkflowExecutionCompletedEventAttributes;
 use Temporal\Api\Workflow\V1\WorkflowExecutionInfo;
 use Temporal\Api\Workflowservice\V1\DescribeWorkflowExecutionResponse;
+use Temporal\Api\Workflowservice\V1\GetWorkflowExecutionHistoryResponse;
 use Temporal\Api\Workflowservice\V1\SignalWorkflowExecutionResponse;
 use Temporal\Api\Workflowservice\V1\StartWorkflowExecutionResponse;
 
@@ -92,6 +101,85 @@ final class TemporalWorkflowClientPortTest extends TestCase
         });
 
         $this->port()->signal(ExecutionId::fromString('exec-1'), 'pay', [], 'req-1');
+    }
+
+    #[DataProvider('failingOperations')]
+    public function testAnotherServerFailurePropagatesUnchanged(string $operation): void
+    {
+        $unavailable = new \RuntimeException('unavailable', 14);
+        $this->grpc->method('SignalWorkflowExecution')->willThrowException($unavailable);
+        $this->grpc->method('QueryWorkflow')->willThrowException($unavailable);
+        $this->grpc->method('UpdateWorkflowExecution')->willThrowException($unavailable);
+        $id = ExecutionId::fromString('exec-1');
+
+        $this->expectExceptionObject($unavailable);
+        match ($operation) {
+            'signal' => $this->port()->signal($id, 'pay'),
+            'query' => $this->port()->query($id, 'status'),
+            default => $this->port()->update($id, 'change'),
+        };
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function failingOperations(): iterable
+    {
+        yield 'signal' => ['signal'];
+        yield 'query' => ['query'];
+        yield 'update' => ['update'];
+    }
+
+    public function testQueryingAnUnknownExecutionFailsAsNotFound(): void
+    {
+        $this->grpc->method('QueryWorkflow')->willThrowException(new \RuntimeException('workflow not found', 5));
+
+        $this->expectException(WorkflowExecutionNotFound::class);
+        $this->port()->query(ExecutionId::fromString('exec-1'), 'status');
+    }
+
+    public function testUpdatingAnEndedExecutionFailsAsAlreadyEnded(): void
+    {
+        $this->grpc->method('UpdateWorkflowExecution')->willThrowException(new \RuntimeException('workflow execution already completed', 5));
+
+        $this->expectException(WorkflowExecutionAlreadyEnded::class);
+        $this->port()->update(ExecutionId::fromString('exec-1'), 'change');
+    }
+
+    public function testTheResultOfAnUnknownExecutionFailsAsNotFoundWithoutWaiting(): void
+    {
+        $this->described = false;
+
+        $this->expectException(WorkflowExecutionNotFound::class);
+        $this->port()->result(ExecutionId::fromString('exec-1'), Duration::seconds(30));
+    }
+
+    public function testTheResultOfACompletedExecutionIsItsDecodedValue(): void
+    {
+        $this->closeEvent(EventType::EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, new WorkflowExecutionCompletedEventAttributes([
+            'result' => new \Temporal\Api\Common\V1\Payloads(['payloads' => [JsonPlainPayload::encode('done')]]),
+        ]));
+
+        self::assertSame('done', $this->port()->result(ExecutionId::fromString('exec-1'), Duration::seconds(1)));
+    }
+
+    public function testWaitingPastTheBoundFailsAsAResultTimeoutAndKeepsTheCause(): void
+    {
+        $this->grpc->method('GetWorkflowExecutionHistory')->willReturn(new GetWorkflowExecutionHistoryResponse(['history' => new History()]));
+
+        try {
+            $this->port()->result(ExecutionId::fromString('exec-1'), Duration::seconds(0.05));
+            self::fail('A wait past its bound must fail.');
+        } catch (WorkflowResultTimeout $e) {
+            self::assertSame('exec-1', $e->executionId);
+            self::assertEquals(Duration::seconds(0.05), $e->timeout);
+            self::assertNotNull($e->getPrevious());
+        }
+    }
+
+    private function closeEvent(int $type, WorkflowExecutionCompletedEventAttributes $attributes): void
+    {
+        $event = new HistoryEvent(['event_id' => 5, 'event_type' => $type]);
+        $event->setWorkflowExecutionCompletedEventAttributes($attributes);
+        $this->grpc->method('GetWorkflowExecutionHistory')->willReturn(new GetWorkflowExecutionHistoryResponse(['history' => new History(['events' => [$event]])]));
     }
 
     private function port(): TemporalWorkflowClientPort
