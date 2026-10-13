@@ -34,12 +34,7 @@ use Temporal\Api\Failure\V1\Failure;
 final class WorkflowFailureCodec
 {
     /** The prefix {@see \Gplanchat\Durable\Store\EventStoreWorkflowLifecycle::onFailed()} gives each. */
-    private const ACTIVITY_KINDS = [
-        WorkflowExecutionFailed::KIND_UNHANDLED_CATASTROPHIC_ACTIVITY => 'Workflow did not handle catastrophic activity failure: ',
-        WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY => 'Workflow did not handle activity failure: ',
-        WorkflowExecutionFailed::KIND_UNHANDLED_ACTIVITY_SUPERSEDED => 'Workflow did not handle superseded activity: ',
-        WorkflowExecutionFailed::KIND_UNHANDLED_DECLARED_ACTIVITY => 'Workflow did not handle declared activity failure: ',
-    ];
+    private const ACTIVITY_KINDS = WorkflowExecutionFailed::ACTIVITY_FAILURE_PREFIXES;
 
     private function __construct() {}
 
