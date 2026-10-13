@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Store;
 use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\Event;
+use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
 use Gplanchat\Durable\Exception\WorkflowStartOptionsRefused;
@@ -161,6 +162,16 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         }
 
         self::assertNull($this->rows->get($id));
+    }
+
+    public function testAResultOnARunThatContinuedAsNewWithoutAnIdIsRefusedByName(): void
+    {
+        $id = ExecutionId::fromString('exec-1');
+        $this->client->start($id, ConformanceClientWorkflow::TYPE);
+        $this->appendEnding(new WorkflowContinuedAsNew($id, ConformanceClientWorkflow::TYPE, []));
+
+        $this->expectException(UnsupportedByBackendException::class);
+        $this->client->result($id, Duration::seconds(1));
     }
 
     /**
