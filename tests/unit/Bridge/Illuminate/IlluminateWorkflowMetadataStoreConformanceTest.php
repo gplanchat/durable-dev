@@ -6,8 +6,9 @@ namespace unit\Gplanchat\Bridge\Illuminate;
 
 use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Bridge\Illuminate\Store\IlluminateWorkflowMetadataStore;
+use Gplanchat\Durable\Store\ReopensCompletedWorkflowMetadata;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-use Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase;
+use Gplanchat\Durable\Testing\ReopensCompletedWorkflowMetadataConformanceTestCase;
 use unit\Bridge\SqlTestDatabase;
 
 /**
@@ -17,9 +18,9 @@ use unit\Bridge\SqlTestDatabase;
  *
  * @see DUR041
  */
-final class IlluminateWorkflowMetadataStoreConformanceTest extends WorkflowMetadataStoreConformanceTestCase
+final class IlluminateWorkflowMetadataStoreConformanceTest extends ReopensCompletedWorkflowMetadataConformanceTestCase
 {
-    protected function createMetadataStore(): WorkflowMetadataStore
+    protected function createMetadataStore(): WorkflowMetadataStore&ReopensCompletedWorkflowMetadata
     {
         $connection = SqlTestDatabase::illuminate();
 
