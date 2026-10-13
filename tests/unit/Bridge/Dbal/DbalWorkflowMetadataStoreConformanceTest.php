@@ -6,18 +6,17 @@ namespace unit\Gplanchat\Bridge\Dbal;
 
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Bridge\Dbal\Store\DbalWorkflowMetadataStore;
-use Gplanchat\Durable\Store\ReopensCompletedWorkflowMetadata;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
-use Gplanchat\Durable\Testing\ReopensCompletedWorkflowMetadataConformanceTestCase;
+use Gplanchat\Durable\Testing\WorkflowMetadataStoreConformanceTestCase;
 use unit\Bridge\SqlTestDatabase;
 
 /**
  * @see DUR041
  * @see DUR030
  */
-final class DbalWorkflowMetadataStoreConformanceTest extends ReopensCompletedWorkflowMetadataConformanceTestCase
+final class DbalWorkflowMetadataStoreConformanceTest extends WorkflowMetadataStoreConformanceTestCase
 {
-    protected function createMetadataStore(): WorkflowMetadataStore&ReopensCompletedWorkflowMetadata
+    protected function createMetadataStore(): WorkflowMetadataStore
     {
         $connection = SqlTestDatabase::dbal();
 

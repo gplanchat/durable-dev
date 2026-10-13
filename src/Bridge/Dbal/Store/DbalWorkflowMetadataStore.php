@@ -8,7 +8,6 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Gplanchat\Bridge\Dbal\Schema\DurableSchema;
 use Gplanchat\Durable\ExecutionId;
-use Gplanchat\Durable\Store\ReopensCompletedWorkflowMetadata;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 
 /**
@@ -17,7 +16,7 @@ use Gplanchat\Durable\Store\WorkflowMetadataStore;
  *
  * @see DUR030
  */
-final readonly class DbalWorkflowMetadataStore implements WorkflowMetadataStore, ReopensCompletedWorkflowMetadata
+final readonly class DbalWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly Connection $connection,
@@ -77,19 +76,6 @@ final readonly class DbalWorkflowMetadataStore implements WorkflowMetadataStore,
         }
 
         return true;
-    }
-
-    public function reopenIfCompleted(ExecutionId $executionId, string $workflowType, array $payload): bool
-    {
-        $this->schema->ensure();
-
-        // `completed` goes from true to false, so MySQL (changed rows) and SQLite (matched rows)
-        // count the same one row. The condition is the arbiter between two concurrent reopens.
-        return 1 === $this->connection->executeStatement(
-            \sprintf('UPDATE %s SET workflow_type = ?, payload = ?, completed = ? WHERE execution_id = ? AND completed = ?', $this->table),
-            [$workflowType, json_encode($payload, \JSON_THROW_ON_ERROR), false, $executionId->toString(), true],
-            [2 => 'boolean', 4 => 'boolean'],
-        );
     }
 
     public function markCompleted(ExecutionId $executionId): void

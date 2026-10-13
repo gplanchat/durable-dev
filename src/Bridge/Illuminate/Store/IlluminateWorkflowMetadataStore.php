@@ -6,7 +6,6 @@ namespace Gplanchat\Bridge\Illuminate\Store;
 
 use Gplanchat\Bridge\Illuminate\Schema\DurableSchema;
 use Gplanchat\Durable\ExecutionId;
-use Gplanchat\Durable\Store\ReopensCompletedWorkflowMetadata;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
 use Illuminate\Database\Connection;
 
@@ -22,7 +21,7 @@ use Illuminate\Database\Connection;
  * @see DUR021
  * @see DUR041
  */
-final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore, ReopensCompletedWorkflowMetadata
+final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadataStore
 {
     public function __construct(
         private readonly Connection $connection,
@@ -58,21 +57,6 @@ final readonly class IlluminateWorkflowMetadataStore implements WorkflowMetadata
             'payload' => json_encode($payload, \JSON_THROW_ON_ERROR),
             'completed' => false,
         ]);
-    }
-
-    public function reopenIfCompleted(ExecutionId $executionId, string $workflowType, array $payload): bool
-    {
-        $this->schema->ensure();
-
-        // `completed` goes from true to false: every driver counts the same one row.
-        return 1 === $this->connection->table($this->table)
-            ->where('execution_id', $executionId->toString())
-            ->where('completed', true)
-            ->update([
-                'workflow_type' => $workflowType,
-                'payload' => json_encode($payload, \JSON_THROW_ON_ERROR),
-                'completed' => false,
-            ]);
     }
 
     public function markCompleted(ExecutionId $executionId): void
