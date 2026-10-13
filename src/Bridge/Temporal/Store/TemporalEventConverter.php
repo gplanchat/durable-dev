@@ -34,8 +34,11 @@ use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
+use Gplanchat\Durable\Event\WorkflowUpdateHandled;
+use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Failure\ActivityRetryState;
+use Gplanchat\Durable\Failure\FailureEnvelope;
 use Gplanchat\Durable\ParentClosePolicy;
 use Gplanchat\Durable\Versioning\ChangePoint;
 use Temporal\Api\Enums\V1\EventType;
@@ -67,6 +70,9 @@ final class TemporalEventConverter
 
     /** @var array<string, string> activityId → activity type */
     private array $activityTypes = [];
+
+    /** @var array<string, array{name: string, arguments: array<string, mixed>, eventId: int}> updateId → accepted update, until its completion */
+    private array $acceptedUpdates = [];
 
     private int $sideEffectSlot = 0;
 
@@ -405,6 +411,59 @@ final class TemporalEventConverter
                 }
 
                 return new WorkflowSignalReceived($this->id, $signalName, $signalInput);
+
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED:
+                $request = $event->getWorkflowExecutionUpdateAcceptedEventAttributes()?->getAcceptedRequest();
+                if (null === $request) {
+                    return null;
+                }
+                $args = $request->getInput()?->getArgs()?->getPayloads();
+                $arguments = [];
+                if (null !== $args && $args->count() > 0) {
+                    $decoded = JsonPlainPayload::decode($args[0]);
+                    $arguments = \is_array($decoded) ? $decoded : ['value' => $decoded];
+                }
+                // Kept until the completion arrives: the journal writes one event, at the completion.
+                $this->acceptedUpdates[(string) $request->getMeta()?->getUpdateId()] = ['name' => (string) $request->getInput()?->getName(), 'arguments' => $arguments, 'eventId' => $eventId];
+
+                return null;
+
+            case EventType::EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED:
+                $attr = $event->getWorkflowExecutionUpdateCompletedEventAttributes();
+                $outcome = $attr?->getOutcome();
+                if (null === $attr || null === $outcome) {
+                    return null;
+                }
+                // By the update id, then by the accepted event id when the id is empty: never by
+                // position, updates interleave (#803).
+                $updateId = (string) $attr->getMeta()?->getUpdateId();
+                if ('' === $updateId || !isset($this->acceptedUpdates[$updateId])) {
+                    $updateId = null;
+                    foreach ($this->acceptedUpdates as $id => $accepted) {
+                        if ($accepted['eventId'] === (int) $attr->getAcceptedEventId()) {
+                            $updateId = (string) $id;
+                            break;
+                        }
+                    }
+                }
+                if (null === $updateId) {
+                    return null;
+                }
+                $accepted = $this->acceptedUpdates[$updateId];
+                unset($this->acceptedUpdates[$updateId]);
+
+                $failure = $outcome->getFailure();
+                if (null !== $failure) {
+                    $type = $failure->getApplicationFailureInfo()?->getType();
+
+                    return new WorkflowUpdateHandled($this->id, $accepted['name'], $accepted['arguments'], null, new FailureEnvelope(
+                        \is_string($type) && '' !== $type ? $type : DurableUpdateFailedException::class,
+                        $failure->getMessage(),
+                    ));
+                }
+                $payloads = $outcome->getSuccess()?->getPayloads();
+
+                return new WorkflowUpdateHandled($this->id, $accepted['name'], $accepted['arguments'], null !== $payloads && $payloads->count() > 0 ? JsonPlainPayload::decode($payloads[0]) : null);
 
             case EventType::EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
                 $attr = $event->getStartChildWorkflowExecutionInitiatedEventAttributes();
