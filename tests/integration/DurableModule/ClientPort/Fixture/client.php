@@ -51,6 +51,7 @@ function drive(DatabaseBackend $backend, ExecutionId $id): string
         'before' => $before,
         'after' => $after,
         'result' => $result,
+        'completed' => $backend->metadata->get($id)['completed'] ?? null,
         'events' => array_map(static fn(object $event): string => $event::class, iterator_to_array($backend->events->readStream($id), false)),
     ], \JSON_THROW_ON_ERROR);
 }

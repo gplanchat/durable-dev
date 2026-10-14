@@ -64,7 +64,7 @@ final class TheClientPortDrivesAWorkflowThroughARepositoryTest extends TestCase
         self::assertSame('waiting', $run['before'], 'a query before the signal');
         self::assertSame('paid', $run['after'], 'a query after the signal');
         self::assertSame('paid:ada', $run['result'], 'the result the worker journalled');
-        $journal = 'journal: ' . implode(', ', array_map(static fn(string $class): string => substr($class, (int) strrpos($class, '\\') + 1), $run['events']));
+        $journal = \sprintf('metadata completed: %s; ', var_export($run['completed'], true)) . 'journal: ' . implode(', ', array_map(static fn(string $class): string => substr($class, (int) strrpos($class, '\\') + 1), $run['events']));
         self::assertSame(1, \count(array_keys($run['events'], WorkflowSignalReceived::class, true)), $journal);
         self::assertSame(1, \count(array_keys($run['events'], ExecutionCompleted::class, true)), $journal);
     }
