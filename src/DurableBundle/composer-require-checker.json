@@ -21,6 +21,7 @@
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalActivityWorkerTransport",
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalJournalTransport",
         "Gplanchat\\Bridge\\Temporal\\Messenger\\TemporalNexusWorkerTransport",
+        "Gplanchat\\Bridge\\Temporal\\Port\\TemporalWorkflowClientPort",
         "Gplanchat\\Bridge\\Temporal\\Port\\TemporalWorkflowResumeDispatcher",
         "Gplanchat\\Bridge\\Temporal\\Store\\TaskQueueKind",
         "Gplanchat\\Bridge\\Temporal\\Store\\TaskQueuePollers",
