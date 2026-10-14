@@ -37,20 +37,20 @@ try {
 
 function drive(DatabaseBackend $backend, ExecutionId $id): string
 {
-$repository = new PaidOrderRepository($backend->catalog, $backend->workflowClient(null, Duration::seconds(60)));
+    $repository = new PaidOrderRepository($backend->catalog, $backend->workflowClient(null, Duration::seconds(60)));
 
-$repository->create($id)->start(tag: 'ada');
-$order = $repository->get($id);
-$before = $order->status();
-$order->pay();
-$after = $order->status();
-// The bound is a deadline for a worker that never answers, not an expectation on speed.
-$result = $order->result(Duration::seconds(60));
+    $repository->create($id)->start(tag: 'ada');
+    $order = $repository->get($id);
+    $before = $order->status();
+    $order->pay();
+    $after = $order->status();
+    // The bound is a deadline for a worker that never answers, not an expectation on speed.
+    $result = $order->result(Duration::seconds(60));
 
-return json_encode([
-    'before' => $before,
-    'after' => $after,
-    'result' => $result,
-    'events' => array_map(static fn(object $event): string => $event::class, iterator_to_array($backend->events->readStream($id), false)),
-], \JSON_THROW_ON_ERROR);
+    return json_encode([
+        'before' => $before,
+        'after' => $after,
+        'result' => $result,
+        'events' => array_map(static fn(object $event): string => $event::class, iterator_to_array($backend->events->readStream($id), false)),
+    ], \JSON_THROW_ON_ERROR);
 }
