@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\DurableModule\Runtime\DatabaseBackend;
 use integration\DurableModule\ClientPort\Fixture\PaidOrderRepository;
 
 require __DIR__ . '/backend.php';
@@ -25,6 +26,17 @@ if ('reset' === $argv[1]) {
 }
 
 $id = ExecutionId::fromString($argv[2]);
+
+try {
+    echo drive($backend, $id);
+} catch (Throwable $e) {
+    // The test prints this output when the exit code is not 0.
+    fwrite(\STDERR, sprintf("%s: %s\n%s\n", $e::class, $e->getMessage(), $e->getTraceAsString()));
+    exit(1);
+}
+
+function drive(DatabaseBackend $backend, ExecutionId $id): string
+{
 $repository = new PaidOrderRepository($backend->catalog, $backend->workflowClient(null, Duration::seconds(60)));
 
 $repository->create($id)->start(tag: 'ada');
@@ -35,9 +47,10 @@ $after = $order->status();
 // The bound is a deadline for a worker that never answers, not an expectation on speed.
 $result = $order->result(Duration::seconds(60));
 
-echo json_encode([
+return json_encode([
     'before' => $before,
     'after' => $after,
     'result' => $result,
     'events' => array_map(static fn(object $event): string => $event::class, iterator_to_array($backend->events->readStream($id), false)),
 ], \JSON_THROW_ON_ERROR);
+}
