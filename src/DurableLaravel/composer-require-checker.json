@@ -10,6 +10,7 @@
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceExecutionRpc",
         "Gplanchat\\Bridge\\Temporal\\Grpc\\WorkflowServiceNexusRpc",
         "Gplanchat\\Bridge\\Temporal\\Http\\Psr18Http",
+        "Gplanchat\\Bridge\\Temporal\\Port\\TemporalWorkflowClientPort",
         "Gplanchat\\Bridge\\Temporal\\Port\\TemporalWorkflowResumeDispatcher",
         "Gplanchat\\Bridge\\Temporal\\Store\\TemporalReadThroughEventStore",
         "Gplanchat\\Bridge\\Temporal\\Store\\TemporalWorkflowRunCatalog",
