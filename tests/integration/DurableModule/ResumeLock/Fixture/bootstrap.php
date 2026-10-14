@@ -13,7 +13,18 @@ use Magento\Framework\DB\Adapter\AdapterInterface;
 use Magento\Framework\DB\Adapter\Pdo\Mysql;
 use Magento\Framework\DB\Ddl\Table;
 use Magento\Framework\DB\Logger\Quiet;
+use Magento\Framework\DB\Platform\Quote;
+use Magento\Framework\DB\Select\ColumnsRenderer;
+use Magento\Framework\DB\Select\DistinctRenderer;
+use Magento\Framework\DB\Select\ForUpdateRenderer;
+use Magento\Framework\DB\Select\FromRenderer;
+use Magento\Framework\DB\Select\GroupRenderer;
+use Magento\Framework\DB\Select\HavingRenderer;
+use Magento\Framework\DB\Select\LimitRenderer;
+use Magento\Framework\DB\Select\OrderRenderer;
 use Magento\Framework\DB\Select\SelectRenderer;
+use Magento\Framework\DB\Select\UnionRenderer;
+use Magento\Framework\DB\Select\WhereRenderer;
 use Magento\Framework\DB\SelectFactory;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Serialize\Serializer\Json;
@@ -41,6 +52,30 @@ foreach (glob($vendor . '/mage-os/zend-*/library') ?: [] as $library) {
 $loader->addPsr4('Gplanchat\\DurableModule\\', $root . '/src/DurableModule/');
 $loader->addPsr4('Gplanchat\\Durable\\', $root . '/src/Durable/');
 $loader->register();
+
+/**
+ * The renderers `app/etc/di.xml` gives `SelectRenderer`, in its order. Without them a Select renders
+ * as a bare `SELECT`, which MySQL refuses with a syntax error.
+ *
+ * @return list<array{renderer: object, sort: int, part: string}>
+ */
+function durable_test_select_renderers(): array
+{
+    $quote = new Quote();
+
+    return [
+        ['renderer' => new DistinctRenderer(), 'sort' => 100, 'part' => 'distinct'],
+        ['renderer' => new ColumnsRenderer($quote), 'sort' => 200, 'part' => 'columns'],
+        ['renderer' => new UnionRenderer(), 'sort' => 300, 'part' => 'union'],
+        ['renderer' => new FromRenderer($quote), 'sort' => 400, 'part' => 'from'],
+        ['renderer' => new WhereRenderer(), 'sort' => 500, 'part' => 'where'],
+        ['renderer' => new GroupRenderer($quote), 'sort' => 600, 'part' => 'group'],
+        ['renderer' => new HavingRenderer(), 'sort' => 700, 'part' => 'having'],
+        ['renderer' => new OrderRenderer($quote), 'sort' => 800, 'part' => 'order'],
+        ['renderer' => new LimitRenderer(), 'sort' => 900, 'part' => 'limitcount'],
+        ['renderer' => new ForUpdateRenderer(), 'sort' => 1000, 'part' => 'forupdate'],
+    ];
+}
 
 function durable_test_connection(): AdapterInterface
 {
@@ -94,7 +129,7 @@ function durable_test_connection(): AdapterInterface
         new StringUtils(),
         new DateTime(),
         new Quiet(),
-        new SelectFactory(new SelectRenderer([])),
+        new SelectFactory(new SelectRenderer(durable_test_select_renderers())),
         [
             'host' => $dsn['host'] . ':' . $dsn['port'],
             'dbname' => ltrim($dsn['path'], '/'),
