@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace unit\DurableModule;
 
 use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Store\FencedEventStoreInterface;
 use Gplanchat\DurableModule\Runtime\JournalConnectionResolver;
 use Gplanchat\DurableModule\Runtime\RuntimeFactory;
@@ -36,6 +37,14 @@ final class TheDatabaseBackendIsAssembledTest extends TestCase
         self::assertInstanceOf(MagentoEventStore::class, $backend->events);
         self::assertSame($adapter, $backend->connection);
         self::assertInstanceOf(FencedEventStoreInterface::class, $factory->create()->eventStore());
+    }
+
+    public function testTheFactoryExposesTheClientPortOnTheDatabaseBackend(): void
+    {
+        $factory = $this->factory(['resource/durable/connection' => 'durable', 'db/connection/durable' => ['host' => 'journal']], $this->createStub(AdapterInterface::class));
+
+        self::assertInstanceOf(WorkflowClientPort::class, $factory->workflowClientPort());
+        self::assertSame($factory->workflowClientPort(), $factory->workflowClientPort(), 'One client per factory.');
     }
 
     /** An optional constructor argument is not autowired: without this line the container leaves it null and the backend is never selected. */

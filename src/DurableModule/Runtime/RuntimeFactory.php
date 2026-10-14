@@ -31,6 +31,7 @@ use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerDeclarations;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\RegistryActivityExecutor;
@@ -198,6 +199,7 @@ class RuntimeFactory
     private ?TemporalRuntimeAssembly $assembly = null;
 
     private ?DatabaseBackend $database = null;
+    private ?WorkflowClientPort $databaseClient = null;
 
     /**
      * Without a DSN: the one journal and catalog of this factory, so a run is found where it was started (#985).
@@ -509,6 +511,15 @@ class RuntimeFactory
     public function usesDatabase(): bool
     {
         return self::BACKEND_DATABASE === $this->backend();
+    }
+
+    /**
+     * The client port of the database backend: start, signal, query, update, result, cancel and
+     * terminate, keyed by execution id. One per factory.
+     */
+    public function workflowClientPort(): WorkflowClientPort
+    {
+        return $this->databaseClient ??= $this->database()->workflowClient();
     }
 
     /** The worker of the database backend (#736): one turn of `durable:worker`. */

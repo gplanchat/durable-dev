@@ -233,6 +233,18 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         self::assertNull($this->rows->get($id));
     }
 
+    public function testARefusedStartNamesTheBackendTheClientWasGiven(): void
+    {
+        $client = new InMemoryWorkflowClient($this->metadata, $this->dispatcher, $this->catalog, $this->journal, $this->queries, new LinkedChildFinalizer($this->journal, $this->dispatcher, $this->links), backend: 'database');
+
+        try {
+            $client->start(ExecutionId::fromString('exec-1'), ConformanceClientWorkflow::TYPE, [], new WorkflowStartOptions(taskQueue: TaskQueue::named('other')));
+            self::fail('A refused option must fail the start.');
+        } catch (WorkflowStartOptionsRefused $e) {
+            self::assertSame('database', $e->backend);
+        }
+    }
+
     public function testAResultOnARunThatContinuedAsNewWithoutAnIdIsRefusedByName(): void
     {
         $id = ExecutionId::fromString('exec-1');
