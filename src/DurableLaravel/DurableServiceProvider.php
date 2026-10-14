@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowClientPort;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
@@ -28,6 +29,7 @@ use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Handler\LinkedChildFinalizer;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Activity\DeclaredActivityHandlers;
 use Gplanchat\Durable\Laravel\Nexus\DeclaredNexusOperations;
@@ -43,16 +45,20 @@ use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
+use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NoActivityAttemptClaim;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
@@ -134,6 +140,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindWorkflowRegistry($config);
         $this->bindResumePath($config);
         $this->bindResumeDeferral($config);
+        $this->bindClient($backend);
         $this->bindNexus($backend, $config);
     }
 
@@ -611,6 +618,37 @@ final class DurableServiceProvider extends ServiceProvider
             // Recorded when a worker takes the run; Temporal binds no such projection (#447, #458).
             $app->bound(WorkflowRunPickupProjectionInterface::class) ? $app->make(WorkflowRunPickupProjectionInterface::class) : null,
         ));
+    }
+
+    /**
+     * The client port on each backend (workflow-repository, task 4.2). Temporal speaks to the
+     * cluster. The memory and Illuminate backends share the journal client of the core over their
+     * own stores: it appends the signal, then hands the resume to the dispatcher already bound,
+     * which drains it in this process (memory) or pushes a `ResumeWorkflowJob` (Illuminate).
+     */
+    private function bindClient(string $backend): void
+    {
+        $this->app->singleton(WorkflowClientPort::class, static fn($app): WorkflowClientPort => 'temporal' === $backend
+            ? new TemporalWorkflowClientPort($app->make(TemporalRuntimeAssembly::class)->workflowClient())
+            : self::journalClient($app, $backend));
+    }
+
+    private static function journalClient(ContainerContract $app, string $backend): InMemoryWorkflowClient
+    {
+        $events = $app->make(EventStoreInterface::class);
+        $metadata = $app->make(WorkflowMetadataStore::class);
+        $dispatcher = $app->make(WorkflowResumeDispatcher::class);
+
+        return new InMemoryWorkflowClient(
+            $metadata,
+            $dispatcher,
+            $app->make(WorkflowRunCatalogInterface::class),
+            $events,
+            new ReadOnlyReplay($app->make(ExecutionEngine::class), $events, $metadata, $app->make(WorkflowRegistry::class)),
+            new LinkedChildFinalizer($events, $dispatcher, $app->make(ChildWorkflowParentLinkStoreInterface::class)),
+            new ParentChildWorkflowCoordinator($events, $dispatcher),
+            $backend,
+        );
     }
 
     /** @param array<string, mixed> $config */
