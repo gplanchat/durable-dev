@@ -123,6 +123,15 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         (new RepositoryTestUndeclared($this->catalog, $this->createStub(WorkflowClientPort::class)))->create();
     }
 
+    public function testARepositoryBuiltWithAWorkflowClassServesIt(): void
+    {
+        $this->catalog->recordStart(ExecutionId::fromString('order-3'), 'order');
+        $orders = new WorkflowRepository($this->catalog, $this->createStub(WorkflowClientPort::class), RepositoryTestOrderWorkflow::class);
+
+        self::assertSame('order-3', $orders->get(ExecutionId::fromString('order-3'))->executionId()->toString());
+        self::assertFalse($orders->create()->executionId()->equals($orders->create()->executionId()));
+    }
+
     public function testTheConstructorIsFinalSoASubclassCannotWidenIt(): void
     {
         self::assertTrue((new \ReflectionMethod(WorkflowRepository::class, '__construct'))->isFinal());
