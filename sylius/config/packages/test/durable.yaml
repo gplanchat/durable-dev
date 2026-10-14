@@ -10,3 +10,12 @@ services:
         tags: [durable.workflow]
     App\Tests\Functional\Fixture\StampActivityHandler:
         tags: [{ name: durable.activity_handler, contract: App\Tests\Functional\Fixture\StampActivity }]
+    # AnApprovalIsDrivenThroughItsRepository: start, query, signal, query and result of one run.
+    App\Tests\Functional\Fixture\ApprovalWorkflow:
+        tags: [durable.workflow]
+    # Nothing injects it in the bench; the test reads it from the test container, which only
+    # exposes a public service.
+    App\Tests\Functional\Fixture\ApprovalRepository:
+        autowire: true
+        autoconfigure: true
+        public: true
