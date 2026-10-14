@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\PHPStan\Rules;
 
-use Gplanchat\Durable\Activity\ActivityCancellationType;
 use Gplanchat\Durable\Activity\ActivityOptions;
 use Gplanchat\Durable\Attribute\AsActivityMethod;
 use Gplanchat\Durable\Attribute\AsWorkflowMethod;
@@ -79,7 +78,6 @@ final class ActivityStubCouldBeParameterRule implements Rule
         'maximumInterval' => 'maximumInterval',
         'summary' => 'summary',
         'activityId' => null,
-        'cancellationType' => 'cancellationType',
     ];
 
     private const TIP = 'Keep activityStub() when the options are computed at run time, or when a signal, update or helper method, or a closure, uses the stub. The rule does not see another method calling the workflow method, __call, reflection or get_object_vars() reaching the property, or the local name used before the stub is built. Otherwise ignore this with the identifier ' . self::IDENTIFIER . '.';
@@ -215,7 +213,6 @@ final class ActivityStubCouldBeParameterRule implements Rule
                 // `of()` reads '' as no queue; the attribute refuses it.
                 'taskQueue' => $value instanceof String_ && '' !== $value->value,
                 'summary' => $value instanceof String_,
-                'cancellationType' => $value instanceof ClassConstFetch && $value->class instanceof Name && ActivityCancellationType::class === $value->class->toString(),
                 default => false,
             };
             if (!$accepted || null === $field) {

@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Gplanchat\DurableModule\Runtime;
 
+use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Handler\LinkedChildFinalizer;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
+use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\ProjectingEventStore;
 use Gplanchat\Durable\Store\ProjectingWorkflowMetadataStore;
 use Gplanchat\Durable\Store\WorkflowMetadataStore;
@@ -65,6 +71,9 @@ final class DatabaseBackend
     public readonly ResumeWorkflowHandler $resumeHandler;
     public readonly FireWorkflowTimersHandler $timerHandler;
 
+    private readonly ExecutionEngine $engine;
+    private readonly WorkflowRegistry $workflows;
+
     public function __construct(
         public readonly AdapterInterface $connection,
         DeploymentConfig $deploymentConfig,
@@ -102,8 +111,10 @@ final class DatabaseBackend
             attemptClaim: $this->attemptClaim,
             clock: $clock,
         );
+        $this->workflows = $workflows;
+        $this->engine = new ExecutionEngine($this->eventStore, $runtime);
         $this->resumeHandler = new ResumeWorkflowHandler(
-            new ExecutionEngine($this->eventStore, $runtime),
+            $this->engine,
             $workflows,
             $this->metadata,
             $this->resumes,
@@ -114,5 +125,30 @@ final class DatabaseBackend
             $projection,
         );
         $this->timerHandler = new FireWorkflowTimersHandler($this->eventStore, $runtime, $this->resumes, $this->timers);
+    }
+
+    /**
+     * The client port on this backend's own stores (task 4.3). A start inserts the metadata row and
+     * queues the first resume; a worker runs the workflow, so a result and an update wait for it.
+     * `$dispatcher` is the queue's by default; a test hands one that drains the queues.
+     */
+    public function workflowClient(?WorkflowResumeDispatcher $dispatcher = null, ?Duration $updateWait = null): WorkflowClientPort
+    {
+        $dispatcher ??= $this->resumes;
+
+        return new WaitingWorkflowClient(
+            new InMemoryWorkflowClient(
+                $this->metadata,
+                $dispatcher,
+                $this->catalog,
+                $this->eventStore,
+                new ReadOnlyReplay($this->engine, $this->eventStore, $this->metadata, $this->workflows),
+                new LinkedChildFinalizer($this->eventStore, $dispatcher, $this->parentLinks),
+                new ParentChildWorkflowCoordinator($this->eventStore, $dispatcher),
+                'database',
+            ),
+            $this->eventStore,
+            $updateWait ?? Duration::seconds(30),
+        );
     }
 }

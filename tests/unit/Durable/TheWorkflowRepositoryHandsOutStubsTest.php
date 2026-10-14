@@ -16,6 +16,7 @@ use Gplanchat\Durable\Exception\WorkflowTypeMismatch;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
@@ -72,12 +73,12 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
     {
         $id = ExecutionId::fromString('order-1');
 
-        self::assertTrue($id->equals((new RepositoryTestOrders($this->catalog))->create($id)->executionId()));
+        self::assertTrue($id->equals((new RepositoryTestOrders($this->catalog, $this->createStub(WorkflowClientPort::class)))->create($id)->executionId()));
     }
 
     public function testCreateGeneratesAnIdWhenNoneIsGiven(): void
     {
-        $orders = new RepositoryTestOrders($this->catalog);
+        $orders = new RepositoryTestOrders($this->catalog, $this->createStub(WorkflowClientPort::class));
 
         self::assertFalse($orders->create()->executionId()->equals($orders->create()->executionId()));
     }
@@ -87,13 +88,13 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         $id = ExecutionId::fromString('order-2');
         $this->catalog->recordStart($id, 'order');
 
-        self::assertTrue($id->equals((new RepositoryTestOrders($this->catalog))->get($id)->executionId()));
+        self::assertTrue($id->equals((new RepositoryTestOrders($this->catalog, $this->createStub(WorkflowClientPort::class)))->get($id)->executionId()));
     }
 
     public function testGetFailsAtOnceForAnUnknownExecution(): void
     {
         try {
-            (new RepositoryTestOrders($this->catalog))->get(ExecutionId::fromString('nope'));
+            (new RepositoryTestOrders($this->catalog, $this->createStub(WorkflowClientPort::class)))->get(ExecutionId::fromString('nope'));
             self::fail('get() must fail for an unknown execution.');
         } catch (WorkflowExecutionNotFound $e) {
             self::assertSame('nope', $e->executionId);
@@ -106,7 +107,7 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         $this->catalog->recordStart(ExecutionId::fromString('inv-1'), 'invoice');
 
         try {
-            (new RepositoryTestOrders($this->catalog))->get(ExecutionId::fromString('inv-1'));
+            (new RepositoryTestOrders($this->catalog, $this->createStub(WorkflowClientPort::class)))->get(ExecutionId::fromString('inv-1'));
             self::fail('get() must fail for another workflow type.');
         } catch (WorkflowTypeMismatch $e) {
             self::assertSame('inv-1', $e->executionId);
@@ -119,7 +120,16 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
     {
         $this->expectException(WorkflowRepositoryNotDeclared::class);
 
-        (new RepositoryTestUndeclared($this->catalog))->create();
+        (new RepositoryTestUndeclared($this->catalog, $this->createStub(WorkflowClientPort::class)))->create();
+    }
+
+    public function testARepositoryBuiltWithAWorkflowClassServesIt(): void
+    {
+        $this->catalog->recordStart(ExecutionId::fromString('order-3'), 'order');
+        $orders = new WorkflowRepository($this->catalog, $this->createStub(WorkflowClientPort::class), RepositoryTestOrderWorkflow::class);
+
+        self::assertSame('order-3', $orders->get(ExecutionId::fromString('order-3'))->executionId()->toString());
+        self::assertFalse($orders->create()->executionId()->equals($orders->create()->executionId()));
     }
 
     public function testTheConstructorIsFinalSoASubclassCannotWidenIt(): void
@@ -131,7 +141,7 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
     {
         $this->expectException(WorkflowRepositoryNotDeclared::class);
 
-        (new RepositoryTestSubOrders($this->catalog))->create();
+        (new RepositoryTestSubOrders($this->catalog, $this->createStub(WorkflowClientPort::class)))->create();
     }
 
     public function testACatalogueReportingUnknownWorkflowIsATypeMismatch(): void
@@ -142,7 +152,7 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         );
 
         try {
-            (new RepositoryTestOrders($catalog))->get(ExecutionId::fromString('ord-9'));
+            (new RepositoryTestOrders($catalog, $this->createStub(WorkflowClientPort::class)))->get(ExecutionId::fromString('ord-9'));
             self::fail('get() must fail when the catalogue reports another type.');
         } catch (WorkflowTypeMismatch $e) {
             self::assertSame('order', $e->expectedType);
@@ -155,7 +165,7 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         $this->catalog->recordStart(ExecutionId::fromString('x-1'), 'whatever');
 
         try {
-            (new RepositoryTestMissingWorkflow($this->catalog))->get(ExecutionId::fromString('x-1'));
+            (new RepositoryTestMissingWorkflow($this->catalog, $this->createStub(WorkflowClientPort::class)))->get(ExecutionId::fromString('x-1'));
             self::fail('A missing workflow class must be refused.');
         } catch (WorkflowClassNotFound $e) {
             self::assertSame(RepositoryTestMissingWorkflow::WORKFLOW, $e->workflowClass);
@@ -169,6 +179,6 @@ final class TheWorkflowRepositoryHandsOutStubsTest extends TestCase
         $id = ExecutionId::fromString('p-1');
         $this->catalog->recordStart($id, 'RepositoryTestPlainClass');
 
-        self::assertTrue($id->equals((new RepositoryTestPlain($this->catalog))->get($id)->executionId()));
+        self::assertTrue($id->equals((new RepositoryTestPlain($this->catalog, $this->createStub(WorkflowClientPort::class)))->get($id)->executionId()));
     }
 }

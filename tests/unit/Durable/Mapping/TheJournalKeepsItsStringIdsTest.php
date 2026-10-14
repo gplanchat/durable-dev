@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Mapping;
 use Gplanchat\Bridge\Temporal\Codec\TemporalActivityScheduleInput;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\ChildWorkflowCompleted;
+use Gplanchat\Durable\Event\ChildWorkflowDeadline;
 use Gplanchat\Durable\Event\ChildWorkflowFailed;
 use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
@@ -36,6 +37,16 @@ final class TheJournalKeepsItsStringIdsTest extends TestCase
         self::assertSame('exec-1', $record['execution_id']);
         self::assertSame(
             '{"execution_id":"exec-1","event_type":"Gplanchat\\\\Durable\\\\Event\\\\TimerCompleted","payload":{"timerId":"timer-1"}}',
+            json_encode($record, \JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testTheChildDeadlineKeepsItsStoredShape(): void
+    {
+        $record = EventDataMapper::fromDomainEvent(new ChildWorkflowDeadline(ExecutionId::fromString('exec-1'), ExecutionId::fromString('child-1'), 1735689605.5));
+
+        self::assertSame(
+            '{"execution_id":"exec-1","event_type":"Gplanchat\\\\Durable\\\\Event\\\\ChildWorkflowDeadline","payload":{"childExecutionId":"child-1","dueAt":1735689605.5}}',
             json_encode($record, \JSON_THROW_ON_ERROR),
         );
     }
@@ -107,6 +118,18 @@ final class TheJournalKeepsItsStringIdsTest extends TestCase
         $event = WorkflowExecutionFailed::terminatedByParent(ExecutionId::fromString('exec-1'), ExecutionId::fromString('parent-1'));
 
         self::assertStringContainsString('"parentExecutionId":"parent-1"', json_encode(EventDataMapper::fromDomainEvent($event), \JSON_THROW_ON_ERROR));
+    }
+
+    public function testATerminationKeepsItsStoredShape(): void
+    {
+        $event = WorkflowExecutionFailed::terminated(ExecutionId::fromString('exec-1'), 'stop');
+        $record = EventDataMapper::fromDomainEvent($event);
+
+        self::assertSame(
+            '{"kind":"terminated","failureClass":"Gplanchat\\\\Durable\\\\Exception\\\\WorkflowTerminatedException","failureMessage":"stop","failureCode":0,"context":[]}',
+            json_encode($record['payload'], \JSON_THROW_ON_ERROR),
+        );
+        self::assertSame($event->payload(), $this->readBack($event));
     }
 
     /**

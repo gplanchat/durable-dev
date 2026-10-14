@@ -12,6 +12,7 @@ use Gplanchat\Durable\CronSchedule;
 use Gplanchat\Durable\Duration;
 use Gplanchat\Durable\Event\ActivityScheduled;
 use Gplanchat\Durable\Event\TimerScheduled;
+use Gplanchat\Durable\Event\WorkflowUpdateHandled;
 use Gplanchat\Durable\ExecutionContext;
 use Gplanchat\Durable\ExecutionId;
 use Gplanchat\Durable\Mapping\EventDataMapper;
@@ -22,6 +23,7 @@ use Gplanchat\Durable\Store\EventStoreHistorySource;
 use Gplanchat\Durable\Store\InMemoryEventStore;
 use Gplanchat\Durable\TaskQueue;
 use Gplanchat\Durable\Transport\InMemoryActivityTransport;
+use Gplanchat\Durable\Transport\ResumeWorkflowMessage;
 use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowNamespace;
 use Gplanchat\Durable\WorkflowTimeouts;
@@ -68,7 +70,6 @@ final class WireFormatPinTest extends TestCase
                 'initial_interval_seconds' => 2.0,
                 'backoff_coefficient' => 2.5,
                 'non_retryable_exceptions' => ['App\\Boom'],
-                'cancellation_type' => 0,
                 'maximum_interval_seconds' => 60.0,
                 'task_queue' => 'payments',
                 'activity_id' => 'act-1',
@@ -129,6 +130,18 @@ final class WireFormatPinTest extends TestCase
     }
 
     /**
+     * Histories written before the option was removed (#1052) still carry `cancellation_type`.
+     */
+    public function testAHistoryWrittenWithTheRemovedCancellationTypeStillReads(): void
+    {
+        $options = ActivityOptions::fromMetadata(['activity_options' => ['max_attempts' => 3, 'cancellation_type' => 2]]);
+
+        self::assertNotNull($options);
+        self::assertSame(3, $options->retryLimit->maxAttempts());
+        self::assertArrayNotHasKey('cancellation_type', $options->toMetadata()['activity_options']);
+    }
+
+    /**
      * A scheduled activity as the journal carries it today.
      */
     public function testScheduledActivityJournalRecord(): void
@@ -156,7 +169,6 @@ final class WireFormatPinTest extends TestCase
                         'initial_interval_seconds' => 1.0,
                         'backoff_coefficient' => 2.0,
                         'non_retryable_exceptions' => [],
-                        'cancellation_type' => 0,
                         'start_to_close_timeout_seconds' => 30.0,
                     ],
                 ],
@@ -164,6 +176,41 @@ final class WireFormatPinTest extends TestCase
         ], $record);
 
         self::assertEquals($event->payload(), EventDataMapper::toDomainEvent($record)->payload());
+    }
+
+    /**
+     * An update handled as the journal carries it: the id the client gave it is in the payload,
+     * and a record written without one reads back, and is written back, as it was.
+     */
+    public function testUpdateHandledJournalRecord(): void
+    {
+        $withId = EventDataMapper::fromDomainEvent(new WorkflowUpdateHandled(ExecutionId::fromString('exec-1'), 'amend', ['n' => 1], 'ok', null, 'upd-1'));
+        $withoutId = EventDataMapper::fromDomainEvent(new WorkflowUpdateHandled(ExecutionId::fromString('exec-1'), 'amend', ['n' => 1], 'ok'));
+
+        self::assertSame([
+            'execution_id' => 'exec-1',
+            'event_type' => WorkflowUpdateHandled::class,
+            'payload' => ['updateName' => 'amend', 'arguments' => ['n' => 1], 'result' => 'ok', 'failure' => null, 'updateId' => 'upd-1'],
+        ], $withId);
+        self::assertSame(['updateName' => 'amend', 'arguments' => ['n' => 1], 'result' => 'ok', 'failure' => null], $withoutId['payload']);
+    }
+
+    /**
+     * The queued resume carries the update id in its pending updates; one queued before the field
+     * existed has none and reads back as it was.
+     */
+    public function testResumeMessageWireFormWithAnUpdateId(): void
+    {
+        $message = new ResumeWorkflowMessage('exec-1', [['name' => 'amend', 'arguments' => [], 'updateId' => 'upd-1']]);
+
+        self::assertSame(
+            'O:49:"Gplanchat\Durable\Transport\ResumeWorkflowMessage":3:{s:11:"executionId";s:6:"exec-1";s:14:"pendingUpdates";a:1:{i:0;a:3:{s:4:"name";s:5:"amend";s:9:"arguments";a:0:{}s:8:"updateId";s:5:"upd-1";}}s:7:"awaited";N;}',
+            serialize($message),
+        );
+
+        $old = unserialize('O:49:"Gplanchat\Durable\Transport\ResumeWorkflowMessage":2:{s:11:"executionId";s:6:"exec-1";s:14:"pendingUpdates";a:1:{i:0;a:2:{s:4:"name";s:5:"amend";s:9:"arguments";a:0:{}}}}');
+        self::assertInstanceOf(ResumeWorkflowMessage::class, $old);
+        self::assertSame([['name' => 'amend', 'arguments' => []]], $old->pendingUpdates);
     }
 
     /**
@@ -202,7 +249,6 @@ final class WireFormatPinTest extends TestCase
                 'initial_interval_seconds' => 1.0,
                 'backoff_coefficient' => 2.0,
                 'non_retryable_exceptions' => [],
-                'cancellation_type' => 0,
                 'start_to_close_timeout_seconds' => 30.0,
             ],
             'queued_at' => 1_700_000_000.0,

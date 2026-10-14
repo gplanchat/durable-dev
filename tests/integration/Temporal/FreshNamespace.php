@@ -61,10 +61,12 @@ trait FreshNamespace
 
         $transportClient = WorkflowServiceClientFactory::createTransport($connection);
         $service = '/temporal.api.workflowservice.v1.WorkflowService/';
-        $transportClient->unary($service . 'RegisterNamespace', new RegisterNamespaceRequest([
+        // The server rate-limits namespace registrations (code 8): a suite that registers one per
+        // test waits for a slot instead of failing the next suite.
+        self::whileRateLimited(static fn() => $transportClient->unary($service . 'RegisterNamespace', new RegisterNamespaceRequest([
             'namespace' => $namespace,
             'workflow_execution_retention_period' => new Duration(['seconds' => 86_400]),
-        ]), RegisterNamespaceResponse::class, [], 10_000);
+        ]), RegisterNamespaceResponse::class, [], 10_000));
 
         // A registration propagates asynchronously on a server with a namespace cache.
         self::awaitNamespace($namespace, 'still unknown', static fn() => $transportClient->unary($service . 'DescribeNamespace', new DescribeNamespaceRequest(['namespace' => $namespace]), DescribeNamespaceResponse::class, [], 5_000));
@@ -160,6 +162,26 @@ trait FreshNamespace
                 // One line per retry, so a green 1.20 run shows whether it met the lag (#718).
                 fwrite(\STDERR, \sprintf("%s refused, retrying: %s\n", $what, $unmapped->getMessage()));
                 usleep(200_000);
+            }
+        }
+    }
+
+    /**
+     * @param callable(): mixed $call
+     */
+    private static function whileRateLimited(callable $call): void
+    {
+        $deadline = microtime(true) + self::NAMESPACE_READY_TIMEOUT_SECONDS;
+        while (true) {
+            try {
+                $call();
+
+                return;
+            } catch (\RuntimeException $failure) {
+                if (8 !== $failure->getCode() || microtime(true) > $deadline) {
+                    throw $failure;
+                }
+                usleep(500_000);
             }
         }
     }

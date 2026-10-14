@@ -7,6 +7,7 @@ namespace Gplanchat\Durable\Bundle;
 use Gplanchat\Durable\Attribute\AsActivityHandler;
 use Gplanchat\Durable\Attribute\AsNexusServiceHandler;
 use Gplanchat\Durable\Attribute\AsWorkflow;
+use Gplanchat\Durable\Attribute\AsWorkflowRepository;
 use Gplanchat\Durable\Attribute\FulfilsNexusOperation;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\ActivityHandlerPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\NexusHandlerPass;
@@ -16,6 +17,7 @@ use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RequireLockFactoryPass
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\TemporalReceiversPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WarnOnSharedJournalConnectionPass;
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowPass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\WorkflowRepositoryPass;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -39,6 +41,15 @@ final class DurableBundle extends Bundle
             AsWorkflow::class,
             static function (ChildDefinition $definition, AsWorkflow $_attribute, \Reflector $_reflector): void {
                 $definition->addTag('durable.workflow');
+            },
+        );
+
+        // A repository is a service the application injects by its own type; the pass refuses one
+        // whose workflow is not registered.
+        $container->registerAttributeForAutoconfiguration(
+            AsWorkflowRepository::class,
+            static function (ChildDefinition $definition, AsWorkflowRepository $attribute, \Reflector $_reflector): void {
+                $definition->addTag(WorkflowRepositoryPass::TAG, ['workflow' => $attribute->workflow]);
             },
         );
 
@@ -66,6 +77,8 @@ final class DurableBundle extends Bundle
         $container->addCompilerPass(new RegisterDurableMiddlewarePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
 
         $container->addCompilerPass(new WorkflowPass());
+        // Same priority and reason as the passes below: after autoconfiguration by attribute.
+        $container->addCompilerPass(new WorkflowRepositoryPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
         // Priority 50: after AttributeAutoconfigurationPass (100), before the passes at 0 (WorkflowPass, etc.).
         $container->addCompilerPass(new ActivityHandlerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 50);
         // Same priority, same reason: after autoconfiguration by attribute, before the passes at 0.

@@ -59,3 +59,11 @@ when@test:
         App\Durable\Nexus\BillingHandler:
             autowire: true
             autoconfigure: false
+
+        # Nothing injects the repository in this bench; the client test reads it from the test
+        # container, which only exposes a public service. `autowire` and `autoconfigure` again for
+        # the reason above: the tag that `#[AsWorkflowRepository]` puts comes from autoconfiguration.
+        App\Durable\ApprovalRepository:
+            autowire: true
+            autoconfigure: true
+            public: true

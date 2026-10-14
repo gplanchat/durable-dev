@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Bundle\DependencyInjection;
 
 use Gplanchat\Durable\Bundle\DependencyInjection\Compiler\RegisterDurableMiddlewarePass;
+use Gplanchat\Durable\Bundle\DependencyInjection\Loader\ClientServices;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\Commands;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\CoreServices;
 use Gplanchat\Durable\Bundle\DependencyInjection\Loader\DbalStores;
@@ -60,6 +61,7 @@ final class DurableExtension extends Extension
         EventStores::registerTemporalMirrorInfrastructure($container, $config);
         DbalStores::registerDbalStores($container, $config);
         EventStores::registerInMemoryRunCatalog($container);
+        ClientServices::registerWorkflowClientPort($container, $config);
         Observability::handTheRunCatalogToTheProfiler($container);
     }
 

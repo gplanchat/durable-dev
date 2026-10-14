@@ -7,6 +7,7 @@ namespace unit\Gplanchat\Durable\Mapping;
 use Gplanchat\Durable\Event\ActivityFailed;
 use Gplanchat\Durable\Event\ActivityRetryQueued;
 use Gplanchat\Durable\Event\ActivityTaskFailed;
+use Gplanchat\Durable\Event\ChildWorkflowDeadline;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\TimerCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
@@ -57,6 +58,7 @@ final class EventDataMapperRoundTripTest extends TestCase
         yield 'WorkflowTaskScheduled' => [new WorkflowTaskScheduled(ExecutionId::fromString('exec-1'))];
         yield 'WorkflowTaskStarted' => [new WorkflowTaskStarted(ExecutionId::fromString('exec-1'))];
         yield 'WorkflowTaskCompleted' => [new WorkflowTaskCompleted(ExecutionId::fromString('exec-1'))];
+        yield 'ChildWorkflowDeadline' => [new ChildWorkflowDeadline(ExecutionId::fromString('exec-1'), ExecutionId::fromString('child-1'), 1735689605.5)];
         yield 'TimerCancelled' => [new TimerCancelled(ExecutionId::fromString('exec-1'), 'timer-1', 'race_superseded')];
         yield 'WorkflowExecutionCancelled' => [new WorkflowExecutionCancelled(ExecutionId::fromString('exec-1'), 'parent_request_cancel', ExecutionId::fromString('parent-1'))];
         yield 'WorkflowExecutionCancelled without parent' => [new WorkflowExecutionCancelled(ExecutionId::fromString('exec-1'), 'operator')];

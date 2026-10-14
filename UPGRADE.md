@@ -1392,6 +1392,125 @@ in the process, and one with only a DSN keeps Temporal. Declaring both keys thro
 `bin/magento durable:setup` and `bin/magento durable:worker`. The
 [backends page](documentation/user/backends/_index.md) lists what the database backend supports.
 
+### Temporal: `max_activity_retries` now bounds the retries of every activity (#1051)
+
+The Temporal bridge reads `max_activity_retries`. When the workflow worker schedules an activity,
+it narrows the activity's own `RetryLimit` to the ceiling and writes the stricter of the two into
+`maximum_attempts` of the activity's retry policy. A ceiling of `N` allows `N + 1` attempts, the
+first one included; `0` caps nothing. An activity scheduled without options now carries a retry
+policy too, holding only that bound. Until now the bridge ignored the setting, and the cluster
+retried an activity without limit unless the activity set its own.
+
+**Who is affected:** a Temporal application that sets `max_activity_retries: N` (`durable.max_activity_retries`
+on Symfony, the same key in `config/durable.php` on Laravel, the `maxActivityRetries` argument of
+`RuntimeFactory` in `di.xml` on Magento). Its activities used to retry without limit on Temporal
+and now stop after `N + 1` attempts, then fail the workflow's call. Activities already scheduled
+when you deploy keep the retry policy they were scheduled with, because the cluster stores it with
+the activity. The journal backends apply the ceiling when the attempt fails, so they change at once.
+
+**What to do:** nothing if the ceiling is `0` or unset. Otherwise check that `N` is the bound you
+want on Temporal. To keep a longer retry for one activity, raise the ceiling; an activity's own
+`RetryLimit` can only be stricter than it. No Rector rule: no call changes.
+
+### Changed: an activity without `startToClose` is bounded at 30 seconds on the journal backends (#1050)
+
+Temporal gives an attempt 30 seconds when the activity sets neither `startToClose` nor
+`scheduleToClose`. InMemory, DBAL, Illuminate and Magento Database now apply the same default, and
+check it after the attempt returns.
+
+**Who is affected**: applications on a journal backend with an activity whose attempt runs longer
+than 30 seconds and that sets neither `startToClose` nor `scheduleToClose`, and activities that set
+only `scheduleToClose` whose single attempt outlasts it. Such an attempt now fails with
+`Activity start-to-close timeout exceeded.`, its result is discarded, and the retry policy
+determines what comes next.
+
+**What to do**: set the bound the activity needs, for example
+`#[Activities(ReportActivities::class, startToClose: 300.0)]` or
+`ActivityTimeouts::attempt(Duration::minutes(5))`. No Rector rule covers this change, because the
+code does not show which activities run long. The
+[options page](documentation/user/options/_index.md) describes the bounds.
+
+### A child workflow's execution timeout is enforced on a child that runs inline (#979)
+
+`ChildWorkflowOptions::$timeouts->execution` was journaled and never applied. Scheduling a child
+with an execution timeout now also appends a `ChildWorkflowDeadline` event to the parent's journal.
+A child that the engine runs inline (the in-memory runner, `WorkflowTestEnvironment`) and whose
+next timer falls after the deadline fails the parent's await with `DurableChildWorkflowFailedException` ("Child
+workflow <id> timed out."), the failure Temporal gives it, with no failure kind. A child that runs
+on a worker (DBAL, Illuminate and Magento Database in asynchronous mode) gets the event and is not
+bound yet (#1069). The inline check happens when the child's virtual clock jumps to a timer, so
+activity time and time inside an inline grandchild are not counted. `timeouts->run` and `timeouts->task` are still journaled and not applied.
+
+`ChildWorkflowDeadline` is a new stored event name. A backend that stores events through its own
+mapper must map it: `childExecutionId` (string) and `dueAt` (float, Unix seconds). The DBAL,
+Illuminate and Magento stores use `EventDataMapper`, which does. A child scheduled before the
+upgrade has no deadline event and keeps running without a bound.
+
+**What to do**: nothing, unless a test declares a child execution timeout that it relied on being
+ignored.
+
+### The `cancellationType` activity option is removed (#1052)
+
+`ActivityOptions`, `ActivityOptions::of()` and `#[Activities]` no longer take `cancellationType`,
+and the enum `Gplanchat\Durable\Activity\ActivityCancellationType` is deleted. No backend reads
+the option, Temporal included: cancelling an activity stays a request that the attempt in flight
+may outlive, whatever the value. `ActivityOptions::toMetadata()` stops writing the
+`cancellation_type` key, and `fromMetadata()` ignores it in a history written before this change,
+so no journal needs a migration.
+
+**Who is affected:**
+
+- Code that passes `cancellationType:` to one of these three, or imports `ActivityCancellationType`.
+  A named argument fails with an unknown named parameter error, and the enum with a class-not-found
+  error.
+- Code that passes the value positionally. In `new ActivityOptions(...)`, the enum lands in
+  `$summary` and raises a `TypeError`. As the tenth argument of `ActivityOptions::of()`, it is
+  silently ignored.
+- Code that reads the removed public properties `ActivityOptions::$cancellationType` or
+  `Activities::$cancellationType`.
+
+**What to do:**
+
+1. Run the Rector set (`vendor/bin/rector process src`). It removes the named argument from `new
+   ActivityOptions()`, `ActivityOptions::of()` and `#[Activities]`, and the positional one from
+   the first two.
+2. Delete by hand the `use Gplanchat\Durable\Activity\ActivityCancellationType;` line it leaves,
+   and any positional value in `#[Activities]`, which the rule does not touch.
+3. Remove by hand each read of `$options->cancellationType` or `$activities->cancellationType`:
+   the property no longer exists and the rule does not look for it.
+
+### An update's journal event carries the update id (#974)
+
+`WorkflowUpdateHandled` takes a nullable `$updateId` as its last constructor argument and exposes
+it as `updateId()`. The journal record gains an `updateId` key only when the id is set: a record
+written before this change reads back with a null id and is written back as it was, and no client
+matches it. The same optional argument is added, last, to `WorkflowCommandBufferInterface::recordUpdateHandled()`,
+`PendingUpdate::__construct()`, and the `$pendingUpdates` entries of `WorkflowResumeDispatcher::dispatchResume()`
+and `ResumeWorkflowMessage` (`updateId?: string|null`). `DeliverWorkflowUpdateHandler` passes the
+message's `updateId` on, and the Magento store reads and writes the key through the shared
+`EventDataMapper`: no column changes on any store.
+
+**Who is affected:** a class that implements `WorkflowCommandBufferInterface`, or a
+`WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries instead of passing them on.
+
+**What to do:**
+
+1. Run the Rector set (`vendor/bin/rector process src`). Its parameter rule adds
+   `?string $updateId = null` to every `recordUpdateHandled()` that implements the interface.
+2. Give that id to the `WorkflowUpdateHandled` you write, if you write one.
+3. In a `WorkflowResumeDispatcher` that rebuilds the `$pendingUpdates` entries, pass each entry on as
+   it is, `updateId` included. The rule does not look for that.
+
+### A terminated execution ends with the failure kind `terminated` (#971)
+
+`WorkflowClientPort::terminate()` on the in-memory backend appends a `WorkflowExecutionFailed`
+whose `kind` is `terminated` (`WorkflowExecutionFailed::KIND_TERMINATED`), with
+`WorkflowTerminatedException` as `failureClass` and the reason as `failureMessage`. The run reads
+`failed` in the dashboards.
+
+**What to do:** if you match on the `kind` of `WorkflowExecutionFailed` with an exhaustive `match`,
+add the `terminated` case.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)

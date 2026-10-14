@@ -79,6 +79,7 @@ Son champ `kind` donne l'origine de l'échec :
 | `unhandled_activity_superseded` | le workflow a attendu une activité qui avait perdu une course |
 | `workflow_handler_failure` | le code du workflow a lui-même levé une exception |
 | `terminated_by_parent` | un parent s'est fermé avec `ParentClosePolicy::Terminate` |
+| `terminated` | une application a appelé `terminate()` sur l'exécution ; aucun code du workflow ne s'exécute ensuite |
 
 Sur le backend Temporal, ce genre est stocké dans les détails d'`ApplicationFailureInfo`. La
 relecture de l'historique reconstruit un `WorkflowExecutionFailed` typé au lieu d'un simple

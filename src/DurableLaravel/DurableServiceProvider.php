@@ -13,6 +13,7 @@ use Gplanchat\Bridge\Temporal\Grpc\TemporalHistoryCursor;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceExecutionRpc;
 use Gplanchat\Bridge\Temporal\Grpc\WorkflowServiceNexusRpc;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowClientPort;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\TemporalRuntimeAssembly;
@@ -28,6 +29,7 @@ use Gplanchat\Durable\ActivityExecutor;
 use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionRuntime;
 use Gplanchat\Durable\Handler\FireWorkflowTimersHandler;
+use Gplanchat\Durable\Handler\LinkedChildFinalizer;
 use Gplanchat\Durable\Handler\ResumeWorkflowHandler;
 use Gplanchat\Durable\Laravel\Activity\DeclaredActivityHandlers;
 use Gplanchat\Durable\Laravel\Nexus\DeclaredNexusOperations;
@@ -43,16 +45,20 @@ use Gplanchat\Durable\Nexus\NexusUnsupportedByBackendException;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
 use Gplanchat\Durable\Observation\JournalRunHistoryReader;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
+use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface;
 use Gplanchat\Durable\Port\NoActivityAttemptClaim;
+use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
 use Gplanchat\Durable\Port\WorkflowTimerDispatcher;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\ChildWorkflowParentLinkStoreInterface;
 use Gplanchat\Durable\Store\EventStoreInterface;
 use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
@@ -134,6 +140,7 @@ final class DurableServiceProvider extends ServiceProvider
         $this->bindWorkflowRegistry($config);
         $this->bindResumePath($config);
         $this->bindResumeDeferral($config);
+        $this->bindClient($backend);
         $this->bindNexus($backend, $config);
     }
 
@@ -367,6 +374,7 @@ final class DurableServiceProvider extends ServiceProvider
             $app->make(WorkflowRegistry::class),
             $app->make(WorkflowDefinitionLoader::class),
             $app->bound(LoggerInterface::class) ? $app->make(LoggerInterface::class) : null,
+            self::maxActivityRetries($config),
         ));
         $assembly = static fn($app): TemporalRuntimeAssembly => $app->make(TemporalRuntimeAssembly::class);
         // One sender for the activity worker, which binds each task's token onto it, and for the
@@ -512,6 +520,21 @@ final class DurableServiceProvider extends ServiceProvider
     }
 
     /**
+     * The `max_activity_retries` ceiling, refused by name when it is not an integer of 0 or more.
+     *
+     * @param array<string, mixed> $config
+     */
+    private static function maxActivityRetries(array $config): int
+    {
+        $value = $config['max_activity_retries'] ?? 0;
+        if (!\is_int($value) || $value < 0) {
+            throw new \InvalidArgumentException(\sprintf('durable.max_activity_retries must be an integer of 0 or more, %s given.', var_export($value, true)));
+        }
+
+        return $value;
+    }
+
+    /**
      * What replays an execution, and it is the core that does it.
      *
      * `ResumeWorkflowHandler` left the Symfony bundle for the core so that a host without a bus
@@ -526,14 +549,7 @@ final class DurableServiceProvider extends ServiceProvider
         /** @var array<string, mixed> $queue */
         $queue = $config['queue'] ?? [];
         // Read on first use, like every other binding: a bad value fails where it is used, by name.
-        $maxActivityRetries = static function () use ($config): int {
-            $value = $config['max_activity_retries'] ?? 0;
-            if (!\is_int($value) || $value < 0) {
-                throw new \InvalidArgumentException(\sprintf('durable.max_activity_retries must be an integer of 0 or more, %s given.', var_export($value, true)));
-            }
-
-            return $value;
-        };
+        $maxActivityRetries = static fn(): int => self::maxActivityRetries($config);
 
         /** @var list<string> $activityHandlers */
         $activityHandlers = $config['activity_handlers'] ?? [];
@@ -602,6 +618,37 @@ final class DurableServiceProvider extends ServiceProvider
             // Recorded when a worker takes the run; Temporal binds no such projection (#447, #458).
             $app->bound(WorkflowRunPickupProjectionInterface::class) ? $app->make(WorkflowRunPickupProjectionInterface::class) : null,
         ));
+    }
+
+    /**
+     * The client port on each backend (workflow-repository, task 4.2). Temporal speaks to the
+     * cluster. The memory and Illuminate backends share the journal client of the core over their
+     * own stores: it appends the signal, then hands the resume to the dispatcher already bound,
+     * which drains it in this process (memory) or pushes a `ResumeWorkflowJob` (Illuminate).
+     */
+    private function bindClient(string $backend): void
+    {
+        $this->app->singleton(WorkflowClientPort::class, static fn($app): WorkflowClientPort => 'temporal' === $backend
+            ? new TemporalWorkflowClientPort($app->make(TemporalRuntimeAssembly::class)->workflowClient())
+            : self::journalClient($app, $backend));
+    }
+
+    private static function journalClient(ContainerContract $app, string $backend): InMemoryWorkflowClient
+    {
+        $events = $app->make(EventStoreInterface::class);
+        $metadata = $app->make(WorkflowMetadataStore::class);
+        $dispatcher = $app->make(WorkflowResumeDispatcher::class);
+
+        return new InMemoryWorkflowClient(
+            $metadata,
+            $dispatcher,
+            $app->make(WorkflowRunCatalogInterface::class),
+            $events,
+            new ReadOnlyReplay($app->make(ExecutionEngine::class), $events, $metadata, $app->make(WorkflowRegistry::class)),
+            new LinkedChildFinalizer($events, $dispatcher, $app->make(ChildWorkflowParentLinkStoreInterface::class)),
+            new ParentChildWorkflowCoordinator($events, $dispatcher),
+            $backend,
+        );
     }
 
     /** @param array<string, mixed> $config */

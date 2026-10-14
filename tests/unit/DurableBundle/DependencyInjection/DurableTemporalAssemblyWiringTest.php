@@ -58,6 +58,7 @@ final class DurableTemporalAssemblyWiringTest extends TestCase
             new Reference(WorkflowRegistry::class),
             new Reference(WorkflowDefinitionLoader::class),
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            '%durable.max_activity_retries%',
         ], $arguments);
     }
 
