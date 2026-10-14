@@ -8,8 +8,14 @@ use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
 use Gplanchat\Durable\Bundle\DurableBundle;
 use Gplanchat\Durable\Exception\ReservedStubMethodName;
 use Gplanchat\Durable\Exception\WorkflowRepositoryWorkflowNotRegistered;
+use Gplanchat\Durable\Store\InMemoryWorkflowClient;
+use Gplanchat\Durable\WorkflowRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
+use unit\DurableBundle\Fixtures\ConsumerOfAGenericRepository;
+use unit\DurableBundle\Fixtures\ConsumerOfAnUnregisteredWorkflow;
+use unit\DurableBundle\Fixtures\ConsumerOfAReservedSignalWorkflow;
 use unit\DurableBundle\Fixtures\WorkflowWithAReservedSignal;
 use unit\DurableBundle\Fixtures\WorkflowWithAReservedSignalRepository;
 use unit\DurableBundle\Fixtures\WorkflowWithEnvironment;
@@ -36,7 +42,7 @@ final class AsWorkflowRepositoryAutoconfigurationTest extends TestCase
             $this->compileWith([WorkflowWithEnvironmentRepository::class]);
             self::fail('The compilation accepted a repository whose workflow is not registered.');
         } catch (WorkflowRepositoryWorkflowNotRegistered $e) {
-            self::assertSame(WorkflowWithEnvironmentRepository::class, $e->repositoryClass);
+            self::assertSame(WorkflowWithEnvironmentRepository::class, $e->requestedBy);
             self::assertSame(WorkflowWithEnvironment::class, $e->workflowClass);
         }
     }
@@ -50,6 +56,39 @@ final class AsWorkflowRepositoryAutoconfigurationTest extends TestCase
             self::assertSame(WorkflowWithAReservedSignal::class, $e->workflowClass);
             self::assertSame('Cancel', $e->method);
         }
+    }
+
+    public function testAParameterWithRepositoryForReceivesAGenericRepositoryOfThatWorkflow(): void
+    {
+        $container = $this->compileWith([WorkflowWithoutDependencies::class, ConsumerOfAGenericRepository::class]);
+
+        $orders = $container->getDefinition(ConsumerOfAGenericRepository::class)->getArgument(0);
+        // The container inlines a private service that one consumer uses.
+        self::assertInstanceOf(Definition::class, $orders);
+        $repository = $orders;
+        self::assertSame(WorkflowRepository::class, $repository->getClass());
+        self::assertSame(WorkflowWithoutDependencies::class, $repository->getArgument(2));
+        self::assertSame(InMemoryWorkflowClient::class, $repository->getArgument(1)->getClass(), 'the port of the configured backend');
+        self::assertSame($orders, $container->getDefinition(ConsumerOfAGenericRepository::class)->getArgument(1), 'one repository per workflow');
+        self::assertArrayNotHasKey(2, $container->getDefinition(ConsumerOfAGenericRepository::class)->getArguments(), 'a parameter without the attribute is left to autowiring');
+    }
+
+    public function testAParameterOfAnUnregisteredWorkflowFailsTheCompilation(): void
+    {
+        try {
+            $this->compileWith([ConsumerOfAnUnregisteredWorkflow::class]);
+            self::fail('The compilation accepted #[RepositoryFor] on a workflow that is not registered.');
+        } catch (WorkflowRepositoryWorkflowNotRegistered $e) {
+            self::assertSame(ConsumerOfAnUnregisteredWorkflow::class, $e->requestedBy);
+            self::assertSame(WorkflowWithEnvironment::class, $e->workflowClass);
+        }
+    }
+
+    public function testAParameterOfAWorkflowWithAReservedMethodNameFailsTheCompilation(): void
+    {
+        $this->expectException(ReservedStubMethodName::class);
+
+        $this->compileWith([WorkflowWithAReservedSignal::class, ConsumerOfAReservedSignalWorkflow::class]);
     }
 
     /**
