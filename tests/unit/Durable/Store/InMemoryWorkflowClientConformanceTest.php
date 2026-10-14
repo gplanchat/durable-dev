@@ -14,12 +14,10 @@ use Gplanchat\Durable\Event\ChildWorkflowScheduled;
 use Gplanchat\Durable\Event\Event;
 use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\ExecutionStarted;
-use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Event\WorkflowSignalReceived;
 use Gplanchat\Durable\Exception\DurableUpdateFailedException;
 use Gplanchat\Durable\Exception\SupersededPassException;
-use Gplanchat\Durable\Exception\UnsupportedByBackendException;
 use Gplanchat\Durable\Exception\UpdateFailureReason;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyEnded;
 use Gplanchat\Durable\Exception\WorkflowExecutionAlreadyStarted;
@@ -61,7 +59,6 @@ use Gplanchat\Durable\WorkflowIdReusePolicy;
 use Gplanchat\Durable\WorkflowRegistry;
 use Gplanchat\Durable\WorkflowStartOptions;
 use Gplanchat\Durable\WorkflowTimeouts;
-use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The in-memory client on a stack that runs the first pass of a workflow in the caller's process,
@@ -245,40 +242,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
         }
     }
 
-    public function testAResultOnARunThatContinuedAsNewWithoutAnIdIsRefusedByName(): void
-    {
-        $id = ExecutionId::fromString('exec-1');
-        $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        $this->appendEnding(new WorkflowContinuedAsNew($id, ConformanceClientWorkflow::TYPE, []));
-
-        $this->expectException(UnsupportedByBackendException::class);
-        $this->client->result($id, Duration::seconds(1));
-    }
-
-    /**
-     * Until task 1.7 follows the chain, an operation on a run that continued as new is refused
-     * rather than delivered to a journal nobody reads any more.
-     */
-    #[DataProvider('actingOperations')]
-    public function testAnExecutionThatContinuedAsNewIsNotEnded(string $operation): void
-    {
-        $id = ExecutionId::fromString('exec-1');
-        $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
-
-        try {
-            match ($operation) {
-                'signal' => $this->client->signal($id, 'pay'),
-                'update' => $this->client->update($id, 'change'),
-                'cancel' => $this->client->cancel($id),
-                default => $this->client->terminate($id),
-            };
-            self::fail('A run that continued as new is refused.');
-        } catch (UnsupportedByBackendException $e) {
-            self::assertStringContainsString($operation . '()', $e->getMessage());
-        }
-    }
-
     /**
      * Known gap of this backend, which Temporal does not have: a pass applies a pending update
      * only inside a condition await, so an update sent while the workflow sleeps is applied by no
@@ -312,32 +275,6 @@ final class InMemoryWorkflowClientConformanceTest extends WorkflowClientPortConf
             self::assertSame('nobody-declares-this', $e->updateName());
             self::assertSame(UpdateFailureReason::NotHandled, $e->reason);
         }
-    }
-
-    #[DataProvider('actingOperations')]
-    public function testAnExecutionThatContinuedAsNewLeavesTheJournalUntouched(string $operation): void
-    {
-        $id = ExecutionId::fromString('exec-1');
-        $this->client->start($id, ConformanceClientWorkflow::TYPE);
-        $this->endRun($id, WorkflowRunStatus::ContinuedAsNew);
-        $written = $this->events->countEventsInStream($id);
-
-        $refused = null;
-
-        try {
-            match ($operation) {
-                'signal' => $this->client->signal($id, 'pay'),
-                'update' => $this->client->update($id, 'change'),
-                'cancel' => $this->client->cancel($id),
-                default => $this->client->terminate($id),
-            };
-        } catch (\Throwable $e) {
-            $refused = $e;
-        }
-
-        self::assertInstanceOf(UnsupportedByBackendException::class, $refused);
-        self::assertSame($written, $this->events->countEventsInStream($id));
-        self::assertSame(WorkflowRunStatus::ContinuedAsNew, $this->catalog->findRun($id)?->status);
     }
 
     public function testTerminatingALinkedChildTellsItsParent(): void
