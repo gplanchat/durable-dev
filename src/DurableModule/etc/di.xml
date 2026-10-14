@@ -96,6 +96,18 @@
         An activity may inject the heartbeat sender (the activities page shows how). This one is a
         no-op in process, and leads to the Temporal worker's sender once the factory built it.
     -->
+    <!--
+        What a declared repository (a subclass of Gplanchat\Durable\WorkflowRepository carrying
+        #[AsWorkflowRepository]) takes: its constructor asks for these two types, and the
+        ObjectManager autowires it with nothing else to declare. Magento cannot read the
+        parameter attribute #[RepositoryFor], so only a declared class is injectable. Both lead to
+        the backend RuntimeFactory assembles from env.php (database, Temporal or memory).
+    -->
+    <preference for="Gplanchat\Durable\Port\WorkflowClientPort"
+                type="Gplanchat\DurableModule\Runtime\FactoryWorkflowClientPort"/>
+    <preference for="Gplanchat\Durable\Port\WorkflowRunCatalogInterface"
+                type="Gplanchat\DurableModule\Runtime\FactoryWorkflowRunCatalog"/>
+
     <preference for="Gplanchat\Durable\Port\ActivityHeartbeatSenderInterface"
                 type="Gplanchat\DurableModule\Runtime\SharedActivityHeartbeatSender"/>
 </config>
