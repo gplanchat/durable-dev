@@ -6,6 +6,7 @@ namespace Gplanchat\DurableModule\Runtime;
 
 use Gplanchat\Bridge\Temporal\Codec\PayloadCodecInterface;
 use Gplanchat\Bridge\Temporal\Http\Psr18Http;
+use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowClientPort;
 use Gplanchat\Bridge\Temporal\Port\TemporalWorkflowResumeDispatcher;
 use Gplanchat\Bridge\Temporal\Store\TaskQueueKind;
 use Gplanchat\Bridge\Temporal\Store\TaskQueuePollers;
@@ -27,16 +28,23 @@ use Gplanchat\Durable\Event\ExecutionCompleted;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\Exception\WorkflowStuckException;
+use Gplanchat\Durable\ExecutionEngine;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\ExecutionRuntime;
+use Gplanchat\Durable\Handler\LinkedChildFinalizer;
 use Gplanchat\Durable\InMemoryWorkflowRunner;
 use Gplanchat\Durable\Nexus\Serving\NexusHandlerDeclarations;
 use Gplanchat\Durable\Nexus\Serving\NexusOperationRegistry;
+use Gplanchat\Durable\ParentChildWorkflowCoordinator;
 use Gplanchat\Durable\Port\WorkflowClientPort;
 use Gplanchat\Durable\Port\WorkflowResumeDispatcher;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
+use Gplanchat\Durable\Query\ReadOnlyReplay;
 use Gplanchat\Durable\RegistryActivityExecutor;
 use Gplanchat\Durable\Store\EventStoreInterface;
+use Gplanchat\Durable\Store\InMemoryChildWorkflowParentLinkStore;
 use Gplanchat\Durable\Store\InMemoryEventStore;
+use Gplanchat\Durable\Store\InMemoryWorkflowClient;
 use Gplanchat\Durable\Store\InMemoryWorkflowMetadataStore;
 use Gplanchat\Durable\Store\InMemoryWorkflowRunCatalog;
 use Gplanchat\Durable\Store\ProjectingEventStore;
@@ -199,7 +207,7 @@ class RuntimeFactory
     private ?TemporalRuntimeAssembly $assembly = null;
 
     private ?DatabaseBackend $database = null;
-    private ?WorkflowClientPort $databaseClient = null;
+    private ?WorkflowClientPort $clientPort = null;
 
     /**
      * Without a DSN: the one journal and catalog of this factory, so a run is found where it was started (#985).
@@ -514,12 +522,46 @@ class RuntimeFactory
     }
 
     /**
-     * The client port of the database backend: start, signal, query, update, result, cancel and
-     * terminate, keyed by execution id. One per factory.
+     * The client port of the backend this factory assembles: start, signal, query, update, result,
+     * cancel and terminate, keyed by execution id. One per factory.
+     *
+     * In memory, a start runs the workflow in this process (as {@see resumeDispatcher()} does), so
+     * nothing advances a run that suspended: a signal or an update reaches the journal and no pass
+     * consumes it.
      */
     public function workflowClientPort(): WorkflowClientPort
     {
-        return $this->databaseClient ??= $this->database()->workflowClient();
+        return $this->clientPort ??= match ($this->backend()) {
+            self::BACKEND_DATABASE => $this->database()->workflowClient(),
+            self::BACKEND_TEMPORAL => new TemporalWorkflowClientPort($this->workflowClient()),
+            default => $this->memoryClient(),
+        };
+    }
+
+    private function memoryClient(): WorkflowClientPort
+    {
+        $journal = new ProjectingEventStore($this->memoryJournal(), $this->memoryCatalog());
+        $metadata = new InMemoryWorkflowMetadataStore();
+        $dispatcher = new InProcessWorkflowResumeDispatcher($this->create(), $this->logger);
+        $registry = new WorkflowRegistry();
+        foreach ($this->workflowClasses as $workflowClass) {
+            $registry->registerClass($workflowClass);
+        }
+        $engine = new ExecutionEngine(
+            $journal,
+            new ExecutionRuntime($journal, new InMemoryActivityTransport($this->clock()), new RegistryActivityExecutor(), 0, $this->clock(), true),
+            workflowDefinitionLoader: new WorkflowDefinitionLoader(),
+        );
+
+        return new InMemoryWorkflowClient(
+            $metadata,
+            $dispatcher,
+            $this->memoryCatalog(),
+            $journal,
+            new ReadOnlyReplay($engine, $journal, $metadata, $registry),
+            new LinkedChildFinalizer($journal, $dispatcher, new InMemoryChildWorkflowParentLinkStore()),
+            new ParentChildWorkflowCoordinator($journal, $dispatcher),
+        );
     }
 
     /** The worker of the database backend (#736): one turn of `durable:worker`. */
