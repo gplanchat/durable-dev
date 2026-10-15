@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Bundle\DependencyInjection\Loader;
 
+use Gplanchat\Durable\Bundle\Command\DebugDurableCommand;
 use Gplanchat\Durable\Bundle\Command\DiagnoseExecutionCommand;
 use Gplanchat\Durable\Bundle\Command\DurableWorkerCommand;
 use Gplanchat\Durable\Bundle\DependencyInjection\DurableExtension;
@@ -48,6 +49,12 @@ final class Commands
         $isTemporalNative = DurableExtension::isTemporalNative($config);
 
         CoreServices::registerActivityProcessor($container, $config, $isTemporalNative);
+
+        // The classes come from WorkflowPass, which sees every #[AsWorkflow] service.
+        $container->register('durable.command.debug', DebugDurableCommand::class)
+            ->setArguments([[]])
+            ->addTag('console.command')
+            ->setPublic(false);
 
         $container->register('durable.command.diagnose', DiagnoseExecutionCommand::class)
             ->setArguments([

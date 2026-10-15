@@ -86,7 +86,9 @@ The bundle does the following, which you would otherwise write by hand:
   `#[AsActivity]` names the contract and registers nothing.
 - **Messenger wiring.** Workflow resumes and activity dispatches go to the transports you name in
   `durable.yaml`, so a workflow that suspends resumes through your existing queues.
-- **One console command.** `durable:execution:diagnose <executionId>` prints what the engine holds
+- **Two console commands to read.** `debug:durable` lists the registered workflows; with a workflow
+  type or class, it shows the entry point's parameters and the signals, queries and updates, by the
+  name a caller sends. `durable:execution:diagnose <executionId>` prints what the engine holds
   for one run: its workflow metadata, its parent/child links and its event journal. The bundle adds
   no worker command; the worker is Messenger's own `messenger:consume` on the transports above.
 - **Profiler panel.** In the Symfony toolbar, the panel shows each execution, its journal, and the

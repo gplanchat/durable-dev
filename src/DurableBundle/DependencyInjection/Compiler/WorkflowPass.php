@@ -27,6 +27,7 @@ final readonly class WorkflowPass implements CompilerPassInterface
         $registry = $container->findDefinition(WorkflowRegistry::class);
         $loader = new WorkflowDefinitionLoader();
 
+        $classes = [];
         foreach (array_keys($container->findTaggedServiceIds('durable.workflow')) as $id) {
             $definition = $container->getDefinition($id);
             $class = $definition->getClass() ?? $id;
@@ -35,6 +36,11 @@ final readonly class WorkflowPass implements CompilerPassInterface
             }
             $loader->load($class);
             $registry->addMethodCall('registerClass', [$class]);
+            $classes[] = $class;
+        }
+
+        if ($container->hasDefinition('durable.command.debug')) {
+            $container->getDefinition('durable.command.debug')->setArgument(0, $classes);
         }
     }
 }

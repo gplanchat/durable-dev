@@ -90,10 +90,12 @@ Le bundle prend en charge ce que vous écririez sinon à la main :
 - **Le câblage Messenger.** Les reprises de workflow et les envois d'activité partent vers les
   transports que vous nommez dans `durable.yaml` : un workflow qui se suspend reprend donc par vos
   files existantes.
-- **Une commande de console.** `durable:execution:diagnose <executionId>` affiche ce que le moteur
-  détient d'une exécution : ses métadonnées de workflow, ses liens parent/enfant et son journal
-  d'événements. Le bundle n'ajoute aucune commande de worker ; le worker est le `messenger:consume`
-  de Messenger sur les transports ci-dessus.
+- **Deux commandes de console pour lire.** `debug:durable` liste les workflows enregistrés ; avec un
+  type ou une classe de workflow, elle montre les paramètres du point d'entrée et les signaux,
+  requêtes et mises à jour, sous le nom qu'un appelant envoie. `durable:execution:diagnose <executionId>`
+  affiche ce que le moteur détient d'une exécution : ses métadonnées de workflow, ses liens
+  parent/enfant et son journal d'événements. Le bundle n'ajoute aucune commande de worker ; le worker
+  est le `messenger:consume` de Messenger sur les transports ci-dessus.
 - **Le panneau du profileur.** Dans la barre d'outils Symfony, le panneau montre chaque exécution,
   son journal et la chronologie de ses activités, avec la tentative qui a échoué et la raison.
 
