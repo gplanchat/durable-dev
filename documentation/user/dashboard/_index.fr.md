@@ -94,7 +94,7 @@ le workflow lui a donné un libellé (`await(…, label: 'signal approve')` affi
 Temporal le dit aussi, grille Magento comprise, par un mémo `durableWaitingOn` que le worker met à
 jour à chaque suspension. Le mémo omet la tentative, puisqu'aucune tâche de workflow ne s'exécute quand une
 tentative d'activité démarre, et le résumé d'un minuteur, qui n'est jamais envoyé au serveur.
-Sylius et Filament affichent la ligne dans la liste et sur la page de l'exécution. Magento et le profileur écrivent la raison sans le préfixe `waiting on`.
+Sylius et Filament affichent la ligne dans la liste et sur la page de l'exécution, dans la langue de l'administration (en français, `En attente du minuteur « grace period » jusqu’au 2026-09-24 10:00:00`), avec une échéance écrite comme la date de démarrage. Magento et le profileur écrivent la raison en anglais, sans le préfixe `waiting on`, et l'échéance en date ISO 8601.
 
 Depuis un terminal, `durable:execution:diagnose <executionId> --story` affiche l'historique, une
 ligne par événement, et se termine par la même information (`Waiting on: signal approve`) ou par

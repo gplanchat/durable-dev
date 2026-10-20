@@ -26,7 +26,7 @@ lecture.
 Une exécution en cours ajoute une ligne qui dit ce qu'elle attend, à sa dernière suspension :
 `waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
 `waiting on activity charge attempt 2 in flight`, ou `waiting on condition at src/…/OrderWorkflow.php:42`.
-Une exécution envoyée et pas encore prise en charge affiche `waiting for a worker` à la place, avec
+Sylius et Filament écrivent cette ligne dans la langue de l'administration et une échéance comme la date de démarrage. Une exécution envoyée et pas encore prise en charge affiche `waiting for a worker` à la place, avec
 le temps qu'elle a attendu.
 
 ## La frise

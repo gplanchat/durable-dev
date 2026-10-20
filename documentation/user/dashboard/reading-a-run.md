@@ -24,7 +24,7 @@ cancelled or continued as new. Two cases need a second look.
 A running run adds one line saying what it waits on, as of its last suspension:
 `waiting on timer "grace period" due at 2026-09-24T10:00:00+00:00`,
 `waiting on activity charge attempt 2 in flight`, or `waiting on condition at src/…/OrderWorkflow.php:42`.
-A run that has been dispatched and not picked up says `waiting for a worker` instead, with the time
+Sylius and Filament word that line in the admin's language and write a deadline like the start date. A run that has been dispatched and not picked up says `waiting for a worker` instead, with the time
 it has waited.
 
 ## The timeline

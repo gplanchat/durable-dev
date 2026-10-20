@@ -90,7 +90,7 @@ it a label (`await(…, label: 'signal approve')` shows `waiting on signal appro
 backends tell it, on a runs table that has the `waiting_on` column. Temporal tells it too, the
 Magento grid included, from a `durableWaitingOn` memo the worker updates at each suspension. It
 leaves out the attempt, since no workflow task runs when an activity attempt starts, and a timer's
-summary, which is never sent to the server. Sylius and Filament show the line in the list and on the run page. Magento and the profiler print the reason without the `waiting on` prefix.
+summary, which is never sent to the server. Sylius and Filament show the line in the list and on the run page, in the admin's language (in French, `En attente du minuteur « grace period » jusqu’au 2026-09-24 10:00:00`), with a deadline written like the start date. Magento and the profiler print the English reason without the `waiting on` prefix, and a deadline as an ISO 8601 date.
 
 From a terminal, `durable:execution:diagnose <executionId> --story` prints the history, one line per
 event, and ends with the same information (`Waiting on: signal approve`) or with `Ended: completed`.

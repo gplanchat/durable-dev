@@ -1511,6 +1511,34 @@ whose `kind` is `terminated` (`WorkflowExecutionFailed::KIND_TERMINATED`), with
 **What to do:** if you match on the `kind` of `WorkflowExecutionFailed` with an exhaustive `match`,
 add the `terminated` case.
 
+### The stored wait is a kind and its parameters (#850)
+
+The `waiting_on` column (DBAL, Illuminate, Magento) and the `durableWaitingOn` memo (Temporal) hold a
+timer, an activity and an activity attempt as a small JSON object, for instance
+`{"kind":"timer","name":"grace period","number":1790244000}`. A condition is stored as text, as
+before. A row written before keeps its English text and reads as a reason: nothing is migrated, and
+a run's wait is rewritten at its next suspension.
+
+`WorkflowRunDescription::$waitingOn` still holds the English words, so a reader that prints it
+changes nothing. `WorkflowRunDescription::$wait` is the same wait as a `Wait`, and
+`localizedWaitingOn` of the run view is a `Message` per kind: `run.waiting_on_timer` (`name`, `due`),
+`run.waiting_on_timer_unnamed` (`due`), `run.waiting_on_activity` (`name`),
+`run.waiting_on_attempt` (`name`, `attempt`), and `run.waiting_on` (`reason`) for a condition and
+for a row written before. `due` is `Y-m-d H:i:s` in UTC, the format the dashboards print dates in.
+`WorkflowSuspendedException::waitingOn()` still returns the English words; `storedWait()` returns
+what a run catalog records.
+
+**What to do:**
+
+1. Upgrade every process that reads runs (the dashboards, `durable:execution:diagnose`) before the
+   workers that write them. A reader from before this change prints the JSON as it finds it.
+2. If you wrote a `WorkflowRunWaitProjectionInterface`, keep storing the string whole. If you wrote
+   a catalog, pass the stored string as `waitingOn` to `WorkflowRunDescription`, which reads both
+   forms.
+3. If a host of your own words `localizedWaitingOn`, add the four keys above to its translations.
+4. If a query or a script reads the column or the memo directly, decode the JSON when the value
+   starts with `{`.
+
 ## 0.1.0-beta1
 
 ### A failed retry enqueue is sent again; journals gain `ActivityRetryQueued` (#590)
