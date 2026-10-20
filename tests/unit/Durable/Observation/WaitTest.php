@@ -20,7 +20,7 @@ final class WaitTest extends TestCase
 
         self::assertSame('timer "grace period" due at 2026-09-24T10:00:00+00:00', $wait->toString());
         self::assertEquals(
-            new Message('run.waiting_on.timer', ['name' => 'grace period', 'due' => '2026-09-24 10:00:00']),
+            new Message('run.waiting_on_timer', ['name' => 'grace period', 'due' => '2026-09-24 10:00:00']),
             $wait->message(),
         );
     }
@@ -30,7 +30,7 @@ final class WaitTest extends TestCase
         $wait = Wait::fromStorage(Wait::timer('', 1790244000)->toStorage());
 
         self::assertSame('timer due at 2026-09-24T10:00:00+00:00', $wait->toString());
-        self::assertEquals(new Message('run.waiting_on.timer_unnamed', ['due' => '2026-09-24 10:00:00']), $wait->message());
+        self::assertEquals(new Message('run.waiting_on_timer_unnamed', ['due' => '2026-09-24 10:00:00']), $wait->message());
     }
 
     public function testAnActivityAndItsAttempt(): void
@@ -39,9 +39,9 @@ final class WaitTest extends TestCase
         $attempt = Wait::fromStorage(Wait::attempt('charge', 2)->toStorage());
 
         self::assertSame('activity charge', $activity->toString());
-        self::assertEquals(new Message('run.waiting_on.activity', ['name' => 'charge']), $activity->message());
+        self::assertEquals(new Message('run.waiting_on_activity', ['name' => 'charge']), $activity->message());
         self::assertSame('activity charge attempt 2 in flight', $attempt->toString());
-        self::assertEquals(new Message('run.waiting_on.attempt', ['name' => 'charge', 'attempt' => 2]), $attempt->message());
+        self::assertEquals(new Message('run.waiting_on_attempt', ['name' => 'charge', 'attempt' => 2]), $attempt->message());
     }
 
     public function testATextWrittenBeforeTheKindsExistedIsTheReason(): void

@@ -10,6 +10,7 @@ use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationState;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunDashboard;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
@@ -471,7 +472,7 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         // #850: the core hands a key and its parameters beside the English string.
         $french = $this->render(waiting: true, waitingOn: 'timer due at 2026-09-24T10:00:00+00:00', locale: 'fr');
         self::assertStringContainsString('En attente d’un worker · ', $french);
-        self::assertStringContainsString('En attente de timer due at 2026-09-24T10:00:00+00:00', $french);
+        self::assertStringContainsString('En attente de timer due at 2026-09-24T10:00:00+00:00', $french, 'text from before the kinds stays the reason');
         self::assertStringContainsString('La base SQL répond.', $french);
         self::assertStringNotContainsString('waiting for a worker', $french);
         self::assertStringNotContainsString('The fake backend answers.', $french);
@@ -485,6 +486,18 @@ final class TheDashboardRendersARunHistoryTest extends TestCase
         self::assertStringContainsString('waiting for a worker · ', $other);
         self::assertStringContainsString('waiting on timer due at 2026-09-24T10:00:00+00:00', $other);
         self::assertStringContainsString('The fake backend answers.', $other);
+    }
+
+    public function testAStoredTimerIsWordedInTheAdminsLanguageWithItsDateOnTheStartedFormat(): void
+    {
+        $stored = Wait::timer('fraud review hold', 1790244000)->toStorage();
+
+        $french = $this->render(waiting: true, waitingOn: $stored, locale: 'fr');
+        self::assertStringContainsString('En attente du minuteur « fraud review hold » jusqu’au 2026-09-24 10:00:00', $french);
+        self::assertStringNotContainsString('2026-09-24T10:00:00+00:00', $french);
+
+        $english = $this->render(waiting: true, waitingOn: $stored);
+        self::assertStringContainsString('waiting on timer &quot;fraud review hold&quot; due at 2026-09-24 10:00:00', $english);
     }
 
     public function testTheWholePageSpeaksFrenchWhenTheAdminDoes(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gplanchat\Durable\Filament\Tests;
 
 use Gplanchat\Durable\Observation\Message;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
 use Gplanchat\Durable\Port\WorkflowRunCatalogInterface;
@@ -56,6 +57,17 @@ final class TheRunListTest extends PanelTestCase
             ->assertSee('En attente d’un worker · ')
             ->assertSee('La base SQL répond.')
             ->assertDontSee('waiting on payment-received');
+    }
+
+    public function testAStoredTimerIsWordedFromItsKindAndItsDateIsOnTheStartedFormat(): void
+    {
+        $this->catalog->runs[] = new WorkflowRunDescription('run-4', 'App\\ShipWorkflow', WorkflowRunStatus::Running, new \DateTimeImmutable('2026-09-29 09:00:00'), waitingOn: Wait::timer('fraud review hold', 1790244000)->toStorage(), executionId: 'ship-2');
+        $this->app->setLocale('fr');
+
+        $this->get('/admin/durable/runs')
+            ->assertOk()
+            ->assertSee('En attente du minuteur « fraud review hold » jusqu’au 2026-09-24 10:00:00')
+            ->assertDontSee('2026-09-24T10:00:00+00:00');
     }
 
     public function testTheCoreTextsStayEnglishInALocaleWithoutTheKey(): void

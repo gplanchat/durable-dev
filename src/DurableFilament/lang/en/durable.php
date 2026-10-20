@@ -57,6 +57,10 @@ return [
     'run' => [
         'waiting_for_worker' => 'waiting for a worker · :elapsed',
         'waiting_on' => 'waiting on :reason',
+        'waiting_on_timer' => 'waiting on timer ":name" due at :due',
+        'waiting_on_timer_unnamed' => 'waiting on timer due at :due',
+        'waiting_on_activity' => 'waiting on activity :name',
+        'waiting_on_attempt' => 'waiting on activity :name, attempt :attempt in flight',
         'title' => 'Workflow run',
         'back' => 'Back to the runs',
         'not_found' => 'No run with this id on this backend.',

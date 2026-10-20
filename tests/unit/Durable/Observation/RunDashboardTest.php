@@ -449,7 +449,7 @@ final class RunDashboardTest extends TestCase
 
         self::assertSame('waiting on timer "fraud review hold" due at 2026-09-24T10:00:00+00:00', $view['runs'][0]['waitingOn']);
         self::assertEquals(
-            new Message('run.waiting_on.timer', ['name' => 'fraud review hold', 'due' => '2026-09-24 10:00:00']),
+            new Message('run.waiting_on_timer', ['name' => 'fraud review hold', 'due' => '2026-09-24 10:00:00']),
             $view['runs'][0]['localizedWaitingOn'],
         );
     }

@@ -60,6 +60,10 @@
             <trans-unit id="nexus.state.cancelled"><source>nexus.state.cancelled</source><target>annulée</target></trans-unit>
             <trans-unit id="run.waiting_for_worker"><source>run.waiting_for_worker</source><target>En attente d’un worker · %elapsed%</target></trans-unit>
             <trans-unit id="run.waiting_on"><source>run.waiting_on</source><target>En attente de %reason%</target></trans-unit>
+            <trans-unit id="run.waiting_on_timer"><source>run.waiting_on_timer</source><target>En attente du minuteur « %name% » jusqu’au %due%</target></trans-unit>
+            <trans-unit id="run.waiting_on_timer_unnamed"><source>run.waiting_on_timer_unnamed</source><target>En attente d’un minuteur jusqu’au %due%</target></trans-unit>
+            <trans-unit id="run.waiting_on_activity"><source>run.waiting_on_activity</source><target>En attente de l’activité %name%</target></trans-unit>
+            <trans-unit id="run.waiting_on_attempt"><source>run.waiting_on_attempt</source><target>En attente de l’activité %name%, tentative %attempt% en cours</target></trans-unit>
             <trans-unit id="backend.not_configured"><source>backend.not_configured</source><target>Aucun backend Durable lisible n’est configuré pour cette application.</target></trans-unit>
             <trans-unit id="backend.sql.answers"><source>backend.sql.answers</source><target>La base SQL répond.</target></trans-unit>
             <trans-unit id="backend.sql.unreachable"><source>backend.sql.unreachable</source><target>La base SQL est injoignable : %error%</target></trans-unit>

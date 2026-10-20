@@ -88,10 +88,10 @@ final readonly class Wait
     {
         return match ($this->kind) {
             self::TIMER => '' === $this->name
-                ? new Message('run.waiting_on.timer_unnamed', ['due' => $this->deadline()->format('Y-m-d H:i:s')])
-                : new Message('run.waiting_on.timer', ['name' => $this->name, 'due' => $this->deadline()->format('Y-m-d H:i:s')]),
-            self::ACTIVITY => new Message('run.waiting_on.activity', ['name' => $this->name]),
-            self::ATTEMPT => new Message('run.waiting_on.attempt', ['name' => $this->name, 'attempt' => $this->number]),
+                ? new Message('run.waiting_on_timer_unnamed', ['due' => $this->deadline()->format('Y-m-d H:i:s')])
+                : new Message('run.waiting_on_timer', ['name' => $this->name, 'due' => $this->deadline()->format('Y-m-d H:i:s')]),
+            self::ACTIVITY => new Message('run.waiting_on_activity', ['name' => $this->name]),
+            self::ATTEMPT => new Message('run.waiting_on_attempt', ['name' => $this->name, 'attempt' => $this->number]),
             default => new Message('run.waiting_on', ['reason' => $this->name]),
         };
     }
