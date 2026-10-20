@@ -107,7 +107,7 @@ final readonly class ResumeWorkflowHandler
             // The catalog that records pickups usually records waits too (#324): one projection, two facts.
             // Recorded even without words, so that it clears the previous wait instead of leaving it stale.
             if ($this->pickups instanceof WorkflowRunWaitProjectionInterface) {
-                $this->pickups->recordWait($id, $e->waitingOn());
+                $this->pickups->recordWait($id, $e->storedWait());
             }
             if ($e->shouldDispatchResume()) {
                 if (!$e->waitingOnTimer()) {

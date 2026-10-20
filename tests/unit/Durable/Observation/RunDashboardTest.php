@@ -10,6 +10,7 @@ use Gplanchat\Durable\Observation\Message;
 use Gplanchat\Durable\Observation\NexusOperationState;
 use Gplanchat\Durable\Observation\NexusOperationSummary;
 use Gplanchat\Durable\Observation\RunDashboard;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunEventKind;
@@ -440,6 +441,19 @@ final class RunDashboardTest extends TestCase
         self::assertSame(2, $view['waitingForWorkerOnThisPage'], 'counted over the page, like the outcome counters');
     }
 
+    public function testAStoredTimerTravelsAsItsNameAndItsDate(): void
+    {
+        $view = $this->viewOver([
+            new WorkflowRunDescription('asleep', 'App\\OrderWorkflow', WorkflowRunStatus::Running, waitingOn: Wait::timer('fraud review hold', 1790244000)->toStorage()),
+        ])->build();
+
+        self::assertSame('waiting on timer "fraud review hold" due at 2026-09-24T10:00:00+00:00', $view['runs'][0]['waitingOn']);
+        self::assertEquals(
+            new Message('run.waiting_on.timer', ['name' => 'fraud review hold', 'due' => '2026-09-24 10:00:00']),
+            $view['runs'][0]['localizedWaitingOn'],
+        );
+    }
+
     public function testASuspendedRunSaysWhatItWaitsOn(): void
     {
         $view = $this->viewOver([
@@ -449,8 +463,8 @@ final class RunDashboardTest extends TestCase
 
         self::assertSame('waiting on timer due at 2026-09-24T10:00:00+00:00', $view['runs'][0]['waitingOn']);
         self::assertArrayNotHasKey('waitingOn', $view['runs'][1], 'a fact the backend does not keep is absent');
-        // The reason is persisted English prose until the stored wait carries a code (#850): it travels as a parameter.
-        self::assertEquals(new Message('run.waiting_on', ['reason' => 'timer due at 2026-09-24T10:00:00+00:00']), $view['runs'][0]['localizedWaitingOn']);
+        // Text stored before the kinds existed (#850) travels as the reason.
+        self::assertEquals(new Message('run.waiting_on', ['reason' => 'timer due at 2026-09-24T10:00:00+00:00']), $view['runs'][0]['localizedWaitingOn'], 'text from before the kinds stays the reason');
         self::assertArrayNotHasKey('localizedWaitingOn', $view['runs'][1]);
     }
 

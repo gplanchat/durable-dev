@@ -75,7 +75,7 @@ final readonly class Wait
             self::TIMER => \sprintf(
                 'timer %sdue at %s',
                 '' === $this->name ? '' : '"' . $this->name . '" ',
-                (new \DateTimeImmutable('@' . $this->number))->format(\DATE_ATOM),
+                $this->deadline()->format(\DATE_ATOM),
             ),
             self::ACTIVITY => 'activity ' . $this->name,
             self::ATTEMPT => \sprintf('activity %s attempt %d in flight', $this->name, $this->number),
@@ -88,16 +88,16 @@ final readonly class Wait
     {
         return match ($this->kind) {
             self::TIMER => '' === $this->name
-                ? new Message('run.waiting_on.timer_unnamed', ['due' => self::due($this->number)])
-                : new Message('run.waiting_on.timer', ['name' => $this->name, 'due' => self::due($this->number)]),
+                ? new Message('run.waiting_on.timer_unnamed', ['due' => $this->deadline()->format('Y-m-d H:i:s')])
+                : new Message('run.waiting_on.timer', ['name' => $this->name, 'due' => $this->deadline()->format('Y-m-d H:i:s')]),
             self::ACTIVITY => new Message('run.waiting_on.activity', ['name' => $this->name]),
             self::ATTEMPT => new Message('run.waiting_on.attempt', ['name' => $this->name, 'attempt' => $this->number]),
             default => new Message('run.waiting_on', ['reason' => $this->name]),
         };
     }
 
-    private static function due(?int $timestamp): string
+    private function deadline(): \DateTimeImmutable
     {
-        return (new \DateTimeImmutable('@' . $timestamp))->format('Y-m-d H:i:s');
+        return new \DateTimeImmutable('@' . (int) $this->number);
     }
 }

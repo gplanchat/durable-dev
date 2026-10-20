@@ -12,7 +12,7 @@ use Gplanchat\Durable\Event\WorkflowContinuedAsNew;
 use Gplanchat\Durable\Event\WorkflowExecutionCancelled;
 use Gplanchat\Durable\Event\WorkflowExecutionFailed;
 use Gplanchat\Durable\ExecutionId;
-use Gplanchat\Durable\Observation\WaitReason;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\Observation\WorkflowRunPickupProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunProjectionInterface;
 use Gplanchat\Durable\Observation\WorkflowRunStatus;
@@ -75,7 +75,7 @@ final readonly class ProjectingEventStore implements FencedEventStoreInterface
 
         // The run waits on this activity while a worker runs it: the attempt number is only known here.
         if ($event instanceof ActivityTaskStarted && $this->projection instanceof WorkflowRunWaitProjectionInterface) {
-            $this->projection->recordWait($event->executionId(), WaitReason::attempt($event));
+            $this->projection->recordWait($event->executionId(), Wait::attempt($event->activityName(), $event->attempt())->toStorage());
         }
 
         $status = self::outcomeOf($event);
