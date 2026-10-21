@@ -99,8 +99,9 @@ jobs:
                     - { php-version: '8.2', symfony: '7.4.*', deps: 'lowest', label: '7.4 lowest' }
                     # 7.4 LTS under a recent PHP: what the lock resolves today.
                     - { php-version: '8.4', symfony: '7.4.*', deps: 'highest', label: '7.4 highest' }
-                    # Line 8: requires PHP >= 8.4, so never reachable locally on 8.2.
-                    - { php-version: '8.4', symfony: '8.0.*', deps: 'lowest', label: '8.0 lowest' }
+                    # Line 8: requires PHP >= 8.4, so never reachable locally on 8.2. Its floor is 8.1:
+                    # 8.0.x is end of life and blocked by Composer's security advisories, as 7.0 to 7.3 are.
+                    - { php-version: '8.4', symfony: '8.1.*', deps: 'lowest', label: '8.1 lowest' }
                     - { php-version: '8.5', symfony: '8.*', deps: 'highest', label: '8.x highest' }
         steps:
             - uses: actions/checkout@v7
