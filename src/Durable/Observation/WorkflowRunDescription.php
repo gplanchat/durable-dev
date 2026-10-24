@@ -35,6 +35,12 @@ final readonly class WorkflowRunDescription
 {
     public string $executionId;
 
+    /** `waitingOn` as a kind and its parameters, for a surface that words it itself (#850). */
+    public ?Wait $wait;
+
+    /** The English words of the wait, as every surface has always shown them. */
+    public ?string $waitingOn;
+
     public function __construct(
         public string $runId,
         public string $workflowName,
@@ -43,9 +49,12 @@ final readonly class WorkflowRunDescription
         public ?\DateTimeImmutable $endedAt = null,
         public ?string $groupId = null,
         public ?\DateTimeImmutable $waitingForWorkerSince = null,
-        public ?string $waitingOn = null,
+        ?string $waitingOn = null,
         ?string $executionId = null,
     ) {
         $this->executionId = $executionId ?? $runId;
+        // A catalog hands over what it stored, which is the kind and its parameters or text from before they existed.
+        $this->wait = null === $waitingOn ? null : Wait::fromStorage($waitingOn);
+        $this->waitingOn = $this->wait?->toString();
     }
 }

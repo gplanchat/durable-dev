@@ -58,6 +58,10 @@ return [
     'run' => [
         'waiting_for_worker' => 'En attente d’un worker · :elapsed',
         'waiting_on' => 'En attente de :reason',
+        'waiting_on_timer' => 'En attente du minuteur « :name » jusqu’au :due',
+        'waiting_on_timer_unnamed' => 'En attente d’un minuteur jusqu’au :due',
+        'waiting_on_activity' => 'En attente de l’activité :name',
+        'waiting_on_attempt' => 'En attente de l’activité :name, tentative :attempt en cours',
         'title' => 'Exécution de workflow',
         'back' => 'Retour aux exécutions',
         'not_found' => 'Aucune exécution de cet identifiant sur ce backend.',

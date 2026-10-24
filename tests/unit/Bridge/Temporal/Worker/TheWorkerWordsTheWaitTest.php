@@ -12,6 +12,7 @@ use Gplanchat\Bridge\Temporal\Journal\JournalExecutionIdResolver;
 use Gplanchat\Bridge\Temporal\TemporalConnection;
 use Gplanchat\Bridge\Temporal\Worker\WorkflowTaskRunner;
 use Gplanchat\Bridge\Temporal\WorkflowServiceClientInterface;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\WorkflowEnvironment;
 use Gplanchat\Durable\WorkflowRegistry;
 use PHPUnit\Framework\TestCase;
@@ -43,14 +44,14 @@ final class TheWorkerWordsTheWaitTest extends TestCase
         $commands = $this->task('ActivityWorkflow', [self::started(1)]);
 
         self::assertSame(CommandType::COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, $commands[0]->getCommandType(), 'the memo does not push the schedule out of its slot');
-        self::assertSame('activity greet', self::waitIn($commands));
+        self::assertSame(Wait::activity('greet')->toStorage(), self::waitIn($commands));
     }
 
     public function testAnActivityScheduledInAnEarlierTaskIsStillNamed(): void
     {
         $commands = $this->task('ActivityWorkflow', [self::started(1), self::activityScheduled(5, 'greet')]);
 
-        self::assertSame('activity greet', self::waitIn($commands));
+        self::assertSame(Wait::activity('greet')->toStorage(), self::waitIn($commands));
         self::assertCount(1, $commands, 'no second schedule on replay');
     }
 
@@ -83,7 +84,7 @@ final class TheWorkerWordsTheWaitTest extends TestCase
 
     public function testTheSameWaitIsNotWrittenTwiceAndTheModifiedEventReplays(): void
     {
-        $commands = $this->task('ActivityWorkflow', [self::started(1), self::activityScheduled(5, 'greet'), self::waitRecorded(6, 'activity greet')]);
+        $commands = $this->task('ActivityWorkflow', [self::started(1), self::activityScheduled(5, 'greet'), self::waitRecorded(6, Wait::activity('greet')->toStorage())]);
 
         self::assertSame([], $commands, 'an unchanged wait costs no history event, and the replay schedules nothing again');
     }
@@ -178,7 +179,7 @@ final class TheWorkerWordsTheWaitTest extends TestCase
 
     private static function dueAt(int $at): string
     {
-        return 'timer due at ' . (new \DateTimeImmutable('@' . $at))->format(\DATE_ATOM);
+        return Wait::timer('', $at)->toStorage();
     }
 
     private static function event(int $id, int $type): HistoryEvent

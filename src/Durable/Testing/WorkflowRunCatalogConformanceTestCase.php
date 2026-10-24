@@ -6,6 +6,7 @@ namespace Gplanchat\Durable\Testing;
 
 use Gplanchat\Durable\Exception\RunFilterUnavailableException;
 use Gplanchat\Durable\ExecutionId;
+use Gplanchat\Durable\Observation\Wait;
 use Gplanchat\Durable\Observation\WorkflowRunDescription;
 use Gplanchat\Durable\Observation\WorkflowRunEvent;
 use Gplanchat\Durable\Observation\WorkflowRunFilter;
@@ -211,6 +212,23 @@ abstract class WorkflowRunCatalogConformanceTestCase extends TestCase
             $runs['asleep']->waitingOn,
             'the latest wait wins; a fact the catalog cannot tell is absent',
         );
+    }
+
+    public function testAStoredWaitComesBackAsTheSameKindAndParameters(): void
+    {
+        $this->startRun('asleep', 'App\\OrderWorkflow');
+        if ($this->canTellAWait()) {
+            $this->recordWait('asleep', Wait::timer('fraud review hold', 1790244000)->toStorage());
+        }
+
+        $run = $this->catalogUnderTest()->listRuns()->runs[0];
+
+        self::assertEquals(
+            $this->canTellAWait() ? Wait::timer('fraud review hold', 1790244000) : null,
+            $run->wait,
+            'a store keeps the string whole, so a surface can word the wait and format the date itself',
+        );
+        self::assertSame($this->canTellAWait() ? 'timer "fraud review hold" due at 2026-09-24T10:00:00+00:00' : null, $run->waitingOn);
     }
 
     public function testAWaitWithoutWordsClearsThePreviousOne(): void

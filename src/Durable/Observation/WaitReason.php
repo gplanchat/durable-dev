@@ -36,9 +36,19 @@ final class WaitReason
      */
     public static function describe(Awaitable $awaitable, EventStoreInterface $events, ExecutionId $executionId): ?string
     {
+        return self::wait($awaitable, $events, $executionId)?->toString();
+    }
+
+    /**
+     * The same wait as a {@see Wait}, which is what a run catalog stores (#850).
+     *
+     * @param Awaitable<mixed> $awaitable
+     */
+    public static function wait(Awaitable $awaitable, EventStoreInterface $events, ExecutionId $executionId): ?Wait
+    {
         $condition = AwaitableInspector::describeCondition($awaitable);
         if (null !== $condition) {
-            return $condition;
+            return Wait::text($condition);
         }
 
         $leaf = self::firstLeaf($awaitable);
@@ -49,17 +59,13 @@ final class WaitReason
         $reason = null;
         foreach ($events->readStream($executionId) as $event) {
             if ($leaf instanceof TimerAwaitable && $event instanceof TimerScheduled && $event->timerId() === $leaf->timerId()) {
-                $reason = \sprintf(
-                    'timer %sdue at %s',
-                    '' === $event->summary() ? '' : '"' . $event->summary() . '" ',
-                    (new \DateTimeImmutable('@' . (int) $event->scheduledAt()))->format(\DATE_ATOM),
-                );
+                $reason = Wait::timer($event->summary(), (int) $event->scheduledAt());
             }
             if ($leaf instanceof ActivityAwaitable && $event instanceof ActivityScheduled && $event->activityId() === $leaf->activityId()) {
-                $reason = 'activity ' . $event->activityName();
+                $reason = Wait::activity($event->activityName());
             }
             if ($leaf instanceof ActivityAwaitable && $event instanceof ActivityTaskStarted && $event->activityId() === $leaf->activityId()) {
-                $reason = self::attempt($event);
+                $reason = Wait::attempt($event->activityName(), $event->attempt());
             }
         }
 
@@ -71,7 +77,7 @@ final class WaitReason
      */
     public static function attempt(ActivityTaskStarted $event): string
     {
-        return \sprintf('activity %s attempt %d in flight', $event->activityName(), $event->attempt());
+        return Wait::attempt($event->activityName(), $event->attempt())->toString();
     }
 
     /**

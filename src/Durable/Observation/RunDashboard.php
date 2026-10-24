@@ -252,9 +252,7 @@ final readonly class RunDashboard
         if (null !== $run->waitingOn) {
             // What the run last suspended on (#324), worded once for every surface, as above.
             $described['waitingOn'] = 'waiting on ' . $run->waitingOn;
-            // The reason is English prose written at suspension and stored: it travels as a parameter
-            // until the stored wait carries a code (#850).
-            $described['localizedWaitingOn'] = new Message('run.waiting_on', ['reason' => $run->waitingOn]);
+            $described['localizedWaitingOn'] = $run->wait?->message();
         }
 
         return $described;

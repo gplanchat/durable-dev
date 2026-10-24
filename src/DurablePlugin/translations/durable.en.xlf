@@ -60,6 +60,10 @@
             <trans-unit id="nexus.state.cancelled"><source>nexus.state.cancelled</source><target>cancelled</target></trans-unit>
             <trans-unit id="run.waiting_for_worker"><source>run.waiting_for_worker</source><target>waiting for a worker · %elapsed%</target></trans-unit>
             <trans-unit id="run.waiting_on"><source>run.waiting_on</source><target>waiting on %reason%</target></trans-unit>
+            <trans-unit id="run.waiting_on_timer"><source>run.waiting_on_timer</source><target>waiting on timer "%name%" due at %due%</target></trans-unit>
+            <trans-unit id="run.waiting_on_timer_unnamed"><source>run.waiting_on_timer_unnamed</source><target>waiting on timer due at %due%</target></trans-unit>
+            <trans-unit id="run.waiting_on_activity"><source>run.waiting_on_activity</source><target>waiting on activity %name%</target></trans-unit>
+            <trans-unit id="run.waiting_on_attempt"><source>run.waiting_on_attempt</source><target>waiting on activity %name%, attempt %attempt% in flight</target></trans-unit>
             <trans-unit id="backend.not_configured"><source>backend.not_configured</source><target>No readable durable backend is configured for this application.</target></trans-unit>
             <trans-unit id="backend.sql.answers"><source>backend.sql.answers</source><target>The SQL database answers.</target></trans-unit>
             <trans-unit id="backend.sql.unreachable"><source>backend.sql.unreachable</source><target>The SQL database is unreachable: %error%</target></trans-unit>

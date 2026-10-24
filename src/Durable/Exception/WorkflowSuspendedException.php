@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Gplanchat\Durable\Exception;
 
+use Gplanchat\Durable\Observation\Wait;
+
 /**
  * Thrown when the workflow must stop and be re-dispatched
  * (distributed mode, activity pending).
@@ -25,7 +27,7 @@ final class WorkflowSuspendedException extends \RuntimeException
         /**
          * What the wait bears on, when that has a name: without it, a runner that observes an
          * execution no longer moving forward can only say "stuck", never "stuck on that
-         * particular condition".
+         * particular condition". Held in its stored form ({@see \Gplanchat\Durable\Observation\Wait}).
          */
         private readonly ?string $waitingOn = null,
     ) {
@@ -46,6 +48,12 @@ final class WorkflowSuspendedException extends \RuntimeException
      * schedule {@see \Gplanchat\Durable\Transport\FireWorkflowTimersMessage} (possibly with a Messenger delay).
      */
     public function waitingOn(): ?string
+    {
+        return null === $this->waitingOn ? null : Wait::fromStorage($this->waitingOn)->toString();
+    }
+
+    /** What a run catalog records: the kind and its parameters, so a dashboard can word it itself (#850). */
+    public function storedWait(): ?string
     {
         return $this->waitingOn;
     }
