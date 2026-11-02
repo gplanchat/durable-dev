@@ -10,7 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^13.39",
         "laravel/tinker": "^3.0.2",
         "gplanchat/durable": "@dev",
         "gplanchat/durable-laravel": "@dev",
